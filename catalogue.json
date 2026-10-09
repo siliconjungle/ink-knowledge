@@ -83,6 +83,14 @@
       "roots": 39
     },
     {
+      "name": "rewrite-search",
+      "lock": "rewrite-search/lock.json",
+      "lock_sha256": "3f4d7be6ea369b6d85a1ab4358200c6a45cd45e99069780efb26d68249997c55",
+      "semantics": "first-order-inductive-equality-v1",
+      "checker_command": "verify-library",
+      "roots": 19
+    },
+    {
       "name": "source-column-layout",
       "lock": "source-column-layout/lock.json",
       "lock_sha256": "27ef12a62e2f04f8d2ce614684001aaa8d10527b816a8497ef4d5d3ec9de1bf0",

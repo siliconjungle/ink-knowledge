@@ -81,6 +81,24 @@ The catalogue history was extracted from `ink-lang` through commit `c1b4035`.
 Original object bytes and package files are preserved. Proof producers were
 moved from that compiler revision with path configuration changes.
 
+## Bounded rewrite search
+
+```sh
+python3 tools/rewrite_search.py rewrite-search/kernels.ink \
+  --rules bitvector/rewrite-index.json --compiler /path/to/ink \
+  --output-dir /tmp/ink-search --budget 10000
+```
+
+The rule index is untrusted discovery/selection data. The producer reads theorem
+endpoints from the pinned library and constructs complete congruence/induction
+proofs; the compiler checks them independently. No SAT solver is needed when
+reusing these existing certificates. Search handles scalars and single mapped
+sums. `--fuse-mapped-sum` adds a fold candidate with an explicit induction proof.
+Unsupported structures, insufficient budget and square factoring retain the
+original implementation. A node-count estimate chooses smaller expressions;
+it is not a performance measurement. `rewrite-search/` is a reproducible example
+with lexical shadowing and a deliberately unproved factoring case.
+
 ## Extension contract
 
 New knowledge must use the fixed checking rules. Packages cannot install an
