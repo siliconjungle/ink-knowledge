@@ -18,6 +18,22 @@ python3 ink-knowledge/tools/catalogue.py list
 /path/to/ink build program.ink --implementation ink-knowledge/filtered/proposal.json -o program.o
 ```
 
+With a compiler supporting `ink-executable-core-v1`, pin both the executable
+program and the exact proof-library lock before admission:
+
+```sh
+python3 ink-knowledge/tools/replacement_package.py \
+  ink-knowledge/filtered/kernels.lang ink-knowledge/filtered/proposal.json \
+  --compiler /path/to/ink --output-dir /tmp/ink-replacement
+/path/to/ink build /tmp/ink-replacement/core.json --core \
+  --replacement /tmp/ink-replacement/replacement.json -o program.o
+```
+
+The producer requires an empty output directory, copies immutable proof bytes,
+and asks the unchanged compiler to check the result. It is untrusted tooling.
+The current observation domain is pure total-value equality; this envelope
+does not authorise stateful migration, event changes or allocation-failure claims.
+
 `ink-lang` pins a commit of this repository as its `knowledge` submodule for
 integration tests and reproducible experiments. An installed compiler accepts
 explicit external package paths and does not fetch the latest catalogue.
