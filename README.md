@@ -146,3 +146,33 @@ result, using existing step and roundtrip theorems. No new axiom or kernel rule
 is required. These examples use boxed datatype storage and make no timing
 claim. Efficient physical storage, full Ink source transactions and native
 backend verification remain separate obligations.
+
+## Source placement and complete-cost selection
+
+`tools/source_routing.py` partitions an actual checked pure source entry into
+literal calls, shares repeated identical calls, and supplies explicit placements.
+The small core checks exact source reconstruction and typed edges; neither this
+producer nor a package name grants optimisation authority. Unsupported bodies or
+partition budgets retain an unchanged whole-entry CPU stage (`--baseline` can
+request it explicitly).
+
+```sh
+python3 tools/source_routing.py --core core.json --entry entry \
+  --placements placements.json --compiler /path/to/ink -o mixed.json
+python3 tools/source_routing.py --core core.json --entry entry --baseline \
+  --compiler /path/to/ink -o baseline.json
+python3 tools/route_selection.py --core core.json --baseline baseline.json \
+  --candidates candidates.json --measurements measurements.json \
+  --compiler /path/to/ink -o selected.json
+```
+
+The candidate index is an array of relative package paths. Measurements are
+separate schema-1 records naming core identity, entry, target, workload and
+`metric: "complete-call-ms"`; `samples` maps exact package-byte SHA256 identities
+to bounded nonnegative complete-call timings. Every candidate is checked before
+selection, even when its measured cost is zero. Missing comparable baseline
+measurements keep baseline; malformed measurements fail without overwriting
+output. Candidate count, file/sample sizes and checking time have explicit
+budgets. These are compile-time selection inputs, not semantic facts, runtime
+adaptation or formally verified physical bridges. See ink-lang's
+`docs/source-routing.md` and `reports/source-routing-phase1`.
