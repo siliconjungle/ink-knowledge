@@ -91,6 +91,14 @@
       "roots": 36
     },
     {
+      "name": "incremental-views",
+      "lock": "incremental-views/lock.json",
+      "lock_sha256": "bf2a81c6de56e60bb8dbe696fe58391bbe9d945a76674c94587b4df068aee320",
+      "semantics": "first-order-inductive-equality-v1",
+      "checker_command": "verify-library",
+      "roots": 55
+    },
+    {
       "name": "inductive",
       "lock": "inductive/lock.json",
       "lock_sha256": "752b1e5dac90c7e07029e173e758a76e9a41df1e6ad0cd3dfff1699533df70eb",
