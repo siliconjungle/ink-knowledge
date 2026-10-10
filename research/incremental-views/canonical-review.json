@@ -1,0 +1,22 @@
+{
+  "schema": 1,
+  "base_revision": "8803b96",
+  "reviewed_import_revision": "9366b0d",
+  "canonical_entries": 595,
+  "added_entries": 20,
+  "incremental_closure": 55,
+  "snapshot": "5404c144f95f7f5a57f5ad35c8cee25cc3f58daa10d8ac08667e163bff83a1b9",
+  "core_revision": "f688079b78dcd740a42cf1655fec9629c862bf69",
+  "canonical_verification": {
+    "snapshot": "5404c144f95f7f5a57f5ad35c8cee25cc3f58daa10d8ac08667e163bff83a1b9",
+    "verified": 55
+  },
+  "negative_control": "inductive proof proves a different statement",
+  "storage_tests": 6,
+  "research_reproduction": "55 objects, names and lock byte-identical after producer relocation",
+  "existing_rewrite_payloads_changed": false,
+  "existing_name_targets_changed": false,
+  "scope": "Checked append mathematics. Not full signed-delta, source-action or native refinement.",
+  "harness_sha256": "c9fcd63ef02f4f91b3d031989161915f09ba5fb89f41f9d71655ac739c9bae4b",
+  "compiler_binary_sha256": "aef8ce3fe12e9289a3954f55f35ea19dfa8ef5e3bf9a0d8a0c791fc94d36282c"
+}
