@@ -75,6 +75,14 @@
       "roots": 37
     },
     {
+      "name": "effect-composition",
+      "lock": "effect-composition/lock.json",
+      "lock_sha256": "cdd68751caad4f9b7063a78054ac570537044b69c5b13c2b44a4b0a5541590a4",
+      "semantics": "first-order-inductive-equality-v1",
+      "checker_command": "verify-library",
+      "roots": 11
+    },
+    {
       "name": "exact-integers",
       "lock": "exact-integers/lock.json",
       "lock_sha256": "6adabc9dee64d35e4efde54e4467f685634740855f2b0c39dc41777e15e2d7a4",
