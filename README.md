@@ -79,7 +79,7 @@ python3 -m unittest discover -s tests -v
 
 `producers/` holds untrusted authoring/import tools. `research/` quarantines historical experiment formats, fixtures and Lean work; production discovery does not scan it or depend on experiment directory names. Research tools can still reproduce their original mathematical experiments. These formats are not compatibility aliases for the canonical API.
 
-The current snapshot contains 848 canonical entries, including 42 executable semantic laws and source-bound representation/cache-maintenance candidates (`research/cache-maintenance`, `research/compact-queries` and state-reusing bridges in `research/layout-switch`). Earlier snapshots are retained; 20 checked append-view entries, six fixed change-boundary definitions/theorems and 46 general-law entries (`research/general-laws`: abstract sorts, functions and assumptions with eight parametric collection laws) were added without changing the existing rewrite payloads or name targets. The change-boundary laws bind to shared language primitives, but do not certify action bodies or physical rollback. See `research/incremental-views/canonical-review.json` for proof-admission evidence and scope. Reproduce its data with `python3 producers/build_store.py --output /tmp/ink-store`; this explicitly imports the research fixtures as an authoring operation. `store/rewrite-view.json` is a transport fixture for integration tests, not a second storage format or discovery API.
+The current snapshot contains 1101 canonical entries, including 295 checked semantic laws and source-bound representation/cache-maintenance candidates (`research/cache-maintenance`, `research/compact-queries` and state-reusing bridges in `research/layout-switch`). Earlier snapshots are retained; 20 checked append-view entries, six fixed change-boundary definitions/theorems and 46 general-law entries (`research/general-laws`: abstract sorts, functions and assumptions with eight parametric collection laws) were added without changing the existing rewrite payloads or name targets. The change-boundary laws bind to shared language primitives, but do not certify action bodies or physical rollback. See `research/incremental-views/canonical-review.json` for proof-admission evidence and scope. Reproduce its data with `python3 producers/build_store.py --output /tmp/ink-store`; this explicitly imports the research fixtures as an authoring operation. `store/rewrite-view.json` is a transport fixture for integration tests, not a second storage format or discovery API.
 
 Eleven effect-prefix composition entries add outer path/value/exit definitions,
 sequencing and six checked laws. Their definitions bind to the core's fixed
@@ -89,3 +89,51 @@ whole-action refinement or authority to skip rollback. See
 unchanged.
 
 Four stable `research/action-laws` entries add parametric table-removal idempotence. The whole-action producer interprets this one law for each actual row sort; it does not regenerate a per-program induction proof. Source transition definitions and evidence are individual database objects, transported in a pinned view. See `research/action-laws/canonical-review.json`.
+
+
+The local-collection pass adds 45 executable semantic laws: buffer freeze/read
+observations, successive filter fusion, identity filtering, zero-bound iteration,
+immediate stopping and stopping proved by an actual application condition. Each
+family covers u32/u64/i32/f32/Bool values. `producers/local_collection_laws.py`
+reproduces the entries and the bounded `store/local-collection-view.json`; the
+full `build_store.py` reproduces the canonical snapshot. These require Ink's
+buffer-observation/stopping-loop correspondence (core commit 77a47a6), and are
+checked locally. They do not prove owned mutation, map updates, heap correctness,
+A* correctness, physical emission or a universal speedup.
+
+The collection-pipeline extension adds 80 checked laws with no core change:
+length after map (25 input/output type combinations), map/fold and filter/fold
+fusion for sum/difference/product (four numeric types each), combined filter/map/fold fusion
+(twelve laws), and integer sum fusion (nine laws), and zero length/count after an always-false
+filter (five types each). `producers/collection_pipeline_laws.py` and
+`store/collection-pipeline-view.json` reproduce them. Fold fusion preserves
+right-fold operation order and initial value; it introduces no associativity or
+floating arithmetic law. The existing same-sort numeric foldr interface bounds
+the supported fold families. Previous canonical objects and snapshots remain.
+
+The shared-sequence extension adds 83 checked laws: count after mapping (25),
+same-sequence zip projections (10), and raw/left-mapped/right-mapped/both-mapped
+zip fusion with ordered sum/difference/product (48). All use ordinary list
+induction with the unchanged compiler and checker. Zip fusion requires the
+exact same source sequence in both branches; no independent-list equality,
+length truncation assumption, commutativity or floating arithmetic law is used.
+`producers/shared_sequence_laws.py` and `store/shared-sequence-view.json`
+reproduce the new entries.
+
+The sort aggregation extension adds nine executable roots and nine checked
+insertion dependencies for u32/u64/i32 length, count and sum after sorting.
+Ordinary list induction, comparison cases and exact lemma instantiation remove
+sorting when only its aggregate is observed. Integer sum uses wrapping
+arithmetic; no floating sum or arbitrary reducer law is added.
+`producers/sort_cardinality_laws.py` and `store/sort-cardinality-view.json`
+reproduce these entries. The full rewrite view carries 259 roots and the nine
+insertion dependencies; canonical bytes remain the storage authority.
+
+The filtered-sort extension adds nine executable aggregate laws and eighteen
+conditional insertion lemmas. It removes sorting before a value-based filter
+when only length/count/wrapping integer sum is observed, for u32/u64/i32.
+Kept/dropped insertion conditions are discharged in the sort proof; no predicate
+premise is demanded of source callers. Observed ordered outputs retain sorting.
+`producers/filtered_sort_laws.py` and `store/filtered-sort-view.json` reproduce
+them. The full rewrite view now carries 268 executable roots and 27 proof-only
+insertion dependencies. No compiler, core, planner or backend change is needed.
