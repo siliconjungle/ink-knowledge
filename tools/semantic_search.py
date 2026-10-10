@@ -11,6 +11,7 @@ import subprocess
 import tempfile
 from pathlib import Path
 from semantic_laws import SEMANTICS
+from semantic_database import discover
 
 
 def children(t):
@@ -190,24 +191,35 @@ def search(subject, catalogue, check, budget=128, width=4, rounds=12):
 
 def main():
     a = argparse.ArgumentParser(); a.add_argument('--compiler', type=Path, required=True)
-    a.add_argument('--core', type=Path, required=True); a.add_argument('--catalogue', type=Path, required=True)
+    a.add_argument('--core', type=Path, required=True)
+    database_source = a.add_mutually_exclusive_group(required=True)
+    database_source.add_argument('--catalogue', type=Path)
+    database_source.add_argument('--database', type=Path, help='discover typed law entries and existing views')
     a.add_argument('-o', type=Path, required=True); a.add_argument('--budget', type=int, default=128)
     args = a.parse_args()
     if not 0 <= args.budget <= 4096: a.error('budget must be between 0 and 4096')
     compiler = args.compiler.resolve(); original_hash = hashlib.sha256(compiler.read_bytes()).hexdigest()
-    data = args.catalogue.read_bytes()
-    if len(data) > 16_000_000: raise ValueError('catalogue byte limit')
-    catalogue = json.loads(data)
+    discovery = None
+    if args.database:
+        catalogue, discovery = discover(args.database)
+    else:
+        with args.catalogue.open('rb') as f:
+            data = f.read(16_000_001)
+        if len(data) > 16_000_000: raise ValueError('catalogue byte limit')
+        catalogue = json.loads(data)
     if catalogue['schema'] != 1 or catalogue['semantics'] != SEMANTICS: raise ValueError('catalogue semantics')
     with tempfile.TemporaryDirectory(prefix='ink-semantic-search-') as tmp:
         tmp = Path(tmp); subject_path = tmp / 'subject.json'; candidate = tmp / 'candidate.json'
+        catalogue_path = args.catalogue.resolve() if args.catalogue else tmp / 'catalogue.json'
+        if args.database:
+            catalogue_path.write_text(json.dumps(catalogue, indent=2) + '\n')
         subprocess.run([compiler, 'emit-semantic', args.core.resolve(), '--core', '-o', subject_path], check=True, capture_output=True)
         subject = json.loads(subject_path.read_text())
         package = dict(schema=1, semantics='ink-semantic-selection-v1', input_core_sha256=subject['input_core_sha256'],
                        catalogue=catalogue, applications=[])
         # One checker process validates the dependency closure once, then checks
         # each candidate independently against the same exact input module.
-        session = subprocess.Popen([compiler, 'selection-session', args.core.resolve(), args.catalogue.resolve()],
+        session = subprocess.Popen([compiler, 'selection-session', args.core.resolve(), catalogue_path],
                                    stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
         try:
             ready = session.stdout.readline()
@@ -228,5 +240,12 @@ def main():
             except subprocess.TimeoutExpired: session.kill(); session.wait()
         args.o.parent.mkdir(parents=True, exist_ok=True); args.o.write_text(json.dumps(package, indent=2) + '\n')
     if hashlib.sha256(compiler.read_bytes()).hexdigest() != original_hash: raise ValueError('compiler changed during search')
-    print(json.dumps(dict(compiler_sha256=original_hash, **receipt)))
+    producer_files = ['semantic_search.py', 'semantic_database.py', 'semantic_laws.py', 'database_query.py']
+    producer = {name: hashlib.sha256(Path(__file__).with_name(name).read_bytes()).hexdigest()
+                for name in producer_files}
+    result = dict(compiler_sha256=original_hash,
+                  producer_sha256=hashlib.sha256(key(producer).encode()).hexdigest(), **receipt)
+    if discovery:
+        result['database'] = discovery
+    print(json.dumps(result))
 if __name__ == '__main__': main()

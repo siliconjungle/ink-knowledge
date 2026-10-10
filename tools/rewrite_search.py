@@ -3,7 +3,8 @@
 
 Supports scalar expressions and sum(input.map(scalar)). Unsupported functions
 and exhausted searches retain their original implementation. Rewrite laws come
-from an explicit index; this tool and its cost estimate are never proof authority.
+from database entries or a legacy explicit index. This tool and its cost estimate
+are never proof authority.
 """
 import argparse
 import copy
@@ -14,6 +15,7 @@ import subprocess
 from pathlib import Path
 from collection_proofs import scalar, free, source_call, source_bin, source_var, lam
 from inductive_proofs import SEMANTICS, var, call, construct, binary, refl
+from database_query import Database
 
 
 class Unsupported(ValueError):
@@ -141,6 +143,10 @@ def application(current, env, identity, theorem, hypotheses):
     return replacement, {'Use': dict(theorem=identity, arguments=arguments, premises=premises)}
 
 
+def candidates(rules, expression):
+    return rules.candidates(expression) if hasattr(rules, 'candidates') else rules
+
+
 def search(e, env, rules, budget, used, hypotheses=()):
     if budget[0] <= 0:
         raise Unsupported('search budget exhausted')
@@ -167,12 +173,13 @@ def search(e, env, rules, budget, used, hypotheses=()):
                 # Find a checked DB annihilation theorem. A missing law abandons
                 # this candidate; the compiler never supplies an implicit law.
                 value = {'Binary': [op, literal, side]}
-                for identity, theorem in rules:
+                for identity, theorem in candidates(rules, value):
                     if budget[0] <= 0:
                         raise Unsupported('search budget exhausted')
                     budget[0] -= 1
                     result = application(value, env, identity, theorem, hypotheses)
                     if result is not None and result[0] == literal:
+                        used.append(identity)
                         prefix = {'Binary': dict(op=op, left={'Hypothesis': len(hypotheses)}, right=refl(scalar(side, env)))}
                         return {'Trans': [prefix, result[1]]}
                 raise Unsupported('missing DB law for short-circuit branch closure')
@@ -187,20 +194,30 @@ def search(e, env, rules, budget, used, hypotheses=()):
         current, proof = copy.deepcopy(e), refl(scalar(e, env))
     else:
         raise Unsupported('non-scalar expression')
-    for identity, theorem in rules:
-        if budget[0] <= 0:
-            raise Unsupported('search budget exhausted')
-        budget[0] -= 1
-        result = application(current, env, identity, theorem, hypotheses)
-        if result is None:
-            continue
-        replacement, step = result
-        # This profitability heuristic belongs to the producer, not the checker.
-        if size(replacement) >= size(current):
-            continue
-        proof = {'Trans': [proof, step]}
-        current = replacement
-        used.append(identity)
+    # Legacy indexes retain their historical one-pass order for exact replay.
+    # Database discovery restarts a hash-ordered query after a successful rewrite;
+    # every step strictly decreases AST size and the shared budget bounds work.
+    while True:
+        changed = False
+        for identity, theorem in candidates(rules, current):
+            if budget[0] <= 0:
+                raise Unsupported('search budget exhausted')
+            budget[0] -= 1
+            result = application(current, env, identity, theorem, hypotheses)
+            if result is None:
+                continue
+            replacement, step = result
+            # This profitability heuristic belongs to the producer, not the checker.
+            if size(replacement) >= size(current):
+                continue
+            proof = {'Trans': [proof, step]}
+            current = replacement
+            used.append(identity)
+            changed = True
+            if hasattr(rules, 'candidates'):
+                break
+        if not hasattr(rules, 'candidates') or not changed:
+            break
     return current, proof
 
 
@@ -208,7 +225,9 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('source', type=Path)
     parser.add_argument('--core', action='store_true', help='read checked executable IR instead of surface source')
-    parser.add_argument('--rules', type=Path, required=True)
+    source = parser.add_mutually_exclusive_group(required=True)
+    source.add_argument('--rules', type=Path, help='legacy ordered rule index')
+    source.add_argument('--database', type=Path, help='discover individual immutable entries under this directory')
     parser.add_argument('--compiler', type=Path, required=True)
     parser.add_argument('--output-dir', type=Path, required=True)
     parser.add_argument('--budget', type=int, default=10000, help='shared node/rule attempts across all functions')
@@ -216,7 +235,8 @@ def main():
     args = parser.parse_args()
     if not 0 <= args.budget <= 1000000:
         parser.error('budget must be between zero and one million')
-    compiler, index_path, out = [p.resolve() for p in (args.compiler, args.rules, args.output_dir)]
+    compiler, out = [p.resolve() for p in (args.compiler, args.output_dir)]
+    index_path = args.rules.resolve() if args.rules else None
     out.mkdir(parents=True, exist_ok=True)
     if any(out.iterdir()):
         parser.error('output directory must be empty')
@@ -226,16 +246,23 @@ def main():
     program = core['program']
     if any(program[k] for k in ('states', 'keeps', 'actions', 'events', 'records', 'enums', 'ids')):
         parser.error('rewrite producer only supports pure programs')
-    index = json.loads(index_path.read_text())
-    if index['schema'] != 1 or index['semantics'] != 'untrusted-rewrite-index-v1' or len(index['rules']) > 128:
-        parser.error('unsupported rewrite index')
-    relative = Path(index['library'])
-    if relative.is_absolute() or '..' in relative.parts:
-        parser.error('index library must be relative without traversal')
-    lock = index_path.parent / relative
-    shutil.copytree(lock.parent / 'objects', out / 'objects')
-    roots = json.loads(lock.read_text())
-    objects = {p.stem: json.loads(p.read_text()) for p in (out / 'objects').glob('*.json')}
+    try:
+        database = Database(args.database) if args.database else None
+    except (ValueError, KeyError, TypeError, RecursionError) as e:
+        parser.error(str(e))
+    index = json.loads(index_path.read_text()) if index_path else None
+    if database is None:
+        prepare_index(parser, index, index_path, out)
+        lock = index_path.parent / index['library']
+        roots = json.loads(lock.read_text())
+        objects = {p.stem: json.loads(p.read_text()) for p in (out / 'objects').glob('*.json')}
+    else:
+        (out / 'objects').mkdir()
+        (out / 'database-snapshot.json').write_bytes(database.manifest_bytes)
+        roots = dict(schema=1, semantics=SEMANTICS, objects=[])
+        objects = database.objects
+
+    generated = {}
 
     def expand(t, remaining, bindings=None):
         if remaining[0] <= 0:
@@ -256,8 +283,8 @@ def main():
             local = {n: expand(a, remaining, bindings) for (n, _), a in zip(f['params'], value['arguments'])}
             return expand(f['body'], remaining, local)
         raise Unsupported('non-scalar rule endpoint')
-    rules = []
-    for identity in index['rules']:
+    rules = database.query if database else []
+    for identity in index['rules'] if index else []:
         if len(identity) != 64 or any(c not in '0123456789abcdef' for c in identity):
             parser.error('invalid rule identity')
         obj = objects[identity]
@@ -272,11 +299,27 @@ def main():
         obj = dict(schema=1, semantics=SEMANTICS, name=name, dependencies=sorted(set(dependencies)), declaration={kind: declaration})
         data = (json.dumps(obj, separators=(',', ':')) + '\n').encode()
         identity = hashlib.sha256(data).hexdigest()
-        (out / 'objects' / f'{identity}.json').write_bytes(data)
+        generated[identity] = data
+        if database is None:
+            (out / 'objects' / f'{identity}.json').write_bytes(data)
         if identity not in roots['objects']:
             roots['objects'].append(identity)
         return identity
 
+    return produce(args, compiler, out, core, program, roots, rules, generated, store, compiler_hash, database, index_path)
+
+
+def prepare_index(parser, index, index_path, out):
+    if index['schema'] != 1 or index['semantics'] != 'untrusted-rewrite-index-v1' or len(index['rules']) > 128:
+        parser.error('unsupported rewrite index')
+    relative = Path(index['library'])
+    if relative.is_absolute() or '..' in relative.parts:
+        parser.error('index library must be relative without traversal')
+    lock = index_path.parent / relative
+    shutil.copytree(lock.parent / 'objects', out / 'objects')
+
+
+def produce(args, compiler, out, core, program, roots, rules, generated, store, compiler_hash, database, index_path):
     datatype = store('RewriteList64', 'Datatype', dict(constructors=[dict(name='Nil', fields=[]), dict(name='Cons', fields=['U64', 'SelfType'])]))
 
     def model_sum(body, binder, captures, label):
@@ -302,7 +345,7 @@ def main():
             body={'Match': dict(scrutinee=var('input'), branches=[dict(bindings=[], body={'U64': 0}),
                  dict(bindings=['head', 'tail'], body=binary('+', scalar(body, local), tail))])}), [datatype])
 
-    budget, proposals, attempts = [args.budget], [], []
+    budget, proposals, attempts, selected_rules = [args.budget], [], [], set()
     for f in program['functions']:
         if len(proposals) >= 128:
             attempts.append(dict(function=f['name'], status='original', reason='replacement count limit'))
@@ -358,9 +401,19 @@ def main():
                 raise Unsupported('no smaller checked-law candidate')
             proposals.append(dict(function=f['name'], **{'from': body, 'to': replacement}, datatype=datatype,
                 from_definitions=old_ids, to_definitions=new_ids, proof=proof))
+            selected_rules.update(used)
             attempts.append(dict(function=f['name'], status='candidate', rules=used))
         except (Unsupported, KeyError, ValueError, TypeError) as e:
             attempts.append(dict(function=f['name'], status='original', reason=str(e)))
+    if database:
+        required = {datatype} | selected_rules
+        for proposal in proposals:
+            required.update(proposal['from_definitions'])
+            required.update(proposal['to_definitions'])
+        roots['objects'] = sorted(required)
+        selected = database.selected(roots['objects'], generated)
+        for id_, raw in selected.items():
+            (out / 'objects' / f'{id_}.json').write_bytes(raw)
     (out / 'lock.json').write_text(json.dumps(roots, indent=2) + '\n')
     package = dict(schema=1, semantics='source-collections-v1', library='lock.json', proposals=proposals)
     lock_hash = hashlib.sha256((out / 'lock.json').read_bytes()).hexdigest()
@@ -370,12 +423,20 @@ def main():
     (out / 'replacement.json').write_text(json.dumps(envelope, indent=2) + '\n')
     # Candidate generation has no authority: full input/definition/proof checks
     # happen in the unchanged compiler, including type-correct instantiations.
-    subprocess.run([compiler, 'emit-c', out / 'core.json', '--core', '--replacement', out / 'replacement.json',
-        '-o', out / 'checked.c'], check=True, capture_output=True)
+    checked = subprocess.run([compiler, 'emit-c', out / 'core.json', '--core', '--replacement', out / 'replacement.json',
+        '-o', out / 'checked.c'], capture_output=True, text=True)
+    if checked.returncode:
+        raise SystemExit('Ink rejected the discovered replacement: ' + checked.stderr.strip())
     assert hashlib.sha256(compiler.read_bytes()).hexdigest() == compiler_hash
-    receipt = dict(status='checked', compiler_sha256=compiler_hash, rules_index_sha256=hashlib.sha256(index_path.read_bytes()).hexdigest(),
+    receipt = dict(status='checked', compiler_sha256=compiler_hash,
         initial_budget=args.budget, remaining_budget=budget[0], fused_mapped_sum=args.fuse_mapped_sum, attempts=attempts,
         scope='bounded scalar and single mapped-sum proof production; optional fold fusion; node-count estimate is not a runtime measurement')
+    if database:
+        receipt['database'] = dict(database.discovery, selected_rules=sorted(selected_rules),
+            selected_entries=len(selected), queries=rules.queries, candidates_returned=rules.candidates_returned,
+            scheduling='source declaration order; postorder AST; content-hash rule order; restart after strict size decrease')
+    else:
+        receipt['rules_index_sha256'] = hashlib.sha256(index_path.read_bytes()).hexdigest()
     (out / 'search.json').write_text(json.dumps(receipt, indent=2) + '\n')
     print(json.dumps(receipt))
 

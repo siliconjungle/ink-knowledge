@@ -102,6 +102,72 @@ original implementation. A node-count estimate chooses smaller expressions;
 it is not a performance measurement. `rewrite-search/` is a reproducible example
 with lexical shadowing and a deliberately unproved factoring case.
 
+## Deterministic AST queries
+
+The general typed matcher accepts a database directory:
+
+```sh
+ink build program.ink --optimise /path/to/ink-knowledge -o program.o
+python3 tools/semantic_search.py --compiler /path/to/ink --core core.json \
+  --database . -o selection.json
+```
+
+It discovers typed `ink-conditional-laws-v1` law objects in `objects/<ID>.json`
+and existing `catalogue.json` views. Individual law files become eligible rewrite
+roots automatically. Inline views retain their explicit root set so supporting
+lemmas can remain private. The compiler owns the typed wire identity and proof
+checks; JSON whitespace and field order need not match its canonical encoding.
+The assembled bounded view is sorted by identity before typed AST querying and
+checked compositional search. Receipts include the database snapshot and producer
+identity. The resulting selection contains its checked view for offline replay.
+The current general checker admits at most 1024 active laws / 16 MB; discovering
+arbitrarily large databases and projecting their applicable closure remains work.
+
+The older first-order scalar bridge also discovers individual entries without
+an explicit rule index:
+
+```sh
+python3 tools/rewrite_search.py program.ink --database . \
+  --compiler /path/to/ink --output-dir /tmp/ink-selected --budget 10000
+```
+
+Add a theorem object as `objects/<sha256-of-exact-bytes>.json`, with its immutable
+dependencies present. No catalogue rebuild or algorithm installation is needed
+for this discovery mode. The producer discovers compatible objects, expands
+supported scalar definitions, filters rules by AST shape, checks typed pattern
+bindings and constructs application proofs. The unchanged compiler checks the
+actual source correspondence, definitions, conditions and proofs before emitting
+selected code. A newly added theorem is eligible knowledge, not automatically
+trusted or automatically profitable.
+
+Traversal is source declaration order, then children before parents. Rules are
+ordered by content hash. Each selected rewrite must decrease expression node
+count; the root query restarts after a successful rewrite. Shared node/rule
+budgets make selection deterministic for the same source, database entries,
+settings and compiler. Unsupported functions and exhausted searches retain their
+original bodies. This is a size heuristic, not target-specific performance search.
+
+`database-snapshot.json` records all discovered compatible entry identities.
+`search.json` records that snapshot hash, selected theorems and query counts.
+Only selected entries, generated source definitions and their dependency closure
+are copied into the build lock, so the replacement can be checked offline without
+the discovery database. Discovery itself has separate file/byte/expansion limits.
+The compiler still enforces its own admission limits.
+
+This older bridge's query subset is u64/Bool scalar expressions and scalar rewrites
+inside a single mapped u64 sum, including scoped short-circuit conditions and
+the existing optional fold proposal. It does not discover arbitrary collection,
+stateful representation, effectful or mixed-target transformations. General
+typed IR/data-flow queries and measured candidate ranking remain production work.
+The general typed path described below covers wider expressions and collections.
+Legacy `--rules` preserves explicit index order and historical artifact replay.
+
+Validate the query filter against exhaustive search:
+
+```sh
+python3 -m unittest discover -s tests -v
+```
+
 ## Extension contract
 
 New knowledge must use the fixed checking rules. Packages cannot install an
