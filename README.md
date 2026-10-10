@@ -48,6 +48,15 @@ view = store.bundle(ids)
 
 Queries also support parameter types, effects, exact applicability conditions and an `after` ID for paging. `ink_knowledge/index.sql` specifies the SQLite schema with explicit tables for snapshots, entries, membership witnesses, dependencies, types, operations, effects, applicability, names and observations. Result order is deterministic. Indexed subset export loads only its selected objects and dependency closure, authenticating cached membership witnesses against the pinned root.
 
+`store.bundle(roots)` uses one SQLite connection and read transaction for the
+selected dependency closure. Identical membership proof bytes share Merkle-path
+authentication within that export, while every ID must occur in its authenticated
+leaf. Each object is independently read, validated and hashed. Witnesses are
+retained for the output rather than fetched a second time. Indexed authentication reuse
+ends with the call; later exports recheck indexed proofs and canonical content.
+No full-tree scan is needed when exporting an indexed subset. The index-free
+path, exact bundle format and depth/1024-object limits are unchanged.
+
 `store.observations(program, plans, target, workload, limit=1024)` filters the
 requested plans in SQL before applying the result limit. It reads and hash-validates
 only matching canonical evidence files. Up to 1024 distinct plans are accepted;

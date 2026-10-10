@@ -1,4 +1,4 @@
-from contextlib import closing
+from contextlib import closing, nullcontext
 import hashlib
 import json
 import os
@@ -147,9 +147,17 @@ class Store:
             if i not in self.members():raise ValueError('entry absent from pinned snapshot')
             return self.members()[i]
         with closing(sqlite3.connect(index.as_uri()+'?mode=ro',uri=True)) as db:
-            row=db.execute('SELECT witness FROM members WHERE snapshot_id=? AND entry_id=?',(self.snapshot_id,i)).fetchone()
+            return self._indexed_witness(i,db)
+    def _indexed_witness(self,i,db,verified=None):
+        row=db.execute('SELECT witness FROM members WHERE snapshot_id=? AND entry_id=?',(self.snapshot_id,i)).fetchone()
         if row is None:raise ValueError('entry absent from indexed snapshot; rebuild index')
-        w=json.loads(row[0]);fields(w,('entries','path'))
+        w=json.loads(row[0])
+        # Only identical proof bytes may share authentication within one export.
+        # Every requested ID must still occur in that authenticated leaf.
+        if verified is not None and row[0] in verified:
+            if i not in w['entries']:raise ValueError('invalid indexed membership proof')
+            return w
+        fields(w,('entries','path'))
         if len(w['entries'])>64 or w['entries']!=sorted(set(w['entries'])) or i not in w['entries'] or len(w['path'])>64:raise ValueError('invalid indexed membership proof')
         for x in w['entries']:hash_id(x)
         node=identity(dict(schema=1,entries=w['entries']))
@@ -158,24 +166,35 @@ class Store:
             if not isinstance(step['left'],bool):raise ValueError('invalid membership direction')
             node=identity(dict(schema=1,left=step['sibling'] if step['left'] else node,right=node if step['left'] else step['sibling']))
         if node!=self.snapshot['root']:raise ValueError('indexed membership does not match pinned snapshot')
+        if verified is not None:verified.add(row[0])
         return w
     def object(self, i):
         hash_id(i)
         self.witness(i)
+        return self._read_object(i)
+    def _read_object(self,i):
         obj=read(self.data/'objects'/f'{i}.json');validate_entry(obj)
         if identity(obj)!=i:raise ValueError('entry content mismatch')
         return obj
     def bundle(self, roots):
-        roots=sorted(set(roots));objects={};active=set()
-        def visit(i,depth):
-            if i in objects:return
-            if depth>64 or i in active or len(objects)+len(active)>=1024:raise ValueError('active dependency closure limit')
-            active.add(i);obj=self.object(i)
-            for d in obj['dependencies']:visit(d,depth+1)
-            active.remove(i);objects[i]=obj
-        for i in roots:visit(i,0)
+        roots=sorted(set(roots));objects={};active=set();membership={};verified=set()
+        index=self.root/'index.sqlite'
+        indexed=bool(roots) and self._members is None and index.exists()
+        with closing(sqlite3.connect(index.as_uri()+'?mode=ro',uri=True)) if indexed else nullcontext(None) as db:
+            # Keep one SQLite read snapshot even if another process rebuilds or
+            # writes the disposable index during traversal.
+            if db is not None:db.execute('BEGIN')
+            def visit(i,depth):
+                if i in objects:return
+                if depth>64 or i in active or len(objects)+len(active)>=1024:raise ValueError('active dependency closure limit')
+                hash_id(i);active.add(i)
+                membership[i]=self._indexed_witness(i,db,verified) if db is not None else self.witness(i)
+                obj=self._read_object(i)
+                for d in obj['dependencies']:visit(d,depth+1)
+                active.remove(i);objects[i]=obj
+            for i in roots:visit(i,0)
         return dict(schema=1,snapshot=self.snapshot,roots=roots,objects=dict(sorted(objects.items())),
-                    membership={i:self.witness(i) for i in sorted(objects)})
+                    membership={i:membership[i] for i in sorted(objects)})
     def rebuild(self):
         target=self.root/'index.sqlite'; fd,tmp=tempfile.mkstemp(prefix='.ink-index-',dir=self.root);os.close(fd)
         try:
