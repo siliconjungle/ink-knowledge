@@ -62,4 +62,25 @@ python3 -m unittest discover -s tests -v
 
 `producers/` holds untrusted authoring/import tools. `research/` quarantines historical experiment formats, fixtures and Lean work; production discovery does not scan it or depend on experiment directory names. Research tools can still reproduce their original mathematical experiments. These formats are not compatibility aliases for the canonical API.
 
-The current snapshot contains 601 canonical entries, including 42 executable semantic laws. Earlier snapshots are retained; 20 checked append-view entries and six fixed change-boundary definitions/theorems were added without changing the existing rewrite payloads. The change-boundary laws bind to shared language primitives, but do not certify action bodies or physical rollback. See `research/incremental-views/canonical-review.json` for proof-admission evidence and scope. Reproduce its data with `python3 producers/build_store.py --output /tmp/ink-store`; this explicitly imports the research fixtures as an authoring operation. `store/rewrite-view.json` is a transport fixture for integration tests, not a second storage format or discovery API.
+The current snapshot contains 648 canonical entries, including 89 executable semantic laws. Earlier snapshots are retained; 20 checked append-view entries and six fixed change-boundary definitions/theorems were added without changing the existing rewrite payloads. The change-boundary laws bind to shared language primitives, but do not certify action bodies or physical rollback. See `research/incremental-views/canonical-review.json` for proof-admission evidence and scope. Reproduce its data with `python3 producers/build_store.py --output /tmp/ink-store`; this explicitly imports the research fixtures as an authoring operation. `store/rewrite-view.json` is a transport fixture for integration tests, not a second storage format or discovery API.
+
+
+The web performance contribution adds 47 wrapping-word and pure collection laws
+without changing the checker: repeat subtraction/product/identity/cancellation,
+scaled/zero sums, discarded maps before counts, constant and redundant filters,
+and filter composition. F32 laws only rearrange pure collection traversal, not
+floating-point arithmetic. [Reproduction and proof evidence](research/performance-laws/README.md)
+include 47 accepted objects, eleven selected/replayed U32 applications and two
+hash-valid semantic rejection controls. Timings belong to separate web benchmark
+reports; proof admission alone makes no speed claim.
+
+To extend a reproduced initial store, build Ink and run:
+
+```sh
+python3 producers/publish_performance_laws.py --root /path/to/ink-knowledge \
+  --compiler /path/to/ink --report /path/to/publication.json
+```
+
+This stages the complete extension, checks the new proof view with Ink, then
+publishes a canonical snapshot and rebuilds discovery. It retains previous
+snapshot replay and records the unchanged compiler identity.

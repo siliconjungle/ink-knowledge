@@ -1,0 +1,16 @@
+{
+  "status": "passed_before_timing",
+  "first_metadata_sha256": "f9dbd3f1239b8f4c340bd89858603e2f59818c2bc15d2413a9f8f9269e06b39c",
+  "final_metadata_sha256": "a6a06f2c87ef1ed8ab282c9db67dfdf57874edea5724cae8820300ab73dd3864",
+  "aggregate_changed_bindings": [
+    "README.md",
+    "benchmark-preparation/ready.json",
+    "proofs/final-evidence.py"
+  ],
+  "unchanged_timing_input_bindings": 298,
+  "steps": [
+    "preparation-binding-first/recovery.json",
+    "preparation-binding-second/recovery.json"
+  ],
+  "timings_executed": false
+}

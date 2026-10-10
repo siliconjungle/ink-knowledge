@@ -1,0 +1,17 @@
+{
+  "status": "premeasurement_plan",
+  "public_object_roles": {
+    "typed_generic_endpoints": 9,
+    "proof_supports": 18,
+    "new_context_deployments": 18,
+    "old_only_context_deployments": 16
+  },
+  "fresh_math_mechanisms": 2,
+  "published_total": 61,
+  "fair_prior_entries": 1907,
+  "new_catalogue_entries": 1952,
+  "benchmark_scope": "4 correlated U32 recipes; 24 cells across 3 sizes and two task-specific modes; projection changes zip to map after fair old-law mapper erasure; uniform constant prefix changes serial scan to indexed generation; no broad native superiority claim",
+  "cost_model": "Pre-timing generic operation prices, same both databases. Earlier R27-model declines preserved.",
+  "compiler_changes": false,
+  "runtime_input_checks_added": false
+}

@@ -50,4 +50,17 @@ class StoreTests(unittest.TestCase):
         self.assertEqual(s.observations(obs['program'],[obs['plan']],obs['target'],obs['workload']),[obs])
         with closing(sqlite3.connect(self.root/'index.sqlite')) as db,db:self.assertEqual(db.execute('SELECT id FROM observations').fetchone()[0],i)
         with self.assertRaises(ValueError):s.object(i)
+    def test_observation_limit_applies_only_to_requested_plans(self):
+        self.store.rebuild()
+        base=dict(schema=1,program='1'*64,entries=[],
+                  target=dict(hardware='test',driver='test',toolchain='test',backend='cpu',bridge='host'),
+                  workload=dict(shape=[100],distribution='zeros',concurrency=1,residency='host'),
+                  metrics=dict(complete_call_ns=['100','200'],peak_bytes=0))
+        observations=[dict(base,plan=c*64) for c in ('2','3')]
+        observations.sort(key=identity)
+        for obj in observations:self.store.observe(obj)
+        wanted=observations[1]
+        self.assertEqual(self.store.observations(base['program'],[wanted['plan']],base['target'],base['workload'],limit=1),[wanted])
+        self.assertEqual(self.store.observations(base['program'],[],base['target'],base['workload'],limit=1),[])
+        self.assertEqual(self.store.observations(base['program'],[wanted['plan']],base['target'],base['workload'],limit=0),[])
 if __name__=='__main__':unittest.main()
