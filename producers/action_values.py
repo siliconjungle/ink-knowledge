@@ -6,6 +6,8 @@ The encoding is data correspondence, not an action interpreter or optimisation.
 """
 import argparse
 import json
+import math
+import struct
 import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -79,6 +81,31 @@ def encode(syntax, roles, program, ty, value):
             return v(1, [{'Bool': value}])
         if ty in ('U32', 'U64') and type(value) is int and 0 <= value < 2**(32 if ty == 'U32' else 64):
             return v(2 if ty == 'U32' else 3, [{'U64': value}])
+        if ty == 'I32' and type(value) is int and -(2**31) <= value < 2**31:
+            return v(2, [{'U64': value & (2**32-1)}])
+        if ty == 'F32':
+            if isinstance(value, dict) and set(value) == {'F32Bits'}:
+                bits = value['F32Bits']
+                if type(bits) is not int or not 0 <= bits < 2**32:
+                    raise ValueError('f32 bits width')
+            elif type(value) in (int, float) and math.isfinite(value):
+                try:
+                    raw = struct.pack('<f', value)
+                except (OverflowError, struct.error):
+                    raise ValueError('finite f32 or F32Bits required') from None
+                if not math.isfinite(struct.unpack('<f', raw)[0]):
+                    raise ValueError('finite f32 or F32Bits required')
+                bits = int.from_bytes(raw, 'little')
+            else:
+                raise ValueError('finite f32 or F32Bits required')
+            return v(2, [{'U64': bits}])
+        if isinstance(ty, dict) and set(ty) == {'Vector'}:
+            inner, n = ty['Vector']
+            if inner not in ('U32', 'I32', 'F32') or n not in (2, 3, 4):
+                raise ValueError('invalid vector type')
+            if not isinstance(value, list) or len(value) != n:
+                raise ValueError('vector dimension mismatch')
+            return v(13, [tree([go(inner, x, depth+1) for x in value], roles['value'], 14, 15, 16)])
         if ty == 'Int' and isinstance(value, dict) and set(value) == {'Int'}:
             x = int(value['Int']); size = (abs(x).bit_length() + 7) // 8
             if size > 16_777_216:
