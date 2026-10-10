@@ -91,6 +91,14 @@
       "roots": 19
     },
     {
+      "name": "scalar-logic",
+      "lock": "scalar-logic/lock.json",
+      "lock_sha256": "118b4de1ffc27474044d579bb703af1bd95756bb2a478878ee21115883508396",
+      "semantics": "first-order-inductive-equality-v1",
+      "checker_command": "verify-library",
+      "roots": 16
+    },
+    {
       "name": "source-column-layout",
       "lock": "source-column-layout/lock.json",
       "lock_sha256": "27ef12a62e2f04f8d2ce614684001aaa8d10527b816a8497ef4d5d3ec9de1bf0",

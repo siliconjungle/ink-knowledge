@@ -94,6 +94,9 @@ endpoints from the pinned library and constructs complete congruence/induction
 proofs; the compiler checks them independently. No SAT solver is needed when
 reusing these existing certificates. Search handles scalars and single mapped
 sums. `--fuse-mapped-sum` adds a fold candidate with an explicit induction proof.
+`--core` reads the checked executable format. The `scalar-logic/` index supplies
+Boolean/composed/conditional laws. Actual branch facts are closed in complete
+Boolean-split proofs, including DB-proved inactive branch behaviour.
 Unsupported structures, insufficient budget and square factoring retain the
 original implementation. A node-count estimate chooses smaller expressions;
 it is not a performance measurement. `rewrite-search/` is a reproducible example
@@ -109,3 +112,16 @@ representation relations, initialisation/migration candidates and separate
 target-specific cost evidence. Those interfaces are planned, not implemented
 by this repository split. Existing mathematical layout proofs do not yet
 authorise native stateful representation replacement.
+
+The historical scalar format is verification-only in the current compiler.
+Translate it into general checked logic for current search/admission:
+
+```sh
+python3 tools/scalar_library.py --library boolean/lock.json \
+  --library composed/lock.json --library conditional/lock.json \
+  --compiler /path/to/ink --output-dir /tmp/ink-scalar-library
+```
+
+This reproduces the mathematical objects, index and names in `scalar-logic/`.
+Source bytes, translated hashes and a successful producer exit are not proof
+authority: the general checker validates the output locally.

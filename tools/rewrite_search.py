@@ -59,17 +59,130 @@ def substitute(term, bindings):
     raise Unsupported('unsupported theorem endpoint')
 
 
-def search(e, env, rules, budget, used):
+def primitive(t):
+    kind, value = next(iter(t.items()))
+    if kind in ('U64', 'Bool'):
+        return t
+    if kind == 'Binary':
+        a, b = primitive(value['left']), primitive(value['right'])
+        if a is None or b is None:
+            return None
+        ka, va = next(iter(a.items())); kb, vb = next(iter(b.items()))
+        if ka != kb:
+            return None
+        op = value['op']
+        if op in ('==', '!='):
+            return {'Bool': (va == vb) if op == '==' else (va != vb)}
+        if ka == 'Bool' and op in ('&&', '||'):
+            return {'Bool': (va and vb) if op == '&&' else (va or vb)}
+        if ka == 'U64':
+            if op in ('+', '-', '*'):
+                return {'U64': {'+': va + vb, '-': va - vb, '*': va * vb}[op] & ((1 << 64) - 1)}
+            if op in ('<', '<=', '>', '>='):
+                return {'Bool': {'<': va < vb, '<=': va <= vb, '>': va > vb, '>=': va >= vb}[op]}
+    return None
+
+
+def discharge(a, b, hypotheses):
+    if a == b:
+        return refl(a)
+    for i, h in enumerate(hypotheses):
+        if h == {'from': a, 'to': b}:
+            return {'Hypothesis': i}
+        if h == {'from': b, 'to': a}:
+            return {'Sym': {'Hypothesis': i}}
+    value = primitive(a)
+    if value is not None and value == primitive(b):
+        return {'Convert': dict(**{'from': a, 'to': b})}
+    return None
+
+
+def application(current, env, identity, theorem, hypotheses):
+    bindings = {}
+    if not match(theorem['from'], current, bindings):
+        return None
+    try:
+        replacement = substitute(theorem['to'], bindings)
+        def type_of(e):
+            k, v = next(iter(e.items()))
+            if k == 'Var':
+                return env[v][0]
+            if k == 'Num':
+                return 'U64'
+            if k == 'Bool':
+                return 'Bool'
+            if k == 'Binary':
+                op, a, b = v
+                ta, tb = type_of(a), type_of(b)
+                if ta != tb:
+                    raise Unsupported('scalar type mismatch')
+                if op in ('+', '-', '*') and ta == 'U64':
+                    return 'U64'
+                if op in ('&&', '||') and ta == 'Bool':
+                    return 'Bool'
+                if op in ('==', '!=') and ta in ('U64', 'Bool'):
+                    return 'Bool'
+                if op in ('<', '<=', '>', '>=') and ta == 'U64':
+                    return 'Bool'
+            raise Unsupported('non-scalar substitution')
+        if any(type_of(bindings[n]) != t for n, t in theorem['params']):
+            return None
+        arguments = [scalar(bindings[n], env) for n, _ in theorem['params']]
+        premises = []
+        for condition in theorem['conditions']:
+            a = scalar(substitute(condition['from'], bindings), env)
+            b = scalar(substitute(condition['to'], bindings), env)
+            proof = discharge(a, b, hypotheses)
+            if proof is None:
+                return None
+            premises.append(proof)
+    except (KeyError, ValueError):
+        return None
+    return replacement, {'Use': dict(theorem=identity, arguments=arguments, premises=premises)}
+
+
+def search(e, env, rules, budget, used, hypotheses=()):
     if budget[0] <= 0:
         raise Unsupported('search budget exhausted')
     budget[0] -= 1
     kind, value = next(iter(e.items()))
     if kind == 'Binary':
         op, a, b = value
-        left, lp = search(a, env, rules, budget, used)
-        right, rp = search(b, env, rules, budget, used)
+        left, lp = search(a, env, rules, budget, used, hypotheses)
+        local = list(hypotheses)
+        short = op in ('&&', '||')
+        if short:
+            local.append({'from': scalar(left, env), 'to': {'Bool': op == '&&'}})
+        right, rp = search(b, env, rules, budget, used, local)
         current = {'Binary': [op, left, right]}
-        proof = {'Binary': dict(op=op, left=lp, right=rp)}
+        if not short or right == b:
+            proof = {'Binary': dict(op=op, left=lp, right=rp)}
+        else:
+            condition = scalar(left, env)
+            before, after = binary(op, condition, scalar(b, env)), scalar(current, env)
+            active = {'Binary': dict(op=op, left=refl(condition), right=rp)}
+            literal = {'Bool': op != '&&'}
+
+            def inactive(side):
+                # Find a checked DB annihilation theorem. A missing law abandons
+                # this candidate; the compiler never supplies an implicit law.
+                value = {'Binary': [op, literal, side]}
+                for identity, theorem in rules:
+                    if budget[0] <= 0:
+                        raise Unsupported('search budget exhausted')
+                    budget[0] -= 1
+                    result = application(value, env, identity, theorem, hypotheses)
+                    if result is not None and result[0] == literal:
+                        prefix = {'Binary': dict(op=op, left={'Hypothesis': len(hypotheses)}, right=refl(scalar(side, env)))}
+                        return {'Trans': [prefix, result[1]]}
+                raise Unsupported('missing DB law for short-circuit branch closure')
+
+            inactive_proof = {'Trans': [inactive(b), {'Sym': inactive(right)}]}
+            split = {'BoolSplit': dict(condition=condition, **{'from': before, 'to': after},
+                on_false=inactive_proof if op == '&&' else active,
+                on_true=active if op == '&&' else inactive_proof)}
+            prefix = {'Binary': dict(op=op, left=lp, right=refl(scalar(b, env)))}
+            proof = {'Trans': [prefix, split]}
     elif kind in ('Var', 'Num', 'Bool'):
         current, proof = copy.deepcopy(e), refl(scalar(e, env))
     else:
@@ -78,18 +191,13 @@ def search(e, env, rules, budget, used):
         if budget[0] <= 0:
             raise Unsupported('search budget exhausted')
         budget[0] -= 1
-        bindings = {}
-        if not match(theorem['from'], current, bindings):
+        result = application(current, env, identity, theorem, hypotheses)
+        if result is None:
             continue
-        try:
-            replacement = substitute(theorem['to'], bindings)
-            arguments = [scalar(bindings[n], env) for n, _ in theorem['params']]
-        except (KeyError, ValueError):
-            continue
+        replacement, step = result
         # This profitability heuristic belongs to the producer, not the checker.
         if size(replacement) >= size(current):
             continue
-        step = {'Use': dict(theorem=identity, arguments=arguments, premises=[])}
         proof = {'Trans': [proof, step]}
         current = replacement
         used.append(identity)
@@ -99,6 +207,7 @@ def search(e, env, rules, budget, used):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('source', type=Path)
+    parser.add_argument('--core', action='store_true', help='read checked executable IR instead of surface source')
     parser.add_argument('--rules', type=Path, required=True)
     parser.add_argument('--compiler', type=Path, required=True)
     parser.add_argument('--output-dir', type=Path, required=True)
@@ -112,7 +221,7 @@ def main():
     if any(out.iterdir()):
         parser.error('output directory must be empty')
     compiler_hash = hashlib.sha256(compiler.read_bytes()).hexdigest()
-    subprocess.run([compiler, 'emit-core', args.source.resolve(), '-o', out / 'core.json'], check=True, capture_output=True)
+    subprocess.run([compiler, 'emit-core', args.source.resolve(), *(['--core'] if args.core else []), '-o', out / 'core.json'], check=True, capture_output=True)
     core = json.loads((out / 'core.json').read_text())
     program = core['program']
     if any(program[k] for k in ('states', 'keeps', 'actions', 'events', 'records', 'enums', 'ids')):
@@ -126,14 +235,37 @@ def main():
     lock = index_path.parent / relative
     shutil.copytree(lock.parent / 'objects', out / 'objects')
     roots = json.loads(lock.read_text())
+    objects = {p.stem: json.loads(p.read_text()) for p in (out / 'objects').glob('*.json')}
+
+    def expand(t, remaining, bindings=None):
+        if remaining[0] <= 0:
+            raise Unsupported('scalar definition expansion budget')
+        remaining[0] -= 1
+        bindings = bindings or {}
+        kind, value = next(iter(t.items()))
+        if kind == 'Var':
+            return copy.deepcopy(bindings.get(value, t))
+        if kind in ('U64', 'Bool'):
+            return t
+        if kind == 'Binary':
+            return binary(value['op'], expand(value['left'], remaining, bindings), expand(value['right'], remaining, bindings))
+        if kind == 'Call':
+            f = objects[value['function']]['declaration']['Function']
+            if f['recursive'] is not None or len(f['params']) != len(value['arguments']):
+                raise Unsupported('requires an acyclic scalar definition')
+            local = {n: expand(a, remaining, bindings) for (n, _), a in zip(f['params'], value['arguments'])}
+            return expand(f['body'], remaining, local)
+        raise Unsupported('non-scalar rule endpoint')
     rules = []
     for identity in index['rules']:
         if len(identity) != 64 or any(c not in '0123456789abcdef' for c in identity):
             parser.error('invalid rule identity')
-        obj = json.loads((out / 'objects' / f'{identity}.json').read_text())
-        theorem = obj['declaration']['Theorem']
-        if theorem['conditions']:
-            parser.error('this producer requires unconditional laws')
+        obj = objects[identity]
+        theorem = copy.deepcopy(obj['declaration']['Theorem'])
+        expansion_budget = [10000]
+        theorem['from'] = expand(theorem['from'], expansion_budget)
+        theorem['to'] = expand(theorem['to'], expansion_budget)
+        theorem['conditions'] = [{k: expand(v, expansion_budget) for k, v in c.items()} for c in theorem['conditions']]
         rules.append((identity, theorem))
 
     def store(name, kind, declaration, dependencies=()):
@@ -182,7 +314,7 @@ def main():
             if f['result'] not in ('U64', 'Bool'):
                 raise Unsupported('unsupported result')
             body = f['body']
-            if all(t in ('U64', 'Bool') for _, t in f['params']):
+            if next(iter(body)) in ('Var', 'Num', 'Bool', 'Binary') and all(t in ('U64', 'Bool', {'List': 'U64'}) for _, t in f['params']):
                 replacement, proof = search(body, env, rules, budget, used)
             elif 'Call' in body and body['Call'][0] == 'sum' and len(body['Call'][1]) == 1:
                 mapped = body['Call'][1][0]
