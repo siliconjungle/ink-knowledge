@@ -99,6 +99,54 @@
       "roots": 10
     },
     {
+      "name": "machine-candidates/counter-alternative",
+      "lock": "machine-candidates/counter-alternative/lock.json",
+      "lock_sha256": "241fa93423b1389f7e13768c1457a953d11505bf2b4786de7fc0977e7b4f967f",
+      "semantics": "first-order-inductive-equality-v1",
+      "checker_command": "verify-library",
+      "roots": 27
+    },
+    {
+      "name": "machine-candidates/counter-original",
+      "lock": "machine-candidates/counter-original/lock.json",
+      "lock_sha256": "4cb6e92a504f2b8fb1bc23353c77d164256789cbfdcf8ae65c95bbde21836311",
+      "semantics": "first-order-inductive-equality-v1",
+      "checker_command": "verify-library",
+      "roots": 27
+    },
+    {
+      "name": "machine-candidates/ledger-alternative",
+      "lock": "machine-candidates/ledger-alternative/lock.json",
+      "lock_sha256": "395123d4a0e4baedba10d70ee79b888f341925ae5333867419d87f427117b86f",
+      "semantics": "first-order-inductive-equality-v1",
+      "checker_command": "verify-library",
+      "roots": 115
+    },
+    {
+      "name": "machine-candidates/ledger-original",
+      "lock": "machine-candidates/ledger-original/lock.json",
+      "lock_sha256": "ae3e21e9ea6a321b2f1711167ec196ceb16db4eecbf625606bf7800e1394a56c",
+      "semantics": "first-order-inductive-equality-v1",
+      "checker_command": "verify-library",
+      "roots": 115
+    },
+    {
+      "name": "machine-candidates/row-alternative",
+      "lock": "machine-candidates/row-alternative/lock.json",
+      "lock_sha256": "fde002794711308efa4a5a9193dfb057c43e7819ab38bc4a06bd789b7ce95f0e",
+      "semantics": "first-order-inductive-equality-v1",
+      "checker_command": "verify-library",
+      "roots": 118
+    },
+    {
+      "name": "machine-candidates/row-original",
+      "lock": "machine-candidates/row-original/lock.json",
+      "lock_sha256": "7687643fde8c1e4b9cc99c5a7b101c9c7da8b5bcae444762ddcaa5adfc60641f",
+      "semantics": "first-order-inductive-equality-v1",
+      "checker_command": "verify-library",
+      "roots": 118
+    },
+    {
       "name": "reversible-maintenance",
       "lock": "reversible-maintenance/lock.json",
       "lock_sha256": "7e2c20efacd8f5fe96c7221a5b14c008862c5e59c92225294c2e0772c42dd951",
