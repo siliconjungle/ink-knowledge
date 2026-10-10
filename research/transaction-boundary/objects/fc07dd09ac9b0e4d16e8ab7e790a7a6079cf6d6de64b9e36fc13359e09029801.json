@@ -1,0 +1,1 @@
+{"schema":1,"semantics":"first-order-inductive-equality-v1","name":"ChangeDecision","dependencies":[],"declaration":{"Datatype":{"constructors":[{"name":"Rollback","fields":[]},{"name":"Commit","fields":["U64"]},{"name":"Exhausted","fields":[]}]}}}

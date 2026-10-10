@@ -281,6 +281,14 @@
       "semantics": "first-order-inductive-equality-v1",
       "checker_command": "verify-library",
       "roots": 96
+    },
+    {
+      "name": "transaction-boundary",
+      "lock": "transaction-boundary/lock.json",
+      "lock_sha256": "82907b6fd61e1b3f46cdca85a6cff9afbf77a5779b9f82b9cdc2d3cbf68e135c",
+      "semantics": "first-order-inductive-equality-v1",
+      "checker_command": "verify-library",
+      "roots": 6
     }
   ]
 }
