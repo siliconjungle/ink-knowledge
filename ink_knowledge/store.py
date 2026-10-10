@@ -237,7 +237,9 @@ class Store:
         if not isinstance(w['shape'],(list,dict)) or not isinstance(w['distribution'],(str,dict)) or not w['distribution'] or type(w['concurrency']) is not int or not 1<=w['concurrency']<=65536 or not isinstance(w['residency'],str) or not w['residency']:raise ValueError('invalid workload provenance')
         samples=obj['metrics']['complete_call_ns']
         if not isinstance(samples,list) or not 1<=len(samples)<=256 or any(not isinstance(x,str) or not x.isascii() or not x.isdigit() or len(x)>40 for x in samples):raise ValueError('invalid performance samples')
-        if type(obj['metrics']['peak_bytes']) is not int or obj['metrics']['peak_bytes']<0:raise ValueError('invalid memory metric')
+        peak=obj['metrics']['peak_bytes']
+        # Timing-only evidence must not invent a zero-allocation measurement.
+        if peak is not None and (type(peak) is not int or peak<0):raise ValueError('invalid memory metric')
         canonical(obj)
     def observe(self,obj):
         self.validate_observation(obj)

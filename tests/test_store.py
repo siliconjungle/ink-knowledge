@@ -50,4 +50,22 @@ class StoreTests(unittest.TestCase):
         self.assertEqual(s.observations(obs['program'],[obs['plan']],obs['target'],obs['workload']),[obs])
         with closing(sqlite3.connect(self.root/'index.sqlite')) as db,db:self.assertEqual(db.execute('SELECT id FROM observations').fetchone()[0],i)
         with self.assertRaises(ValueError):s.object(i)
+    def test_unmeasured_memory_survives_observation_rebuild_without_becoming_zero(self):
+        obs=dict(schema=1,program='1'*64,entries=[identity(self.a)],plan='2'*64,
+                 target=dict(hardware='test',driver='test',toolchain='test',backend='cpu',bridge='three-call'),
+                 workload=dict(shape={'rows':48,'action':'get'},distribution='nonzero keys',concurrency=1,residency='host'),
+                 metrics=dict(complete_call_ns=['54000','55000'],peak_bytes=None))
+        pin=self.store.snapshot_id;self.store.rebuild();unknown=self.store.observe(obs)
+        zero=copy.deepcopy(obs);zero['metrics']['peak_bytes']=0;measured=self.store.observe(zero)
+        self.assertNotEqual(unknown,measured)
+        self.assertEqual(self.store.snapshot_id,pin)
+        (self.root/'index.sqlite').unlink()
+        replay=Store(self.root).observations(obs['program'],[obs['plan']],obs['target'],obs['workload'])
+        self.assertEqual({identity(o) for o in replay},{unknown,measured})
+        self.assertEqual(next(o for o in replay if identity(o)==unknown)['metrics']['peak_bytes'],None)
+        other=copy.deepcopy(obs['target']);other['bridge']='fused'
+        self.assertEqual(self.store.observations(obs['program'],[obs['plan']],other,obs['workload']),[])
+        for bad in [-1,False,'0',0.0]:
+            invalid=copy.deepcopy(obs);invalid['metrics']['peak_bytes']=bad
+            with self.assertRaises(ValueError):self.store.observe(invalid)
 if __name__=='__main__':unittest.main()
