@@ -8,6 +8,7 @@ ROOT=Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT))
 from ink_knowledge import Store,entry,identity,semantic_entry,canonical
 from semantic_laws import examples
+from local_collection_laws import examples as local_examples
 
 def build(output):
     source={};names={};objects={};translated={};active=set()
@@ -37,9 +38,13 @@ def build(output):
     names={n:translated[i] for n,i in names.items()};rewrites=[]
     for n,law in enumerate(examples()):
         obj=semantic_entry(law);i=identity(obj);objects[i]=obj;rewrites.append(i);names[f'rewrite/example-{n:02}']=i
+    local_roots=[]
+    for name,law in local_examples().items():
+        obj=semantic_entry(law);i=identity(obj);objects[i]=obj;rewrites.append(i);local_roots.append(i);names['rewrite/'+name]=i
     store=Store.publish(output,objects.values(),names)
     store.rebuild()
     (Path(output)/'store/rewrite-view.json').write_bytes(canonical(store.bundle(rewrites))+b'\n')
+    (Path(output)/'store/local-collection-view.json').write_bytes(canonical(store.bundle(local_roots))+b'\n')
     return store
 if __name__=='__main__':
     p=argparse.ArgumentParser();p.add_argument('--output',type=Path,required=True);a=p.parse_args()
