@@ -14,13 +14,13 @@ COMMANDS = {
 
 def catalogue(root):
     packages = []
-    for path in sorted(root.glob('*/lock.json')):
+    for path in sorted(root.rglob('lock.json')):
         raw = path.read_bytes()
         lock = json.loads(raw)
         semantics = lock['semantics']
         if lock['schema'] != 1 or semantics not in COMMANDS:
             raise ValueError(f'Unsupported library lock: {path}')
-        packages.append(dict(name=path.parent.name,
+        packages.append(dict(name=path.parent.relative_to(root).as_posix(),
             lock=str(path.relative_to(root)),
             lock_sha256=hashlib.sha256(raw).hexdigest(),
             semantics=semantics, checker_command=COMMANDS[semantics],

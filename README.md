@@ -125,3 +125,24 @@ python3 tools/scalar_library.py --library boolean/lock.json \
 This reproduces the mathematical objects, index and names in `scalar-logic/`.
 Source bytes, translated hashes and a successful producer exit are not proof
 authority: the general checker validates the output locally.
+
+`definition-candidates/` contains executable first-order definitions and
+unconditional entry-selection proofs. They reproduce through:
+
+```sh
+python3 tools/definition_candidates.py --example map \
+  --compiler /path/to/ink --output-dir /tmp/ink-definition-map
+python3 tools/definition_candidates.py --example row \
+  --compiler /path/to/ink --output-dir /tmp/ink-definition-row
+python3 tools/definition_candidates.py --example ledger \
+  --compiler /path/to/ink --output-dir /tmp/ink-definition-ledger
+```
+
+The producer checks the original library, adds ordinary function definitions,
+pins the resulting bundle and asks `emit-definition --select` to check each
+complete replacement and emit its actual body. The map example combines passes.
+The row/ledger candidates convert rows to columns for an update and decode the
+result, using existing step and roundtrip theorems. No new axiom or kernel rule
+is required. These examples use boxed datatype storage and make no timing
+claim. Efficient physical storage, full Ink source transactions and native
+backend verification remain separate obligations.

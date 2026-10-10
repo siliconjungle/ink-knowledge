@@ -43,6 +43,30 @@
       "roots": 2
     },
     {
+      "name": "definition-candidates/ledger",
+      "lock": "definition-candidates/ledger/lock.json",
+      "lock_sha256": "500a7a3557c95607abefbd9720f68957a0ebd345d37bfd51a95e095f9ed340bd",
+      "semantics": "first-order-inductive-equality-v1",
+      "checker_command": "verify-library",
+      "roots": 109
+    },
+    {
+      "name": "definition-candidates/map",
+      "lock": "definition-candidates/map/lock.json",
+      "lock_sha256": "543e1c8c30f77959846ee7901515f7bba84b4c6ac3d923fc918c627e04090883",
+      "semantics": "first-order-inductive-equality-v1",
+      "checker_command": "verify-library",
+      "roots": 11
+    },
+    {
+      "name": "definition-candidates/row",
+      "lock": "definition-candidates/row/lock.json",
+      "lock_sha256": "b3a98bd51bb10d6491ee8a14c64fe4cb1958b7cba6b3ebffb0c98af7771adbc9",
+      "semantics": "first-order-inductive-equality-v1",
+      "checker_command": "verify-library",
+      "roots": 112
+    },
+    {
       "name": "delta-maintenance",
       "lock": "delta-maintenance/lock.json",
       "lock_sha256": "050fd585c0c17387048a25ac0d3d7587c671b423552384e4bda10158f943edf6",
@@ -113,6 +137,38 @@
       "semantics": "first-order-inductive-equality-v1",
       "checker_command": "verify-library",
       "roots": 108
+    },
+    {
+      "name": "source-row-ledger/reversible",
+      "lock": "source-row-ledger/reversible/lock.json",
+      "lock_sha256": "16e59d6f8a5fbad7b5fcec0085fb0a82b320c5df35052587afbba80454c38676",
+      "semantics": "first-order-inductive-equality-v1",
+      "checker_command": "verify-library",
+      "roots": 102
+    },
+    {
+      "name": "source-row-ledger/snapshot",
+      "lock": "source-row-ledger/snapshot/lock.json",
+      "lock_sha256": "4b60cd0b38aadee85f008d964979ba300f480058fb01748e471739a932a55bc9",
+      "semantics": "first-order-inductive-equality-v1",
+      "checker_command": "verify-library",
+      "roots": 102
+    },
+    {
+      "name": "source-row-undo/reversible",
+      "lock": "source-row-undo/reversible/lock.json",
+      "lock_sha256": "80f156164fd0859f378999f67319565cab303e48052e6ea591d65a465c741ada",
+      "semantics": "first-order-inductive-equality-v1",
+      "checker_command": "verify-library",
+      "roots": 105
+    },
+    {
+      "name": "source-row-undo/snapshot",
+      "lock": "source-row-undo/snapshot/lock.json",
+      "lock_sha256": "3435cffedde3387314a93b4c0723fcc3d81149fb2b074de62a1e0462305253ef",
+      "semantics": "first-order-inductive-equality-v1",
+      "checker_command": "verify-library",
+      "roots": 105
     },
     {
       "name": "source-search-layout",
