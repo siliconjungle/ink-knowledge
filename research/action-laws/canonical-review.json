@@ -1,0 +1,11 @@
+{
+  "schema": 1,
+  "old_snapshot": "00bf3ba45124029333e807bc2dac6d9ff2f54b2fcff273ba25faa8a5017c39c9",
+  "new_snapshot": "b90abab6c23f74127ded3cfefeed5b6bcb0fc9bf091655714d321a6146284e67",
+  "old_entries": 658,
+  "new_entries": 662,
+  "old_names_preserved": 2536,
+  "new_names": 2540,
+  "new_entries_checked": 4,
+  "scope": "Parametric table mathematics under the existing general kernel. Source transition binding and native conformance checked separately; no native machine-code proof."
+}
