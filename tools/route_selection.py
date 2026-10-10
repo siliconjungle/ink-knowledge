@@ -20,13 +20,16 @@ def main():
     if not 1<=a.check_timeout_seconds<=60:raise ValueError('checking time budget outside 1..60')
     if not 0<=a.max_candidates<=32:raise ValueError('candidate budget outside 0..32')
     candidates=json.loads(read(a.candidates,1_000_000))
-    if not isinstance(candidates,list) or len(candidates)>32 or any(not isinstance(c,str) for c in candidates):raise ValueError('invalid candidate index')
+    if not isinstance(candidates,list) or len(candidates)>32 or any(not (isinstance(c,str) or isinstance(c,dict) and set(c)=={'route','proof'} and all(isinstance(v,str) for v in c.values())) for c in candidates):raise ValueError('invalid candidate index')
     checked=[];rejected=[]
-    paths=[a.baseline.resolve()]+[(a.candidates.parent/c).resolve() for c in candidates[:a.max_candidates]]
-    for i,path in enumerate(paths):
+    paths=[(a.baseline.resolve(),None)]+[((a.candidates.parent/(c if isinstance(c,str) else c['route'])).resolve(), None if isinstance(c,str) else (a.candidates.parent/c['proof']).resolve()) for c in candidates[:a.max_candidates]]
+    for i,(path,proof) in enumerate(paths):
         raw=read(path,16_000_000)
         try:
-            result=subprocess.run([str(a.compiler.resolve()),'check-source-route',str(a.core.resolve()),str(path)],capture_output=True,text=True,timeout=a.check_timeout_seconds)
+            command=[str(a.compiler.resolve()),'check-source-route',str(a.core.resolve()),str(path)]
+            proof_bytes=read(proof,16_000_000) if proof else None
+            if proof:command += ['--route-proof',str(proof)]
+            result=subprocess.run(command,capture_output=True,text=True,timeout=a.check_timeout_seconds)
         except subprocess.TimeoutExpired:
             if i==0:raise ValueError('baseline checking budget exhausted')
             rejected.append(str(path));continue
@@ -38,7 +41,7 @@ def main():
             stages=route['stages']
             if len(stages)!=1 or stages[0]['function']!=route['entry'] or stages[0]['backend']!='c' or stages[0]['domain']!='cpu' or route['output']!={'Stage':stages[0]['id']}:
                 raise ValueError('baseline must be an unchanged whole-entry CPU stage')
-        checked.append((hashlib.sha256(raw).hexdigest(),raw,json.loads(result.stdout)))
+        checked.append((hashlib.sha256(raw).hexdigest(),raw,json.loads(result.stdout),proof_bytes))
     if any(c[2]['core_sha256']!=checked[0][2]['core_sha256'] or c[2]['entry']!=checked[0][2]['entry'] for c in checked):raise ValueError('candidate core/entry mismatch')
     measurement=json.loads(read(a.measurements,4_000_000)) if a.measurements else None
     costs={}
@@ -53,5 +56,8 @@ def main():
         for candidate in checked[1:]:
             if candidate[0] in costs and costs[candidate[0]]<costs[selected[0]]:selected=candidate
     a.output.parent.mkdir(parents=True,exist_ok=True);a.output.write_bytes(selected[1])
-    print(json.dumps(dict(status='checked',selected_sha256=selected[0],checked=len(checked),rejected=rejected,budget=a.max_candidates,remaining=len(candidates)-min(len(candidates),a.max_candidates),cost_ms=costs.get(selected[0]),measurement=measurement and {k:measurement[k] for k in ['target','workload','metric']},scope='selection by untrusted performance evidence; every candidate checked independently; no runtime adaptation')))
+    selected_proof=None
+    if selected[3] is not None:
+        selected_proof=str(a.output)+'.proof.json';Path(selected_proof).write_bytes(selected[3])
+    print(json.dumps(dict(status='checked',selected_sha256=selected[0],selected_proof=selected_proof,checked=len(checked),rejected=rejected,budget=a.max_candidates,remaining=len(candidates)-min(len(candidates),a.max_candidates),cost_ms=costs.get(selected[0]),measurement=measurement and {k:measurement[k] for k in ['target','workload','metric']},scope='selection by untrusted performance evidence; every candidate checked independently; no runtime adaptation')))
 if __name__=='__main__':main()

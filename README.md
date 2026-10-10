@@ -176,3 +176,35 @@ output. Candidate count, file/sample sizes and checking time have explicit
 budgets. These are compile-time selection inputs, not semantic facts, runtime
 adaptation or formally verified physical bridges. See ink-lang's
 `docs/source-routing.md` and `reports/source-routing-phase1`.
+
+## General composable executable laws
+
+`semantic/catalogue.json` contains typed conditional semantic laws, including
+universal loop-count induction, integer identities and collection composition.
+`tools/semantic_laws.py` reproduces this example data. Neither the compiler nor
+`tools/semantic_search.py` contains these optimisation patterns.
+
+The external search matches arbitrary typed subexpressions, including binders,
+composes successive checked applications, and uses a bounded checker session.
+Every theorem and instantiated condition is checked locally. Structural costs
+are estimates, not proof premises. Use the distribution's `--optimise` option,
+or produce a replayable package explicitly:
+
+```sh
+python3 tools/semantic_search.py --compiler /path/to/ink --core core.json \
+  --catalogue semantic/catalogue.json -o selection.json
+ink check-selection core.json selection.json
+ink emit-core core.json --core --selection selection.json -o selected.json
+```
+
+Adding a theorem is a data change. Objects are identified by SHA-256 of the
+versioned compact wire encoding, dependencies are explicit, and a catalogue view
+pins its enabled roots. The checker accepts no trusted-theorem flags. See the
+language repository's `docs/semantic-optimisation.md` for semantics, budgets,
+trust boundaries and current stateful/physical-routing limits.
+
+Supporting dependency lemmas can discharge applicability conditions without
+being enabled as rewrite roots. The measured route selector also accepts
+`{"route":"candidate.json","proof":"evidence.json"}` candidates, checks each
+through the same semantic calculus, and saves selected evidence in
+`OUTPUT.proof.json`. Measured costs never supply applicability facts.

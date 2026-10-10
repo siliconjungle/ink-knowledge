@@ -47,7 +47,7 @@ def produce(core, identity, entry, placements, baseline=False):
 def main():
     p=argparse.ArgumentParser(description=__doc__)
     p.add_argument('--core',required=True,type=Path);p.add_argument('--entry',required=True)
-    p.add_argument('--baseline',action='store_true');p.add_argument('--placements',type=Path);p.add_argument('--compiler',required=True,type=Path)
+    p.add_argument('--proof',type=Path,help='general semantic equivalence evidence for proved routing');p.add_argument('--baseline',action='store_true');p.add_argument('--placements',type=Path);p.add_argument('--compiler',required=True,type=Path)
     p.add_argument('-o','--output',required=True,type=Path)
     p.add_argument('--check-timeout-seconds',type=int,default=10)
     a=p.parse_args()
@@ -59,9 +59,12 @@ def main():
     compiler=a.compiler.resolve();core=a.core.resolve()
     checked=json.loads(subprocess.check_output([str(compiler),'check-core',str(core)],text=True,timeout=a.check_timeout_seconds))
     candidate=produce(json.loads(bounded(core,16_000_000)),checked['core_sha256'],a.entry,json.loads(bounded(a.placements,1_000_000)) if a.placements else {}, a.baseline)
+    if a.proof: candidate['semantics']='ink-proved-source-routing-v1'
     with tempfile.TemporaryDirectory(prefix='ink-source-route-') as directory:
         path=Path(directory)/'route.json';path.write_text(json.dumps(candidate,sort_keys=True,indent=2)+'\n')
-        receipt=json.loads(subprocess.check_output([str(compiler),'check-source-route',str(core),str(path)],text=True,timeout=a.check_timeout_seconds))
+        command=[str(compiler),'check-source-route',str(core),str(path)]
+        if a.proof: command += ['--route-proof',str(a.proof.resolve())]
+        receipt=json.loads(subprocess.check_output(command,text=True,timeout=a.check_timeout_seconds))
         a.output.parent.mkdir(parents=True,exist_ok=True);a.output.write_bytes(path.read_bytes())
     print(json.dumps(dict(status=receipt['status'],entry=a.entry,stages=len(candidate['stages']),source='external literal partitioning; explicit placements; no profitability claim')))
 if __name__=='__main__':main()

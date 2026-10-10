@@ -1,0 +1,4301 @@
+{
+  "schema": 1,
+  "semantics": "ink-conditional-laws-v1",
+  "roots": [
+    "cad57bdeb4dc11761f851a8576eeefdc70e3db9520d0b5941f372bce4dfb00b8",
+    "bde19806c4f411dc79dc656737204994e2f7d9902c2a450846a260dcd7678fc3",
+    "4a76f683792a2d1ae03270ecf27bfcf71150f5b73c123a470e973a9683ba081f",
+    "c6b82e5f1e3be8961dee05b5606b41179efb79542d46875a988b9ca164c20f53",
+    "cc07a439523dd3694f540b4e27d224a1d028482c5d9d74f6ccfb4b28c5257977",
+    "7a3ef44efb095666ae6cc9a79579789bd637c0eabd332db8e85cf0baab0960c7",
+    "4a2fb1cbbfdca64c0e3b2a541d0bfa6b62ea86cbec1334f308af41c098f21c1e",
+    "89e5b2032c43016efeb23660e5642346824a0eb3c9e6757f866b0590da63c2ed",
+    "ba2989cbbe610c89b7c8488f58a96585fa2aa0e3411a6464dd0b1c02a6936730",
+    "d6276c60ebfbfcd628a354186d8363e33206c441f130bc68090162c22e68e3eb",
+    "0176e8f30d21862e859d9a7d4c52d2d3621f0678e1e47b384148cf0c03dadb14",
+    "f700389e4338f08b0494ea59fdb0a57ea3bcf20795202825cc75df6e1669b3ce",
+    "88495c953a92b99d164cc769ddab8da0a1c7b5580fccbf2748d2c1cfffab1004",
+    "c7c1d13dbc38ab8038472594087226416da5f9df2eb748e66be0a8ce8464263a",
+    "b597dceddafde0beff8e2574b228ebe903c616cc888c981a5efabcbc23469d84",
+    "43ed0a7778cdb4b1374919e5ed75c81b79d6d94d8ac78df4e7baaa810f010a45",
+    "c033aab8dacc56584205b019ece79bd206282881ef67e08cf0133e44175e7ce0",
+    "bbfb43ce2353ed355071f08595769c6b4e38ec1ad01b538eba605da482187158",
+    "e291e586ec26ccbbf67b6a49faae654079226fee16ecfa9947134abbfed3d9d6",
+    "c53fb5600ac3c528e3d46430519f578219194b1b29d73a83cb0d81e8873e5f3b",
+    "347c84febf67518ef4030f5bd9eec9aa97c25c65cdccc98f4972312e32354171",
+    "9e89aaa1835b46949ec2dde46986616762b160da7c52b615d1585a777b4508fb",
+    "990f07b084e7bc38ad585d1fd24bde9c52382f8445e2628ec37539a27629538a",
+    "227035fd7cdf59f6c61d5fa4597c8d949df52be2e7765b37ed00b31999231a25",
+    "c7f9d8ab304d1926f033e2e84f93a55d1f050e7e3340dc9b46df076d784bfc51",
+    "16355d620934a8c6fe33a5926cdaa7ce35185477cbae93b72692dceea930fa5b",
+    "088d32e00eb95feb780fcb23429930e06021cb7bade374ab20dd2d220b63d798",
+    "b9188e37723e979fdd568e3e1dafcbd69eff416a72932dc7d0aec74309ad5189",
+    "0c82e0521b15a5140236f6bd9fefbdc4252a1d0699baa42675f83d5ae79fdf2a",
+    "ab2416b02bbd7a7d98c520e40bedfa603a5e36d25647eb13d8386d43789d1f41",
+    "391c5835bc2afa403974273744f5dfd675855db62510ce7c4b89698df53601ff",
+    "8f1af74beb54b07d775eeccb0b79f4e3f117c5cc34ddea1ba20a608da39036fc",
+    "7862858f9e98d22aed333867e8840af18382198772f5a39ff0a1e4d16f7d1383",
+    "ba18a93f5139d26d7d07890be8369c7dacc0ed6b3a9f71079526c9d57a7ac48c",
+    "d49dc268594f66f8b038f2877c3fa243e547ed31890eb1b09961b1ba7c05f753",
+    "b911257020288e555aa02be8786cabb657cc5f7878f863fd41b359789d1751a3",
+    "caefc4fd6ae65148ffefe24814d3215e3ace7addd8aae1b00f94b4c2168dd50a",
+    "8e8e2aec6cf751edfab9d7990ef55a1673a6a0fe005787da6cf374ba571a71bb",
+    "e241fca2d899f088ddec4bfc87f65ec1f166213f8a0a44f15a62ed2c1b58a063",
+    "61336aabda85752516af5b644165db867780efe27c2ab01c7391ce5307fa7e92",
+    "5633226234fb36ae1485511ceb58b1f70b02d4bbb9550e8bf88f39a2e3a725ef",
+    "dec0acdbea735a42cff214fb08a3454d9d694e60ed1bb42a6ea7d09cb5d64bd6"
+  ],
+  "objects": {
+    "0176e8f30d21862e859d9a7d4c52d2d3621f0678e1e47b384148cf0c03dadb14": {
+      "schema": 1,
+      "semantics": "ink-conditional-laws-v1",
+      "params": {
+        "x": {
+          "Value": "U64"
+        }
+      },
+      "conditions": [],
+      "from": {
+        "sort": {
+          "Value": "U64"
+        },
+        "node": {
+          "Op": [
+            "binary:*",
+            [
+              {
+                "sort": {
+                  "Value": "U64"
+                },
+                "node": {
+                  "Free": "x"
+                }
+              },
+              {
+                "sort": {
+                  "Value": "U64"
+                },
+                "node": {
+                  "Word": 1
+                }
+              }
+            ]
+          ]
+        }
+      },
+      "to": {
+        "sort": {
+          "Value": "U64"
+        },
+        "node": {
+          "Free": "x"
+        }
+      },
+      "proof": "Normalize",
+      "dependencies": []
+    },
+    "088d32e00eb95feb780fcb23429930e06021cb7bade374ab20dd2d220b63d798": {
+      "schema": 1,
+      "semantics": "ink-conditional-laws-v1",
+      "params": {
+        "x": {
+          "Value": "I32"
+        },
+        "y": {
+          "Value": "I32"
+        }
+      },
+      "conditions": [
+        {
+          "from": {
+            "sort": {
+              "Value": "Bool"
+            },
+            "node": {
+              "Op": [
+                "binary:==",
+                [
+                  {
+                    "sort": {
+                      "Value": "I32"
+                    },
+                    "node": {
+                      "Free": "y"
+                    }
+                  },
+                  {
+                    "sort": {
+                      "Value": "I32"
+                    },
+                    "node": {
+                      "Word": 0
+                    }
+                  }
+                ]
+              ]
+            }
+          },
+          "to": {
+            "sort": {
+              "Value": "Bool"
+            },
+            "node": {
+              "Bool": true
+            }
+          }
+        }
+      ],
+      "from": {
+        "sort": {
+          "Value": "I32"
+        },
+        "node": {
+          "Op": [
+            "binary:+",
+            [
+              {
+                "sort": {
+                  "Value": "I32"
+                },
+                "node": {
+                  "Free": "x"
+                }
+              },
+              {
+                "sort": {
+                  "Value": "I32"
+                },
+                "node": {
+                  "Free": "y"
+                }
+              }
+            ]
+          ]
+        }
+      },
+      "to": {
+        "sort": {
+          "Value": "I32"
+        },
+        "node": {
+          "Free": "x"
+        }
+      },
+      "proof": {
+        "AssertEquality": {
+          "equality": {
+            "from": {
+              "sort": {
+                "Value": "I32"
+              },
+              "node": {
+                "Free": "y"
+              }
+            },
+            "to": {
+              "sort": {
+                "Value": "I32"
+              },
+              "node": {
+                "Word": 0
+              }
+            }
+          },
+          "premise": {
+            "Hypothesis": 0
+          },
+          "body": "Normalize"
+        }
+      },
+      "dependencies": []
+    },
+    "0c82e0521b15a5140236f6bd9fefbdc4252a1d0699baa42675f83d5ae79fdf2a": {
+      "schema": 1,
+      "semantics": "ink-conditional-laws-v1",
+      "params": {
+        "xs": {
+          "Value": {
+            "List": "U32"
+          }
+        }
+      },
+      "conditions": [],
+      "from": {
+        "sort": {
+          "Value": {
+            "List": "U32"
+          }
+        },
+        "node": {
+          "Op": [
+            "method:map",
+            [
+              {
+                "sort": {
+                  "Value": {
+                    "List": "U32"
+                  }
+                },
+                "node": {
+                  "Free": "xs"
+                }
+              },
+              {
+                "sort": {
+                  "Arrow": [
+                    {
+                      "Value": "U32"
+                    },
+                    {
+                      "Value": "U32"
+                    }
+                  ]
+                },
+                "node": {
+                  "Lambda": {
+                    "sort": {
+                      "Value": "U32"
+                    },
+                    "node": {
+                      "Bound": 0
+                    }
+                  }
+                }
+              }
+            ]
+          ]
+        }
+      },
+      "to": {
+        "sort": {
+          "Value": {
+            "List": "U32"
+          }
+        },
+        "node": {
+          "Free": "xs"
+        }
+      },
+      "proof": {
+        "Induction": {
+          "variable": "xs",
+          "names": [
+            "head",
+            "tail"
+          ],
+          "base": "Normalize",
+          "step": "Normalize"
+        }
+      },
+      "dependencies": []
+    },
+    "16355d620934a8c6fe33a5926cdaa7ce35185477cbae93b72692dceea930fa5b": {
+      "schema": 1,
+      "semantics": "ink-conditional-laws-v1",
+      "params": {
+        "k": {
+          "Value": "I32"
+        },
+        "n": "Nat",
+        "x": {
+          "Value": "I32"
+        }
+      },
+      "conditions": [],
+      "from": {
+        "sort": {
+          "Value": "I32"
+        },
+        "node": {
+          "Op": [
+            "call:repeat",
+            [
+              {
+                "sort": "Nat",
+                "node": {
+                  "Free": "n"
+                }
+              },
+              {
+                "sort": {
+                  "Value": "I32"
+                },
+                "node": {
+                  "Free": "x"
+                }
+              },
+              {
+                "sort": {
+                  "Arrow": [
+                    {
+                      "Value": "U32"
+                    },
+                    {
+                      "Arrow": [
+                        {
+                          "Value": "I32"
+                        },
+                        {
+                          "Value": "I32"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                "node": {
+                  "Lambda": {
+                    "sort": {
+                      "Arrow": [
+                        {
+                          "Value": "I32"
+                        },
+                        {
+                          "Value": "I32"
+                        }
+                      ]
+                    },
+                    "node": {
+                      "Lambda": {
+                        "sort": {
+                          "Value": "I32"
+                        },
+                        "node": {
+                          "Op": [
+                            "binary:+",
+                            [
+                              {
+                                "sort": {
+                                  "Value": "I32"
+                                },
+                                "node": {
+                                  "Bound": 0
+                                }
+                              },
+                              {
+                                "sort": {
+                                  "Value": "I32"
+                                },
+                                "node": {
+                                  "Free": "k"
+                                }
+                              }
+                            ]
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            ]
+          ]
+        }
+      },
+      "to": {
+        "sort": {
+          "Value": "I32"
+        },
+        "node": {
+          "Op": [
+            "binary:+",
+            [
+              {
+                "sort": {
+                  "Value": "I32"
+                },
+                "node": {
+                  "Free": "x"
+                }
+              },
+              {
+                "sort": {
+                  "Value": "I32"
+                },
+                "node": {
+                  "Op": [
+                    "binary:*",
+                    [
+                      {
+                        "sort": {
+                          "Value": "I32"
+                        },
+                        "node": {
+                          "Op": [
+                            "nat.word",
+                            [
+                              {
+                                "sort": "Nat",
+                                "node": {
+                                  "Free": "n"
+                                }
+                              }
+                            ]
+                          ]
+                        }
+                      },
+                      {
+                        "sort": {
+                          "Value": "I32"
+                        },
+                        "node": {
+                          "Free": "k"
+                        }
+                      }
+                    ]
+                  ]
+                }
+              }
+            ]
+          ]
+        }
+      },
+      "proof": {
+        "Induction": {
+          "variable": "n",
+          "names": [
+            "step_count"
+          ],
+          "base": "Normalize",
+          "step": "Normalize"
+        }
+      },
+      "dependencies": []
+    },
+    "227035fd7cdf59f6c61d5fa4597c8d949df52be2e7765b37ed00b31999231a25": {
+      "schema": 1,
+      "semantics": "ink-conditional-laws-v1",
+      "params": {
+        "a": {
+          "Value": "I32"
+        },
+        "x": {
+          "Value": "I32"
+        }
+      },
+      "conditions": [],
+      "from": {
+        "sort": {
+          "Value": "I32"
+        },
+        "node": {
+          "Op": [
+            "binary:+",
+            [
+              {
+                "sort": {
+                  "Value": "I32"
+                },
+                "node": {
+                  "Op": [
+                    "binary:*",
+                    [
+                      {
+                        "sort": {
+                          "Value": "I32"
+                        },
+                        "node": {
+                          "Free": "x"
+                        }
+                      },
+                      {
+                        "sort": {
+                          "Value": "I32"
+                        },
+                        "node": {
+                          "Free": "a"
+                        }
+                      }
+                    ]
+                  ]
+                }
+              },
+              {
+                "sort": {
+                  "Value": "I32"
+                },
+                "node": {
+                  "Free": "x"
+                }
+              }
+            ]
+          ]
+        }
+      },
+      "to": {
+        "sort": {
+          "Value": "I32"
+        },
+        "node": {
+          "Op": [
+            "binary:*",
+            [
+              {
+                "sort": {
+                  "Value": "I32"
+                },
+                "node": {
+                  "Free": "x"
+                }
+              },
+              {
+                "sort": {
+                  "Value": "I32"
+                },
+                "node": {
+                  "Op": [
+                    "binary:+",
+                    [
+                      {
+                        "sort": {
+                          "Value": "I32"
+                        },
+                        "node": {
+                          "Free": "a"
+                        }
+                      },
+                      {
+                        "sort": {
+                          "Value": "I32"
+                        },
+                        "node": {
+                          "Word": 1
+                        }
+                      }
+                    ]
+                  ]
+                }
+              }
+            ]
+          ]
+        }
+      },
+      "proof": "Normalize",
+      "dependencies": []
+    },
+    "347c84febf67518ef4030f5bd9eec9aa97c25c65cdccc98f4972312e32354171": {
+      "schema": 1,
+      "semantics": "ink-conditional-laws-v1",
+      "params": {
+        "x": {
+          "Value": "I32"
+        }
+      },
+      "conditions": [],
+      "from": {
+        "sort": {
+          "Value": "I32"
+        },
+        "node": {
+          "Op": [
+            "binary:-",
+            [
+              {
+                "sort": {
+                  "Value": "I32"
+                },
+                "node": {
+                  "Free": "x"
+                }
+              },
+              {
+                "sort": {
+                  "Value": "I32"
+                },
+                "node": {
+                  "Free": "x"
+                }
+              }
+            ]
+          ]
+        }
+      },
+      "to": {
+        "sort": {
+          "Value": "I32"
+        },
+        "node": {
+          "Word": 0
+        }
+      },
+      "proof": "Normalize",
+      "dependencies": []
+    },
+    "391c5835bc2afa403974273744f5dfd675855db62510ce7c4b89698df53601ff": {
+      "schema": 1,
+      "semantics": "ink-conditional-laws-v1",
+      "params": {
+        "f": {
+          "Arrow": [
+            {
+              "Value": "U64"
+            },
+            {
+              "Value": "U64"
+            }
+          ]
+        },
+        "g": {
+          "Arrow": [
+            {
+              "Value": "U64"
+            },
+            {
+              "Value": "U64"
+            }
+          ]
+        },
+        "xs": {
+          "Value": {
+            "List": "U64"
+          }
+        }
+      },
+      "conditions": [],
+      "from": {
+        "sort": {
+          "Value": {
+            "List": "U64"
+          }
+        },
+        "node": {
+          "Op": [
+            "method:map",
+            [
+              {
+                "sort": {
+                  "Value": {
+                    "List": "U64"
+                  }
+                },
+                "node": {
+                  "Op": [
+                    "method:map",
+                    [
+                      {
+                        "sort": {
+                          "Value": {
+                            "List": "U64"
+                          }
+                        },
+                        "node": {
+                          "Free": "xs"
+                        }
+                      },
+                      {
+                        "sort": {
+                          "Arrow": [
+                            {
+                              "Value": "U64"
+                            },
+                            {
+                              "Value": "U64"
+                            }
+                          ]
+                        },
+                        "node": {
+                          "Free": "f"
+                        }
+                      }
+                    ]
+                  ]
+                }
+              },
+              {
+                "sort": {
+                  "Arrow": [
+                    {
+                      "Value": "U64"
+                    },
+                    {
+                      "Value": "U64"
+                    }
+                  ]
+                },
+                "node": {
+                  "Free": "g"
+                }
+              }
+            ]
+          ]
+        }
+      },
+      "to": {
+        "sort": {
+          "Value": {
+            "List": "U64"
+          }
+        },
+        "node": {
+          "Op": [
+            "method:map",
+            [
+              {
+                "sort": {
+                  "Value": {
+                    "List": "U64"
+                  }
+                },
+                "node": {
+                  "Free": "xs"
+                }
+              },
+              {
+                "sort": {
+                  "Arrow": [
+                    {
+                      "Value": "U64"
+                    },
+                    {
+                      "Value": "U64"
+                    }
+                  ]
+                },
+                "node": {
+                  "Lambda": {
+                    "sort": {
+                      "Value": "U64"
+                    },
+                    "node": {
+                      "Op": [
+                        "apply",
+                        [
+                          {
+                            "sort": {
+                              "Arrow": [
+                                {
+                                  "Value": "U64"
+                                },
+                                {
+                                  "Value": "U64"
+                                }
+                              ]
+                            },
+                            "node": {
+                              "Free": "g"
+                            }
+                          },
+                          {
+                            "sort": {
+                              "Value": "U64"
+                            },
+                            "node": {
+                              "Op": [
+                                "apply",
+                                [
+                                  {
+                                    "sort": {
+                                      "Arrow": [
+                                        {
+                                          "Value": "U64"
+                                        },
+                                        {
+                                          "Value": "U64"
+                                        }
+                                      ]
+                                    },
+                                    "node": {
+                                      "Free": "f"
+                                    }
+                                  },
+                                  {
+                                    "sort": {
+                                      "Value": "U64"
+                                    },
+                                    "node": {
+                                      "Bound": 0
+                                    }
+                                  }
+                                ]
+                              ]
+                            }
+                          }
+                        ]
+                      ]
+                    }
+                  }
+                }
+              }
+            ]
+          ]
+        }
+      },
+      "proof": {
+        "Induction": {
+          "variable": "xs",
+          "names": [
+            "head",
+            "tail"
+          ],
+          "base": "Normalize",
+          "step": "Normalize"
+        }
+      },
+      "dependencies": []
+    },
+    "43ed0a7778cdb4b1374919e5ed75c81b79d6d94d8ac78df4e7baaa810f010a45": {
+      "schema": 1,
+      "semantics": "ink-conditional-laws-v1",
+      "params": {
+        "a": {
+          "Value": "U64"
+        },
+        "b": {
+          "Value": "U64"
+        },
+        "x": {
+          "Value": "U64"
+        }
+      },
+      "conditions": [],
+      "from": {
+        "sort": {
+          "Value": "U64"
+        },
+        "node": {
+          "Op": [
+            "binary:+",
+            [
+              {
+                "sort": {
+                  "Value": "U64"
+                },
+                "node": {
+                  "Op": [
+                    "binary:*",
+                    [
+                      {
+                        "sort": {
+                          "Value": "U64"
+                        },
+                        "node": {
+                          "Free": "x"
+                        }
+                      },
+                      {
+                        "sort": {
+                          "Value": "U64"
+                        },
+                        "node": {
+                          "Free": "a"
+                        }
+                      }
+                    ]
+                  ]
+                }
+              },
+              {
+                "sort": {
+                  "Value": "U64"
+                },
+                "node": {
+                  "Op": [
+                    "binary:*",
+                    [
+                      {
+                        "sort": {
+                          "Value": "U64"
+                        },
+                        "node": {
+                          "Free": "x"
+                        }
+                      },
+                      {
+                        "sort": {
+                          "Value": "U64"
+                        },
+                        "node": {
+                          "Free": "b"
+                        }
+                      }
+                    ]
+                  ]
+                }
+              }
+            ]
+          ]
+        }
+      },
+      "to": {
+        "sort": {
+          "Value": "U64"
+        },
+        "node": {
+          "Op": [
+            "binary:*",
+            [
+              {
+                "sort": {
+                  "Value": "U64"
+                },
+                "node": {
+                  "Free": "x"
+                }
+              },
+              {
+                "sort": {
+                  "Value": "U64"
+                },
+                "node": {
+                  "Op": [
+                    "binary:+",
+                    [
+                      {
+                        "sort": {
+                          "Value": "U64"
+                        },
+                        "node": {
+                          "Free": "a"
+                        }
+                      },
+                      {
+                        "sort": {
+                          "Value": "U64"
+                        },
+                        "node": {
+                          "Free": "b"
+                        }
+                      }
+                    ]
+                  ]
+                }
+              }
+            ]
+          ]
+        }
+      },
+      "proof": "Normalize",
+      "dependencies": []
+    },
+    "4a2fb1cbbfdca64c0e3b2a541d0bfa6b62ea86cbec1334f308af41c098f21c1e": {
+      "schema": 1,
+      "semantics": "ink-conditional-laws-v1",
+      "params": {
+        "a": {
+          "Value": "U32"
+        },
+        "b": {
+          "Value": "U32"
+        },
+        "x": {
+          "Value": "U32"
+        }
+      },
+      "conditions": [],
+      "from": {
+        "sort": {
+          "Value": "U32"
+        },
+        "node": {
+          "Op": [
+            "binary:+",
+            [
+              {
+                "sort": {
+                  "Value": "U32"
+                },
+                "node": {
+                  "Op": [
+                    "binary:*",
+                    [
+                      {
+                        "sort": {
+                          "Value": "U32"
+                        },
+                        "node": {
+                          "Free": "x"
+                        }
+                      },
+                      {
+                        "sort": {
+                          "Value": "U32"
+                        },
+                        "node": {
+                          "Free": "a"
+                        }
+                      }
+                    ]
+                  ]
+                }
+              },
+              {
+                "sort": {
+                  "Value": "U32"
+                },
+                "node": {
+                  "Op": [
+                    "binary:*",
+                    [
+                      {
+                        "sort": {
+                          "Value": "U32"
+                        },
+                        "node": {
+                          "Free": "x"
+                        }
+                      },
+                      {
+                        "sort": {
+                          "Value": "U32"
+                        },
+                        "node": {
+                          "Free": "b"
+                        }
+                      }
+                    ]
+                  ]
+                }
+              }
+            ]
+          ]
+        }
+      },
+      "to": {
+        "sort": {
+          "Value": "U32"
+        },
+        "node": {
+          "Op": [
+            "binary:*",
+            [
+              {
+                "sort": {
+                  "Value": "U32"
+                },
+                "node": {
+                  "Free": "x"
+                }
+              },
+              {
+                "sort": {
+                  "Value": "U32"
+                },
+                "node": {
+                  "Op": [
+                    "binary:+",
+                    [
+                      {
+                        "sort": {
+                          "Value": "U32"
+                        },
+                        "node": {
+                          "Free": "a"
+                        }
+                      },
+                      {
+                        "sort": {
+                          "Value": "U32"
+                        },
+                        "node": {
+                          "Free": "b"
+                        }
+                      }
+                    ]
+                  ]
+                }
+              }
+            ]
+          ]
+        }
+      },
+      "proof": "Normalize",
+      "dependencies": []
+    },
+    "4a76f683792a2d1ae03270ecf27bfcf71150f5b73c123a470e973a9683ba081f": {
+      "schema": 1,
+      "semantics": "ink-conditional-laws-v1",
+      "params": {
+        "x": {
+          "Value": "U32"
+        }
+      },
+      "conditions": [],
+      "from": {
+        "sort": {
+          "Value": "U32"
+        },
+        "node": {
+          "Op": [
+            "binary:-",
+            [
+              {
+                "sort": {
+                  "Value": "U32"
+                },
+                "node": {
+                  "Free": "x"
+                }
+              },
+              {
+                "sort": {
+                  "Value": "U32"
+                },
+                "node": {
+                  "Free": "x"
+                }
+              }
+            ]
+          ]
+        }
+      },
+      "to": {
+        "sort": {
+          "Value": "U32"
+        },
+        "node": {
+          "Word": 0
+        }
+      },
+      "proof": "Normalize",
+      "dependencies": []
+    },
+    "5633226234fb36ae1485511ceb58b1f70b02d4bbb9550e8bf88f39a2e3a725ef": {
+      "schema": 1,
+      "semantics": "ink-conditional-laws-v1",
+      "params": {
+        "xs": {
+          "Value": {
+            "List": "Bool"
+          }
+        }
+      },
+      "conditions": [],
+      "from": {
+        "sort": {
+          "Value": {
+            "List": "Bool"
+          }
+        },
+        "node": {
+          "Op": [
+            "method:map",
+            [
+              {
+                "sort": {
+                  "Value": {
+                    "List": "Bool"
+                  }
+                },
+                "node": {
+                  "Free": "xs"
+                }
+              },
+              {
+                "sort": {
+                  "Arrow": [
+                    {
+                      "Value": "Bool"
+                    },
+                    {
+                      "Value": "Bool"
+                    }
+                  ]
+                },
+                "node": {
+                  "Lambda": {
+                    "sort": {
+                      "Value": "Bool"
+                    },
+                    "node": {
+                      "Bound": 0
+                    }
+                  }
+                }
+              }
+            ]
+          ]
+        }
+      },
+      "to": {
+        "sort": {
+          "Value": {
+            "List": "Bool"
+          }
+        },
+        "node": {
+          "Free": "xs"
+        }
+      },
+      "proof": {
+        "Induction": {
+          "variable": "xs",
+          "names": [
+            "head",
+            "tail"
+          ],
+          "base": "Normalize",
+          "step": "Normalize"
+        }
+      },
+      "dependencies": []
+    },
+    "61336aabda85752516af5b644165db867780efe27c2ab01c7391ce5307fa7e92": {
+      "schema": 1,
+      "semantics": "ink-conditional-laws-v1",
+      "params": {
+        "f": {
+          "Arrow": [
+            {
+              "Value": "Bool"
+            },
+            {
+              "Value": "Bool"
+            }
+          ]
+        },
+        "g": {
+          "Arrow": [
+            {
+              "Value": "Bool"
+            },
+            {
+              "Value": "Bool"
+            }
+          ]
+        },
+        "xs": {
+          "Value": {
+            "List": "Bool"
+          }
+        }
+      },
+      "conditions": [],
+      "from": {
+        "sort": {
+          "Value": {
+            "List": "Bool"
+          }
+        },
+        "node": {
+          "Op": [
+            "method:map",
+            [
+              {
+                "sort": {
+                  "Value": {
+                    "List": "Bool"
+                  }
+                },
+                "node": {
+                  "Op": [
+                    "method:map",
+                    [
+                      {
+                        "sort": {
+                          "Value": {
+                            "List": "Bool"
+                          }
+                        },
+                        "node": {
+                          "Free": "xs"
+                        }
+                      },
+                      {
+                        "sort": {
+                          "Arrow": [
+                            {
+                              "Value": "Bool"
+                            },
+                            {
+                              "Value": "Bool"
+                            }
+                          ]
+                        },
+                        "node": {
+                          "Free": "f"
+                        }
+                      }
+                    ]
+                  ]
+                }
+              },
+              {
+                "sort": {
+                  "Arrow": [
+                    {
+                      "Value": "Bool"
+                    },
+                    {
+                      "Value": "Bool"
+                    }
+                  ]
+                },
+                "node": {
+                  "Free": "g"
+                }
+              }
+            ]
+          ]
+        }
+      },
+      "to": {
+        "sort": {
+          "Value": {
+            "List": "Bool"
+          }
+        },
+        "node": {
+          "Op": [
+            "method:map",
+            [
+              {
+                "sort": {
+                  "Value": {
+                    "List": "Bool"
+                  }
+                },
+                "node": {
+                  "Free": "xs"
+                }
+              },
+              {
+                "sort": {
+                  "Arrow": [
+                    {
+                      "Value": "Bool"
+                    },
+                    {
+                      "Value": "Bool"
+                    }
+                  ]
+                },
+                "node": {
+                  "Lambda": {
+                    "sort": {
+                      "Value": "Bool"
+                    },
+                    "node": {
+                      "Op": [
+                        "apply",
+                        [
+                          {
+                            "sort": {
+                              "Arrow": [
+                                {
+                                  "Value": "Bool"
+                                },
+                                {
+                                  "Value": "Bool"
+                                }
+                              ]
+                            },
+                            "node": {
+                              "Free": "g"
+                            }
+                          },
+                          {
+                            "sort": {
+                              "Value": "Bool"
+                            },
+                            "node": {
+                              "Op": [
+                                "apply",
+                                [
+                                  {
+                                    "sort": {
+                                      "Arrow": [
+                                        {
+                                          "Value": "Bool"
+                                        },
+                                        {
+                                          "Value": "Bool"
+                                        }
+                                      ]
+                                    },
+                                    "node": {
+                                      "Free": "f"
+                                    }
+                                  },
+                                  {
+                                    "sort": {
+                                      "Value": "Bool"
+                                    },
+                                    "node": {
+                                      "Bound": 0
+                                    }
+                                  }
+                                ]
+                              ]
+                            }
+                          }
+                        ]
+                      ]
+                    }
+                  }
+                }
+              }
+            ]
+          ]
+        }
+      },
+      "proof": {
+        "Induction": {
+          "variable": "xs",
+          "names": [
+            "head",
+            "tail"
+          ],
+          "base": "Normalize",
+          "step": "Normalize"
+        }
+      },
+      "dependencies": []
+    },
+    "7862858f9e98d22aed333867e8840af18382198772f5a39ff0a1e4d16f7d1383": {
+      "schema": 1,
+      "semantics": "ink-conditional-laws-v1",
+      "params": {
+        "c": {
+          "Value": "Bool"
+        },
+        "x": {
+          "Value": "U64"
+        }
+      },
+      "conditions": [],
+      "from": {
+        "sort": {
+          "Value": "U64"
+        },
+        "node": {
+          "Op": [
+            "call:choose",
+            [
+              {
+                "sort": {
+                  "Value": "Bool"
+                },
+                "node": {
+                  "Free": "c"
+                }
+              },
+              {
+                "sort": {
+                  "Value": "U64"
+                },
+                "node": {
+                  "Free": "x"
+                }
+              },
+              {
+                "sort": {
+                  "Value": "U64"
+                },
+                "node": {
+                  "Free": "x"
+                }
+              }
+            ]
+          ]
+        }
+      },
+      "to": {
+        "sort": {
+          "Value": "U64"
+        },
+        "node": {
+          "Free": "x"
+        }
+      },
+      "proof": "Normalize",
+      "dependencies": []
+    },
+    "7a3ef44efb095666ae6cc9a79579789bd637c0eabd332db8e85cf0baab0960c7": {
+      "schema": 1,
+      "semantics": "ink-conditional-laws-v1",
+      "params": {
+        "a": {
+          "Value": "U32"
+        },
+        "x": {
+          "Value": "U32"
+        }
+      },
+      "conditions": [],
+      "from": {
+        "sort": {
+          "Value": "U32"
+        },
+        "node": {
+          "Op": [
+            "binary:+",
+            [
+              {
+                "sort": {
+                  "Value": "U32"
+                },
+                "node": {
+                  "Op": [
+                    "binary:*",
+                    [
+                      {
+                        "sort": {
+                          "Value": "U32"
+                        },
+                        "node": {
+                          "Free": "x"
+                        }
+                      },
+                      {
+                        "sort": {
+                          "Value": "U32"
+                        },
+                        "node": {
+                          "Free": "a"
+                        }
+                      }
+                    ]
+                  ]
+                }
+              },
+              {
+                "sort": {
+                  "Value": "U32"
+                },
+                "node": {
+                  "Free": "x"
+                }
+              }
+            ]
+          ]
+        }
+      },
+      "to": {
+        "sort": {
+          "Value": "U32"
+        },
+        "node": {
+          "Op": [
+            "binary:*",
+            [
+              {
+                "sort": {
+                  "Value": "U32"
+                },
+                "node": {
+                  "Free": "x"
+                }
+              },
+              {
+                "sort": {
+                  "Value": "U32"
+                },
+                "node": {
+                  "Op": [
+                    "binary:+",
+                    [
+                      {
+                        "sort": {
+                          "Value": "U32"
+                        },
+                        "node": {
+                          "Free": "a"
+                        }
+                      },
+                      {
+                        "sort": {
+                          "Value": "U32"
+                        },
+                        "node": {
+                          "Word": 1
+                        }
+                      }
+                    ]
+                  ]
+                }
+              }
+            ]
+          ]
+        }
+      },
+      "proof": "Normalize",
+      "dependencies": []
+    },
+    "88495c953a92b99d164cc769ddab8da0a1c7b5580fccbf2748d2c1cfffab1004": {
+      "schema": 1,
+      "semantics": "ink-conditional-laws-v1",
+      "params": {
+        "x": {
+          "Value": "U64"
+        }
+      },
+      "conditions": [],
+      "from": {
+        "sort": {
+          "Value": "U64"
+        },
+        "node": {
+          "Op": [
+            "binary:+",
+            [
+              {
+                "sort": {
+                  "Value": "U64"
+                },
+                "node": {
+                  "Free": "x"
+                }
+              },
+              {
+                "sort": {
+                  "Value": "U64"
+                },
+                "node": {
+                  "Free": "x"
+                }
+              }
+            ]
+          ]
+        }
+      },
+      "to": {
+        "sort": {
+          "Value": "U64"
+        },
+        "node": {
+          "Op": [
+            "binary:*",
+            [
+              {
+                "sort": {
+                  "Value": "U64"
+                },
+                "node": {
+                  "Free": "x"
+                }
+              },
+              {
+                "sort": {
+                  "Value": "U64"
+                },
+                "node": {
+                  "Word": 2
+                }
+              }
+            ]
+          ]
+        }
+      },
+      "proof": "Normalize",
+      "dependencies": []
+    },
+    "89e5b2032c43016efeb23660e5642346824a0eb3c9e6757f866b0590da63c2ed": {
+      "schema": 1,
+      "semantics": "ink-conditional-laws-v1",
+      "params": {
+        "k": {
+          "Value": "U32"
+        },
+        "n": "Nat",
+        "x": {
+          "Value": "U32"
+        }
+      },
+      "conditions": [],
+      "from": {
+        "sort": {
+          "Value": "U32"
+        },
+        "node": {
+          "Op": [
+            "call:repeat",
+            [
+              {
+                "sort": "Nat",
+                "node": {
+                  "Free": "n"
+                }
+              },
+              {
+                "sort": {
+                  "Value": "U32"
+                },
+                "node": {
+                  "Free": "x"
+                }
+              },
+              {
+                "sort": {
+                  "Arrow": [
+                    {
+                      "Value": "U32"
+                    },
+                    {
+                      "Arrow": [
+                        {
+                          "Value": "U32"
+                        },
+                        {
+                          "Value": "U32"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                "node": {
+                  "Lambda": {
+                    "sort": {
+                      "Arrow": [
+                        {
+                          "Value": "U32"
+                        },
+                        {
+                          "Value": "U32"
+                        }
+                      ]
+                    },
+                    "node": {
+                      "Lambda": {
+                        "sort": {
+                          "Value": "U32"
+                        },
+                        "node": {
+                          "Op": [
+                            "binary:+",
+                            [
+                              {
+                                "sort": {
+                                  "Value": "U32"
+                                },
+                                "node": {
+                                  "Bound": 0
+                                }
+                              },
+                              {
+                                "sort": {
+                                  "Value": "U32"
+                                },
+                                "node": {
+                                  "Free": "k"
+                                }
+                              }
+                            ]
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            ]
+          ]
+        }
+      },
+      "to": {
+        "sort": {
+          "Value": "U32"
+        },
+        "node": {
+          "Op": [
+            "binary:+",
+            [
+              {
+                "sort": {
+                  "Value": "U32"
+                },
+                "node": {
+                  "Free": "x"
+                }
+              },
+              {
+                "sort": {
+                  "Value": "U32"
+                },
+                "node": {
+                  "Op": [
+                    "binary:*",
+                    [
+                      {
+                        "sort": {
+                          "Value": "U32"
+                        },
+                        "node": {
+                          "Op": [
+                            "nat.word",
+                            [
+                              {
+                                "sort": "Nat",
+                                "node": {
+                                  "Free": "n"
+                                }
+                              }
+                            ]
+                          ]
+                        }
+                      },
+                      {
+                        "sort": {
+                          "Value": "U32"
+                        },
+                        "node": {
+                          "Free": "k"
+                        }
+                      }
+                    ]
+                  ]
+                }
+              }
+            ]
+          ]
+        }
+      },
+      "proof": {
+        "Induction": {
+          "variable": "n",
+          "names": [
+            "step_count"
+          ],
+          "base": "Normalize",
+          "step": "Normalize"
+        }
+      },
+      "dependencies": []
+    },
+    "8e8e2aec6cf751edfab9d7990ef55a1673a6a0fe005787da6cf374ba571a71bb": {
+      "schema": 1,
+      "semantics": "ink-conditional-laws-v1",
+      "params": {
+        "xs": {
+          "Value": {
+            "List": "F32"
+          }
+        }
+      },
+      "conditions": [],
+      "from": {
+        "sort": {
+          "Value": {
+            "List": "F32"
+          }
+        },
+        "node": {
+          "Op": [
+            "method:map",
+            [
+              {
+                "sort": {
+                  "Value": {
+                    "List": "F32"
+                  }
+                },
+                "node": {
+                  "Free": "xs"
+                }
+              },
+              {
+                "sort": {
+                  "Arrow": [
+                    {
+                      "Value": "F32"
+                    },
+                    {
+                      "Value": "F32"
+                    }
+                  ]
+                },
+                "node": {
+                  "Lambda": {
+                    "sort": {
+                      "Value": "F32"
+                    },
+                    "node": {
+                      "Bound": 0
+                    }
+                  }
+                }
+              }
+            ]
+          ]
+        }
+      },
+      "to": {
+        "sort": {
+          "Value": {
+            "List": "F32"
+          }
+        },
+        "node": {
+          "Free": "xs"
+        }
+      },
+      "proof": {
+        "Induction": {
+          "variable": "xs",
+          "names": [
+            "head",
+            "tail"
+          ],
+          "base": "Normalize",
+          "step": "Normalize"
+        }
+      },
+      "dependencies": []
+    },
+    "8f1af74beb54b07d775eeccb0b79f4e3f117c5cc34ddea1ba20a608da39036fc": {
+      "schema": 1,
+      "semantics": "ink-conditional-laws-v1",
+      "params": {
+        "xs": {
+          "Value": {
+            "List": "U64"
+          }
+        }
+      },
+      "conditions": [],
+      "from": {
+        "sort": {
+          "Value": {
+            "List": "U64"
+          }
+        },
+        "node": {
+          "Op": [
+            "method:map",
+            [
+              {
+                "sort": {
+                  "Value": {
+                    "List": "U64"
+                  }
+                },
+                "node": {
+                  "Free": "xs"
+                }
+              },
+              {
+                "sort": {
+                  "Arrow": [
+                    {
+                      "Value": "U64"
+                    },
+                    {
+                      "Value": "U64"
+                    }
+                  ]
+                },
+                "node": {
+                  "Lambda": {
+                    "sort": {
+                      "Value": "U64"
+                    },
+                    "node": {
+                      "Bound": 0
+                    }
+                  }
+                }
+              }
+            ]
+          ]
+        }
+      },
+      "to": {
+        "sort": {
+          "Value": {
+            "List": "U64"
+          }
+        },
+        "node": {
+          "Free": "xs"
+        }
+      },
+      "proof": {
+        "Induction": {
+          "variable": "xs",
+          "names": [
+            "head",
+            "tail"
+          ],
+          "base": "Normalize",
+          "step": "Normalize"
+        }
+      },
+      "dependencies": []
+    },
+    "990f07b084e7bc38ad585d1fd24bde9c52382f8445e2628ec37539a27629538a": {
+      "schema": 1,
+      "semantics": "ink-conditional-laws-v1",
+      "params": {
+        "x": {
+          "Value": "I32"
+        }
+      },
+      "conditions": [],
+      "from": {
+        "sort": {
+          "Value": "I32"
+        },
+        "node": {
+          "Op": [
+            "binary:+",
+            [
+              {
+                "sort": {
+                  "Value": "I32"
+                },
+                "node": {
+                  "Op": [
+                    "binary:+",
+                    [
+                      {
+                        "sort": {
+                          "Value": "I32"
+                        },
+                        "node": {
+                          "Free": "x"
+                        }
+                      },
+                      {
+                        "sort": {
+                          "Value": "I32"
+                        },
+                        "node": {
+                          "Free": "x"
+                        }
+                      }
+                    ]
+                  ]
+                }
+              },
+              {
+                "sort": {
+                  "Value": "I32"
+                },
+                "node": {
+                  "Free": "x"
+                }
+              }
+            ]
+          ]
+        }
+      },
+      "to": {
+        "sort": {
+          "Value": "I32"
+        },
+        "node": {
+          "Op": [
+            "binary:*",
+            [
+              {
+                "sort": {
+                  "Value": "I32"
+                },
+                "node": {
+                  "Free": "x"
+                }
+              },
+              {
+                "sort": {
+                  "Value": "I32"
+                },
+                "node": {
+                  "Word": 3
+                }
+              }
+            ]
+          ]
+        }
+      },
+      "proof": "Normalize",
+      "dependencies": []
+    },
+    "9e89aaa1835b46949ec2dde46986616762b160da7c52b615d1585a777b4508fb": {
+      "schema": 1,
+      "semantics": "ink-conditional-laws-v1",
+      "params": {
+        "x": {
+          "Value": "I32"
+        }
+      },
+      "conditions": [],
+      "from": {
+        "sort": {
+          "Value": "I32"
+        },
+        "node": {
+          "Op": [
+            "binary:+",
+            [
+              {
+                "sort": {
+                  "Value": "I32"
+                },
+                "node": {
+                  "Free": "x"
+                }
+              },
+              {
+                "sort": {
+                  "Value": "I32"
+                },
+                "node": {
+                  "Free": "x"
+                }
+              }
+            ]
+          ]
+        }
+      },
+      "to": {
+        "sort": {
+          "Value": "I32"
+        },
+        "node": {
+          "Op": [
+            "binary:*",
+            [
+              {
+                "sort": {
+                  "Value": "I32"
+                },
+                "node": {
+                  "Free": "x"
+                }
+              },
+              {
+                "sort": {
+                  "Value": "I32"
+                },
+                "node": {
+                  "Word": 2
+                }
+              }
+            ]
+          ]
+        }
+      },
+      "proof": "Normalize",
+      "dependencies": []
+    },
+    "ab2416b02bbd7a7d98c520e40bedfa603a5e36d25647eb13d8386d43789d1f41": {
+      "schema": 1,
+      "semantics": "ink-conditional-laws-v1",
+      "params": {
+        "c": {
+          "Value": "Bool"
+        },
+        "x": {
+          "Value": "U32"
+        }
+      },
+      "conditions": [],
+      "from": {
+        "sort": {
+          "Value": "U32"
+        },
+        "node": {
+          "Op": [
+            "call:choose",
+            [
+              {
+                "sort": {
+                  "Value": "Bool"
+                },
+                "node": {
+                  "Free": "c"
+                }
+              },
+              {
+                "sort": {
+                  "Value": "U32"
+                },
+                "node": {
+                  "Free": "x"
+                }
+              },
+              {
+                "sort": {
+                  "Value": "U32"
+                },
+                "node": {
+                  "Free": "x"
+                }
+              }
+            ]
+          ]
+        }
+      },
+      "to": {
+        "sort": {
+          "Value": "U32"
+        },
+        "node": {
+          "Free": "x"
+        }
+      },
+      "proof": "Normalize",
+      "dependencies": []
+    },
+    "b597dceddafde0beff8e2574b228ebe903c616cc888c981a5efabcbc23469d84": {
+      "schema": 1,
+      "semantics": "ink-conditional-laws-v1",
+      "params": {
+        "a": {
+          "Value": "U64"
+        },
+        "x": {
+          "Value": "U64"
+        }
+      },
+      "conditions": [],
+      "from": {
+        "sort": {
+          "Value": "U64"
+        },
+        "node": {
+          "Op": [
+            "binary:+",
+            [
+              {
+                "sort": {
+                  "Value": "U64"
+                },
+                "node": {
+                  "Op": [
+                    "binary:*",
+                    [
+                      {
+                        "sort": {
+                          "Value": "U64"
+                        },
+                        "node": {
+                          "Free": "x"
+                        }
+                      },
+                      {
+                        "sort": {
+                          "Value": "U64"
+                        },
+                        "node": {
+                          "Free": "a"
+                        }
+                      }
+                    ]
+                  ]
+                }
+              },
+              {
+                "sort": {
+                  "Value": "U64"
+                },
+                "node": {
+                  "Free": "x"
+                }
+              }
+            ]
+          ]
+        }
+      },
+      "to": {
+        "sort": {
+          "Value": "U64"
+        },
+        "node": {
+          "Op": [
+            "binary:*",
+            [
+              {
+                "sort": {
+                  "Value": "U64"
+                },
+                "node": {
+                  "Free": "x"
+                }
+              },
+              {
+                "sort": {
+                  "Value": "U64"
+                },
+                "node": {
+                  "Op": [
+                    "binary:+",
+                    [
+                      {
+                        "sort": {
+                          "Value": "U64"
+                        },
+                        "node": {
+                          "Free": "a"
+                        }
+                      },
+                      {
+                        "sort": {
+                          "Value": "U64"
+                        },
+                        "node": {
+                          "Word": 1
+                        }
+                      }
+                    ]
+                  ]
+                }
+              }
+            ]
+          ]
+        }
+      },
+      "proof": "Normalize",
+      "dependencies": []
+    },
+    "b911257020288e555aa02be8786cabb657cc5f7878f863fd41b359789d1751a3": {
+      "schema": 1,
+      "semantics": "ink-conditional-laws-v1",
+      "params": {
+        "c": {
+          "Value": "Bool"
+        },
+        "x": {
+          "Value": "I32"
+        }
+      },
+      "conditions": [],
+      "from": {
+        "sort": {
+          "Value": "I32"
+        },
+        "node": {
+          "Op": [
+            "call:choose",
+            [
+              {
+                "sort": {
+                  "Value": "Bool"
+                },
+                "node": {
+                  "Free": "c"
+                }
+              },
+              {
+                "sort": {
+                  "Value": "I32"
+                },
+                "node": {
+                  "Free": "x"
+                }
+              },
+              {
+                "sort": {
+                  "Value": "I32"
+                },
+                "node": {
+                  "Free": "x"
+                }
+              }
+            ]
+          ]
+        }
+      },
+      "to": {
+        "sort": {
+          "Value": "I32"
+        },
+        "node": {
+          "Free": "x"
+        }
+      },
+      "proof": "Normalize",
+      "dependencies": []
+    },
+    "b9188e37723e979fdd568e3e1dafcbd69eff416a72932dc7d0aec74309ad5189": {
+      "schema": 1,
+      "semantics": "ink-conditional-laws-v1",
+      "params": {
+        "f": {
+          "Arrow": [
+            {
+              "Value": "U32"
+            },
+            {
+              "Value": "U32"
+            }
+          ]
+        },
+        "g": {
+          "Arrow": [
+            {
+              "Value": "U32"
+            },
+            {
+              "Value": "U32"
+            }
+          ]
+        },
+        "xs": {
+          "Value": {
+            "List": "U32"
+          }
+        }
+      },
+      "conditions": [],
+      "from": {
+        "sort": {
+          "Value": {
+            "List": "U32"
+          }
+        },
+        "node": {
+          "Op": [
+            "method:map",
+            [
+              {
+                "sort": {
+                  "Value": {
+                    "List": "U32"
+                  }
+                },
+                "node": {
+                  "Op": [
+                    "method:map",
+                    [
+                      {
+                        "sort": {
+                          "Value": {
+                            "List": "U32"
+                          }
+                        },
+                        "node": {
+                          "Free": "xs"
+                        }
+                      },
+                      {
+                        "sort": {
+                          "Arrow": [
+                            {
+                              "Value": "U32"
+                            },
+                            {
+                              "Value": "U32"
+                            }
+                          ]
+                        },
+                        "node": {
+                          "Free": "f"
+                        }
+                      }
+                    ]
+                  ]
+                }
+              },
+              {
+                "sort": {
+                  "Arrow": [
+                    {
+                      "Value": "U32"
+                    },
+                    {
+                      "Value": "U32"
+                    }
+                  ]
+                },
+                "node": {
+                  "Free": "g"
+                }
+              }
+            ]
+          ]
+        }
+      },
+      "to": {
+        "sort": {
+          "Value": {
+            "List": "U32"
+          }
+        },
+        "node": {
+          "Op": [
+            "method:map",
+            [
+              {
+                "sort": {
+                  "Value": {
+                    "List": "U32"
+                  }
+                },
+                "node": {
+                  "Free": "xs"
+                }
+              },
+              {
+                "sort": {
+                  "Arrow": [
+                    {
+                      "Value": "U32"
+                    },
+                    {
+                      "Value": "U32"
+                    }
+                  ]
+                },
+                "node": {
+                  "Lambda": {
+                    "sort": {
+                      "Value": "U32"
+                    },
+                    "node": {
+                      "Op": [
+                        "apply",
+                        [
+                          {
+                            "sort": {
+                              "Arrow": [
+                                {
+                                  "Value": "U32"
+                                },
+                                {
+                                  "Value": "U32"
+                                }
+                              ]
+                            },
+                            "node": {
+                              "Free": "g"
+                            }
+                          },
+                          {
+                            "sort": {
+                              "Value": "U32"
+                            },
+                            "node": {
+                              "Op": [
+                                "apply",
+                                [
+                                  {
+                                    "sort": {
+                                      "Arrow": [
+                                        {
+                                          "Value": "U32"
+                                        },
+                                        {
+                                          "Value": "U32"
+                                        }
+                                      ]
+                                    },
+                                    "node": {
+                                      "Free": "f"
+                                    }
+                                  },
+                                  {
+                                    "sort": {
+                                      "Value": "U32"
+                                    },
+                                    "node": {
+                                      "Bound": 0
+                                    }
+                                  }
+                                ]
+                              ]
+                            }
+                          }
+                        ]
+                      ]
+                    }
+                  }
+                }
+              }
+            ]
+          ]
+        }
+      },
+      "proof": {
+        "Induction": {
+          "variable": "xs",
+          "names": [
+            "head",
+            "tail"
+          ],
+          "base": "Normalize",
+          "step": "Normalize"
+        }
+      },
+      "dependencies": []
+    },
+    "ba18a93f5139d26d7d07890be8369c7dacc0ed6b3a9f71079526c9d57a7ac48c": {
+      "schema": 1,
+      "semantics": "ink-conditional-laws-v1",
+      "params": {
+        "f": {
+          "Arrow": [
+            {
+              "Value": "I32"
+            },
+            {
+              "Value": "I32"
+            }
+          ]
+        },
+        "g": {
+          "Arrow": [
+            {
+              "Value": "I32"
+            },
+            {
+              "Value": "I32"
+            }
+          ]
+        },
+        "xs": {
+          "Value": {
+            "List": "I32"
+          }
+        }
+      },
+      "conditions": [],
+      "from": {
+        "sort": {
+          "Value": {
+            "List": "I32"
+          }
+        },
+        "node": {
+          "Op": [
+            "method:map",
+            [
+              {
+                "sort": {
+                  "Value": {
+                    "List": "I32"
+                  }
+                },
+                "node": {
+                  "Op": [
+                    "method:map",
+                    [
+                      {
+                        "sort": {
+                          "Value": {
+                            "List": "I32"
+                          }
+                        },
+                        "node": {
+                          "Free": "xs"
+                        }
+                      },
+                      {
+                        "sort": {
+                          "Arrow": [
+                            {
+                              "Value": "I32"
+                            },
+                            {
+                              "Value": "I32"
+                            }
+                          ]
+                        },
+                        "node": {
+                          "Free": "f"
+                        }
+                      }
+                    ]
+                  ]
+                }
+              },
+              {
+                "sort": {
+                  "Arrow": [
+                    {
+                      "Value": "I32"
+                    },
+                    {
+                      "Value": "I32"
+                    }
+                  ]
+                },
+                "node": {
+                  "Free": "g"
+                }
+              }
+            ]
+          ]
+        }
+      },
+      "to": {
+        "sort": {
+          "Value": {
+            "List": "I32"
+          }
+        },
+        "node": {
+          "Op": [
+            "method:map",
+            [
+              {
+                "sort": {
+                  "Value": {
+                    "List": "I32"
+                  }
+                },
+                "node": {
+                  "Free": "xs"
+                }
+              },
+              {
+                "sort": {
+                  "Arrow": [
+                    {
+                      "Value": "I32"
+                    },
+                    {
+                      "Value": "I32"
+                    }
+                  ]
+                },
+                "node": {
+                  "Lambda": {
+                    "sort": {
+                      "Value": "I32"
+                    },
+                    "node": {
+                      "Op": [
+                        "apply",
+                        [
+                          {
+                            "sort": {
+                              "Arrow": [
+                                {
+                                  "Value": "I32"
+                                },
+                                {
+                                  "Value": "I32"
+                                }
+                              ]
+                            },
+                            "node": {
+                              "Free": "g"
+                            }
+                          },
+                          {
+                            "sort": {
+                              "Value": "I32"
+                            },
+                            "node": {
+                              "Op": [
+                                "apply",
+                                [
+                                  {
+                                    "sort": {
+                                      "Arrow": [
+                                        {
+                                          "Value": "I32"
+                                        },
+                                        {
+                                          "Value": "I32"
+                                        }
+                                      ]
+                                    },
+                                    "node": {
+                                      "Free": "f"
+                                    }
+                                  },
+                                  {
+                                    "sort": {
+                                      "Value": "I32"
+                                    },
+                                    "node": {
+                                      "Bound": 0
+                                    }
+                                  }
+                                ]
+                              ]
+                            }
+                          }
+                        ]
+                      ]
+                    }
+                  }
+                }
+              }
+            ]
+          ]
+        }
+      },
+      "proof": {
+        "Induction": {
+          "variable": "xs",
+          "names": [
+            "head",
+            "tail"
+          ],
+          "base": "Normalize",
+          "step": "Normalize"
+        }
+      },
+      "dependencies": []
+    },
+    "ba2989cbbe610c89b7c8488f58a96585fa2aa0e3411a6464dd0b1c02a6936730": {
+      "schema": 1,
+      "semantics": "ink-conditional-laws-v1",
+      "params": {
+        "x": {
+          "Value": "U32"
+        },
+        "y": {
+          "Value": "U32"
+        }
+      },
+      "conditions": [
+        {
+          "from": {
+            "sort": {
+              "Value": "Bool"
+            },
+            "node": {
+              "Op": [
+                "binary:==",
+                [
+                  {
+                    "sort": {
+                      "Value": "U32"
+                    },
+                    "node": {
+                      "Free": "y"
+                    }
+                  },
+                  {
+                    "sort": {
+                      "Value": "U32"
+                    },
+                    "node": {
+                      "Word": 0
+                    }
+                  }
+                ]
+              ]
+            }
+          },
+          "to": {
+            "sort": {
+              "Value": "Bool"
+            },
+            "node": {
+              "Bool": true
+            }
+          }
+        }
+      ],
+      "from": {
+        "sort": {
+          "Value": "U32"
+        },
+        "node": {
+          "Op": [
+            "binary:+",
+            [
+              {
+                "sort": {
+                  "Value": "U32"
+                },
+                "node": {
+                  "Free": "x"
+                }
+              },
+              {
+                "sort": {
+                  "Value": "U32"
+                },
+                "node": {
+                  "Free": "y"
+                }
+              }
+            ]
+          ]
+        }
+      },
+      "to": {
+        "sort": {
+          "Value": "U32"
+        },
+        "node": {
+          "Free": "x"
+        }
+      },
+      "proof": {
+        "AssertEquality": {
+          "equality": {
+            "from": {
+              "sort": {
+                "Value": "U32"
+              },
+              "node": {
+                "Free": "y"
+              }
+            },
+            "to": {
+              "sort": {
+                "Value": "U32"
+              },
+              "node": {
+                "Word": 0
+              }
+            }
+          },
+          "premise": {
+            "Hypothesis": 0
+          },
+          "body": "Normalize"
+        }
+      },
+      "dependencies": []
+    },
+    "bbfb43ce2353ed355071f08595769c6b4e38ec1ad01b538eba605da482187158": {
+      "schema": 1,
+      "semantics": "ink-conditional-laws-v1",
+      "params": {
+        "x": {
+          "Value": "U64"
+        },
+        "y": {
+          "Value": "U64"
+        }
+      },
+      "conditions": [
+        {
+          "from": {
+            "sort": {
+              "Value": "Bool"
+            },
+            "node": {
+              "Op": [
+                "binary:==",
+                [
+                  {
+                    "sort": {
+                      "Value": "U64"
+                    },
+                    "node": {
+                      "Free": "y"
+                    }
+                  },
+                  {
+                    "sort": {
+                      "Value": "U64"
+                    },
+                    "node": {
+                      "Word": 0
+                    }
+                  }
+                ]
+              ]
+            }
+          },
+          "to": {
+            "sort": {
+              "Value": "Bool"
+            },
+            "node": {
+              "Bool": true
+            }
+          }
+        }
+      ],
+      "from": {
+        "sort": {
+          "Value": "U64"
+        },
+        "node": {
+          "Op": [
+            "binary:+",
+            [
+              {
+                "sort": {
+                  "Value": "U64"
+                },
+                "node": {
+                  "Free": "x"
+                }
+              },
+              {
+                "sort": {
+                  "Value": "U64"
+                },
+                "node": {
+                  "Free": "y"
+                }
+              }
+            ]
+          ]
+        }
+      },
+      "to": {
+        "sort": {
+          "Value": "U64"
+        },
+        "node": {
+          "Free": "x"
+        }
+      },
+      "proof": {
+        "AssertEquality": {
+          "equality": {
+            "from": {
+              "sort": {
+                "Value": "U64"
+              },
+              "node": {
+                "Free": "y"
+              }
+            },
+            "to": {
+              "sort": {
+                "Value": "U64"
+              },
+              "node": {
+                "Word": 0
+              }
+            }
+          },
+          "premise": {
+            "Hypothesis": 0
+          },
+          "body": "Normalize"
+        }
+      },
+      "dependencies": []
+    },
+    "bde19806c4f411dc79dc656737204994e2f7d9902c2a450846a260dcd7678fc3": {
+      "schema": 1,
+      "semantics": "ink-conditional-laws-v1",
+      "params": {
+        "x": {
+          "Value": "U32"
+        }
+      },
+      "conditions": [],
+      "from": {
+        "sort": {
+          "Value": "U32"
+        },
+        "node": {
+          "Op": [
+            "binary:*",
+            [
+              {
+                "sort": {
+                  "Value": "U32"
+                },
+                "node": {
+                  "Free": "x"
+                }
+              },
+              {
+                "sort": {
+                  "Value": "U32"
+                },
+                "node": {
+                  "Word": 1
+                }
+              }
+            ]
+          ]
+        }
+      },
+      "to": {
+        "sort": {
+          "Value": "U32"
+        },
+        "node": {
+          "Free": "x"
+        }
+      },
+      "proof": "Normalize",
+      "dependencies": []
+    },
+    "c033aab8dacc56584205b019ece79bd206282881ef67e08cf0133e44175e7ce0": {
+      "schema": 1,
+      "semantics": "ink-conditional-laws-v1",
+      "params": {
+        "k": {
+          "Value": "U64"
+        },
+        "n": "Nat",
+        "x": {
+          "Value": "U64"
+        }
+      },
+      "conditions": [],
+      "from": {
+        "sort": {
+          "Value": "U64"
+        },
+        "node": {
+          "Op": [
+            "call:repeat",
+            [
+              {
+                "sort": "Nat",
+                "node": {
+                  "Free": "n"
+                }
+              },
+              {
+                "sort": {
+                  "Value": "U64"
+                },
+                "node": {
+                  "Free": "x"
+                }
+              },
+              {
+                "sort": {
+                  "Arrow": [
+                    {
+                      "Value": "U32"
+                    },
+                    {
+                      "Arrow": [
+                        {
+                          "Value": "U64"
+                        },
+                        {
+                          "Value": "U64"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                "node": {
+                  "Lambda": {
+                    "sort": {
+                      "Arrow": [
+                        {
+                          "Value": "U64"
+                        },
+                        {
+                          "Value": "U64"
+                        }
+                      ]
+                    },
+                    "node": {
+                      "Lambda": {
+                        "sort": {
+                          "Value": "U64"
+                        },
+                        "node": {
+                          "Op": [
+                            "binary:+",
+                            [
+                              {
+                                "sort": {
+                                  "Value": "U64"
+                                },
+                                "node": {
+                                  "Bound": 0
+                                }
+                              },
+                              {
+                                "sort": {
+                                  "Value": "U64"
+                                },
+                                "node": {
+                                  "Free": "k"
+                                }
+                              }
+                            ]
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            ]
+          ]
+        }
+      },
+      "to": {
+        "sort": {
+          "Value": "U64"
+        },
+        "node": {
+          "Op": [
+            "binary:+",
+            [
+              {
+                "sort": {
+                  "Value": "U64"
+                },
+                "node": {
+                  "Free": "x"
+                }
+              },
+              {
+                "sort": {
+                  "Value": "U64"
+                },
+                "node": {
+                  "Op": [
+                    "binary:*",
+                    [
+                      {
+                        "sort": {
+                          "Value": "U64"
+                        },
+                        "node": {
+                          "Op": [
+                            "nat.word",
+                            [
+                              {
+                                "sort": "Nat",
+                                "node": {
+                                  "Free": "n"
+                                }
+                              }
+                            ]
+                          ]
+                        }
+                      },
+                      {
+                        "sort": {
+                          "Value": "U64"
+                        },
+                        "node": {
+                          "Free": "k"
+                        }
+                      }
+                    ]
+                  ]
+                }
+              }
+            ]
+          ]
+        }
+      },
+      "proof": {
+        "Induction": {
+          "variable": "n",
+          "names": [
+            "step_count"
+          ],
+          "base": "Normalize",
+          "step": "Normalize"
+        }
+      },
+      "dependencies": []
+    },
+    "c53fb5600ac3c528e3d46430519f578219194b1b29d73a83cb0d81e8873e5f3b": {
+      "schema": 1,
+      "semantics": "ink-conditional-laws-v1",
+      "params": {
+        "x": {
+          "Value": "I32"
+        }
+      },
+      "conditions": [],
+      "from": {
+        "sort": {
+          "Value": "I32"
+        },
+        "node": {
+          "Op": [
+            "binary:*",
+            [
+              {
+                "sort": {
+                  "Value": "I32"
+                },
+                "node": {
+                  "Free": "x"
+                }
+              },
+              {
+                "sort": {
+                  "Value": "I32"
+                },
+                "node": {
+                  "Word": 1
+                }
+              }
+            ]
+          ]
+        }
+      },
+      "to": {
+        "sort": {
+          "Value": "I32"
+        },
+        "node": {
+          "Free": "x"
+        }
+      },
+      "proof": "Normalize",
+      "dependencies": []
+    },
+    "c6b82e5f1e3be8961dee05b5606b41179efb79542d46875a988b9ca164c20f53": {
+      "schema": 1,
+      "semantics": "ink-conditional-laws-v1",
+      "params": {
+        "x": {
+          "Value": "U32"
+        }
+      },
+      "conditions": [],
+      "from": {
+        "sort": {
+          "Value": "U32"
+        },
+        "node": {
+          "Op": [
+            "binary:+",
+            [
+              {
+                "sort": {
+                  "Value": "U32"
+                },
+                "node": {
+                  "Free": "x"
+                }
+              },
+              {
+                "sort": {
+                  "Value": "U32"
+                },
+                "node": {
+                  "Free": "x"
+                }
+              }
+            ]
+          ]
+        }
+      },
+      "to": {
+        "sort": {
+          "Value": "U32"
+        },
+        "node": {
+          "Op": [
+            "binary:*",
+            [
+              {
+                "sort": {
+                  "Value": "U32"
+                },
+                "node": {
+                  "Free": "x"
+                }
+              },
+              {
+                "sort": {
+                  "Value": "U32"
+                },
+                "node": {
+                  "Word": 2
+                }
+              }
+            ]
+          ]
+        }
+      },
+      "proof": "Normalize",
+      "dependencies": []
+    },
+    "c7c1d13dbc38ab8038472594087226416da5f9df2eb748e66be0a8ce8464263a": {
+      "schema": 1,
+      "semantics": "ink-conditional-laws-v1",
+      "params": {
+        "x": {
+          "Value": "U64"
+        }
+      },
+      "conditions": [],
+      "from": {
+        "sort": {
+          "Value": "U64"
+        },
+        "node": {
+          "Op": [
+            "binary:+",
+            [
+              {
+                "sort": {
+                  "Value": "U64"
+                },
+                "node": {
+                  "Op": [
+                    "binary:+",
+                    [
+                      {
+                        "sort": {
+                          "Value": "U64"
+                        },
+                        "node": {
+                          "Free": "x"
+                        }
+                      },
+                      {
+                        "sort": {
+                          "Value": "U64"
+                        },
+                        "node": {
+                          "Free": "x"
+                        }
+                      }
+                    ]
+                  ]
+                }
+              },
+              {
+                "sort": {
+                  "Value": "U64"
+                },
+                "node": {
+                  "Free": "x"
+                }
+              }
+            ]
+          ]
+        }
+      },
+      "to": {
+        "sort": {
+          "Value": "U64"
+        },
+        "node": {
+          "Op": [
+            "binary:*",
+            [
+              {
+                "sort": {
+                  "Value": "U64"
+                },
+                "node": {
+                  "Free": "x"
+                }
+              },
+              {
+                "sort": {
+                  "Value": "U64"
+                },
+                "node": {
+                  "Word": 3
+                }
+              }
+            ]
+          ]
+        }
+      },
+      "proof": "Normalize",
+      "dependencies": []
+    },
+    "c7f9d8ab304d1926f033e2e84f93a55d1f050e7e3340dc9b46df076d784bfc51": {
+      "schema": 1,
+      "semantics": "ink-conditional-laws-v1",
+      "params": {
+        "a": {
+          "Value": "I32"
+        },
+        "b": {
+          "Value": "I32"
+        },
+        "x": {
+          "Value": "I32"
+        }
+      },
+      "conditions": [],
+      "from": {
+        "sort": {
+          "Value": "I32"
+        },
+        "node": {
+          "Op": [
+            "binary:+",
+            [
+              {
+                "sort": {
+                  "Value": "I32"
+                },
+                "node": {
+                  "Op": [
+                    "binary:*",
+                    [
+                      {
+                        "sort": {
+                          "Value": "I32"
+                        },
+                        "node": {
+                          "Free": "x"
+                        }
+                      },
+                      {
+                        "sort": {
+                          "Value": "I32"
+                        },
+                        "node": {
+                          "Free": "a"
+                        }
+                      }
+                    ]
+                  ]
+                }
+              },
+              {
+                "sort": {
+                  "Value": "I32"
+                },
+                "node": {
+                  "Op": [
+                    "binary:*",
+                    [
+                      {
+                        "sort": {
+                          "Value": "I32"
+                        },
+                        "node": {
+                          "Free": "x"
+                        }
+                      },
+                      {
+                        "sort": {
+                          "Value": "I32"
+                        },
+                        "node": {
+                          "Free": "b"
+                        }
+                      }
+                    ]
+                  ]
+                }
+              }
+            ]
+          ]
+        }
+      },
+      "to": {
+        "sort": {
+          "Value": "I32"
+        },
+        "node": {
+          "Op": [
+            "binary:*",
+            [
+              {
+                "sort": {
+                  "Value": "I32"
+                },
+                "node": {
+                  "Free": "x"
+                }
+              },
+              {
+                "sort": {
+                  "Value": "I32"
+                },
+                "node": {
+                  "Op": [
+                    "binary:+",
+                    [
+                      {
+                        "sort": {
+                          "Value": "I32"
+                        },
+                        "node": {
+                          "Free": "a"
+                        }
+                      },
+                      {
+                        "sort": {
+                          "Value": "I32"
+                        },
+                        "node": {
+                          "Free": "b"
+                        }
+                      }
+                    ]
+                  ]
+                }
+              }
+            ]
+          ]
+        }
+      },
+      "proof": "Normalize",
+      "dependencies": []
+    },
+    "cad57bdeb4dc11761f851a8576eeefdc70e3db9520d0b5941f372bce4dfb00b8": {
+      "schema": 1,
+      "semantics": "ink-conditional-laws-v1",
+      "params": {
+        "x": {
+          "Value": "U32"
+        }
+      },
+      "conditions": [],
+      "from": {
+        "sort": {
+          "Value": "U32"
+        },
+        "node": {
+          "Op": [
+            "binary:+",
+            [
+              {
+                "sort": {
+                  "Value": "U32"
+                },
+                "node": {
+                  "Free": "x"
+                }
+              },
+              {
+                "sort": {
+                  "Value": "U32"
+                },
+                "node": {
+                  "Word": 0
+                }
+              }
+            ]
+          ]
+        }
+      },
+      "to": {
+        "sort": {
+          "Value": "U32"
+        },
+        "node": {
+          "Free": "x"
+        }
+      },
+      "proof": "Normalize",
+      "dependencies": []
+    },
+    "caefc4fd6ae65148ffefe24814d3215e3ace7addd8aae1b00f94b4c2168dd50a": {
+      "schema": 1,
+      "semantics": "ink-conditional-laws-v1",
+      "params": {
+        "f": {
+          "Arrow": [
+            {
+              "Value": "F32"
+            },
+            {
+              "Value": "F32"
+            }
+          ]
+        },
+        "g": {
+          "Arrow": [
+            {
+              "Value": "F32"
+            },
+            {
+              "Value": "F32"
+            }
+          ]
+        },
+        "xs": {
+          "Value": {
+            "List": "F32"
+          }
+        }
+      },
+      "conditions": [],
+      "from": {
+        "sort": {
+          "Value": {
+            "List": "F32"
+          }
+        },
+        "node": {
+          "Op": [
+            "method:map",
+            [
+              {
+                "sort": {
+                  "Value": {
+                    "List": "F32"
+                  }
+                },
+                "node": {
+                  "Op": [
+                    "method:map",
+                    [
+                      {
+                        "sort": {
+                          "Value": {
+                            "List": "F32"
+                          }
+                        },
+                        "node": {
+                          "Free": "xs"
+                        }
+                      },
+                      {
+                        "sort": {
+                          "Arrow": [
+                            {
+                              "Value": "F32"
+                            },
+                            {
+                              "Value": "F32"
+                            }
+                          ]
+                        },
+                        "node": {
+                          "Free": "f"
+                        }
+                      }
+                    ]
+                  ]
+                }
+              },
+              {
+                "sort": {
+                  "Arrow": [
+                    {
+                      "Value": "F32"
+                    },
+                    {
+                      "Value": "F32"
+                    }
+                  ]
+                },
+                "node": {
+                  "Free": "g"
+                }
+              }
+            ]
+          ]
+        }
+      },
+      "to": {
+        "sort": {
+          "Value": {
+            "List": "F32"
+          }
+        },
+        "node": {
+          "Op": [
+            "method:map",
+            [
+              {
+                "sort": {
+                  "Value": {
+                    "List": "F32"
+                  }
+                },
+                "node": {
+                  "Free": "xs"
+                }
+              },
+              {
+                "sort": {
+                  "Arrow": [
+                    {
+                      "Value": "F32"
+                    },
+                    {
+                      "Value": "F32"
+                    }
+                  ]
+                },
+                "node": {
+                  "Lambda": {
+                    "sort": {
+                      "Value": "F32"
+                    },
+                    "node": {
+                      "Op": [
+                        "apply",
+                        [
+                          {
+                            "sort": {
+                              "Arrow": [
+                                {
+                                  "Value": "F32"
+                                },
+                                {
+                                  "Value": "F32"
+                                }
+                              ]
+                            },
+                            "node": {
+                              "Free": "g"
+                            }
+                          },
+                          {
+                            "sort": {
+                              "Value": "F32"
+                            },
+                            "node": {
+                              "Op": [
+                                "apply",
+                                [
+                                  {
+                                    "sort": {
+                                      "Arrow": [
+                                        {
+                                          "Value": "F32"
+                                        },
+                                        {
+                                          "Value": "F32"
+                                        }
+                                      ]
+                                    },
+                                    "node": {
+                                      "Free": "f"
+                                    }
+                                  },
+                                  {
+                                    "sort": {
+                                      "Value": "F32"
+                                    },
+                                    "node": {
+                                      "Bound": 0
+                                    }
+                                  }
+                                ]
+                              ]
+                            }
+                          }
+                        ]
+                      ]
+                    }
+                  }
+                }
+              }
+            ]
+          ]
+        }
+      },
+      "proof": {
+        "Induction": {
+          "variable": "xs",
+          "names": [
+            "head",
+            "tail"
+          ],
+          "base": "Normalize",
+          "step": "Normalize"
+        }
+      },
+      "dependencies": []
+    },
+    "cc07a439523dd3694f540b4e27d224a1d028482c5d9d74f6ccfb4b28c5257977": {
+      "schema": 1,
+      "semantics": "ink-conditional-laws-v1",
+      "params": {
+        "x": {
+          "Value": "U32"
+        }
+      },
+      "conditions": [],
+      "from": {
+        "sort": {
+          "Value": "U32"
+        },
+        "node": {
+          "Op": [
+            "binary:+",
+            [
+              {
+                "sort": {
+                  "Value": "U32"
+                },
+                "node": {
+                  "Op": [
+                    "binary:+",
+                    [
+                      {
+                        "sort": {
+                          "Value": "U32"
+                        },
+                        "node": {
+                          "Free": "x"
+                        }
+                      },
+                      {
+                        "sort": {
+                          "Value": "U32"
+                        },
+                        "node": {
+                          "Free": "x"
+                        }
+                      }
+                    ]
+                  ]
+                }
+              },
+              {
+                "sort": {
+                  "Value": "U32"
+                },
+                "node": {
+                  "Free": "x"
+                }
+              }
+            ]
+          ]
+        }
+      },
+      "to": {
+        "sort": {
+          "Value": "U32"
+        },
+        "node": {
+          "Op": [
+            "binary:*",
+            [
+              {
+                "sort": {
+                  "Value": "U32"
+                },
+                "node": {
+                  "Free": "x"
+                }
+              },
+              {
+                "sort": {
+                  "Value": "U32"
+                },
+                "node": {
+                  "Word": 3
+                }
+              }
+            ]
+          ]
+        }
+      },
+      "proof": "Normalize",
+      "dependencies": []
+    },
+    "d49dc268594f66f8b038f2877c3fa243e547ed31890eb1b09961b1ba7c05f753": {
+      "schema": 1,
+      "semantics": "ink-conditional-laws-v1",
+      "params": {
+        "xs": {
+          "Value": {
+            "List": "I32"
+          }
+        }
+      },
+      "conditions": [],
+      "from": {
+        "sort": {
+          "Value": {
+            "List": "I32"
+          }
+        },
+        "node": {
+          "Op": [
+            "method:map",
+            [
+              {
+                "sort": {
+                  "Value": {
+                    "List": "I32"
+                  }
+                },
+                "node": {
+                  "Free": "xs"
+                }
+              },
+              {
+                "sort": {
+                  "Arrow": [
+                    {
+                      "Value": "I32"
+                    },
+                    {
+                      "Value": "I32"
+                    }
+                  ]
+                },
+                "node": {
+                  "Lambda": {
+                    "sort": {
+                      "Value": "I32"
+                    },
+                    "node": {
+                      "Bound": 0
+                    }
+                  }
+                }
+              }
+            ]
+          ]
+        }
+      },
+      "to": {
+        "sort": {
+          "Value": {
+            "List": "I32"
+          }
+        },
+        "node": {
+          "Free": "xs"
+        }
+      },
+      "proof": {
+        "Induction": {
+          "variable": "xs",
+          "names": [
+            "head",
+            "tail"
+          ],
+          "base": "Normalize",
+          "step": "Normalize"
+        }
+      },
+      "dependencies": []
+    },
+    "d6276c60ebfbfcd628a354186d8363e33206c441f130bc68090162c22e68e3eb": {
+      "schema": 1,
+      "semantics": "ink-conditional-laws-v1",
+      "params": {
+        "x": {
+          "Value": "U64"
+        }
+      },
+      "conditions": [],
+      "from": {
+        "sort": {
+          "Value": "U64"
+        },
+        "node": {
+          "Op": [
+            "binary:+",
+            [
+              {
+                "sort": {
+                  "Value": "U64"
+                },
+                "node": {
+                  "Free": "x"
+                }
+              },
+              {
+                "sort": {
+                  "Value": "U64"
+                },
+                "node": {
+                  "Word": 0
+                }
+              }
+            ]
+          ]
+        }
+      },
+      "to": {
+        "sort": {
+          "Value": "U64"
+        },
+        "node": {
+          "Free": "x"
+        }
+      },
+      "proof": "Normalize",
+      "dependencies": []
+    },
+    "dec0acdbea735a42cff214fb08a3454d9d694e60ed1bb42a6ea7d09cb5d64bd6": {
+      "schema": 1,
+      "semantics": "ink-conditional-laws-v1",
+      "params": {
+        "c": {
+          "Value": "Bool"
+        },
+        "x": {
+          "Value": "Bool"
+        }
+      },
+      "conditions": [],
+      "from": {
+        "sort": {
+          "Value": "Bool"
+        },
+        "node": {
+          "Op": [
+            "call:choose",
+            [
+              {
+                "sort": {
+                  "Value": "Bool"
+                },
+                "node": {
+                  "Free": "c"
+                }
+              },
+              {
+                "sort": {
+                  "Value": "Bool"
+                },
+                "node": {
+                  "Free": "x"
+                }
+              },
+              {
+                "sort": {
+                  "Value": "Bool"
+                },
+                "node": {
+                  "Free": "x"
+                }
+              }
+            ]
+          ]
+        }
+      },
+      "to": {
+        "sort": {
+          "Value": "Bool"
+        },
+        "node": {
+          "Free": "x"
+        }
+      },
+      "proof": "Normalize",
+      "dependencies": []
+    },
+    "e241fca2d899f088ddec4bfc87f65ec1f166213f8a0a44f15a62ed2c1b58a063": {
+      "schema": 1,
+      "semantics": "ink-conditional-laws-v1",
+      "params": {
+        "c": {
+          "Value": "Bool"
+        },
+        "x": {
+          "Value": "F32"
+        }
+      },
+      "conditions": [],
+      "from": {
+        "sort": {
+          "Value": "F32"
+        },
+        "node": {
+          "Op": [
+            "call:choose",
+            [
+              {
+                "sort": {
+                  "Value": "Bool"
+                },
+                "node": {
+                  "Free": "c"
+                }
+              },
+              {
+                "sort": {
+                  "Value": "F32"
+                },
+                "node": {
+                  "Free": "x"
+                }
+              },
+              {
+                "sort": {
+                  "Value": "F32"
+                },
+                "node": {
+                  "Free": "x"
+                }
+              }
+            ]
+          ]
+        }
+      },
+      "to": {
+        "sort": {
+          "Value": "F32"
+        },
+        "node": {
+          "Free": "x"
+        }
+      },
+      "proof": "Normalize",
+      "dependencies": []
+    },
+    "e291e586ec26ccbbf67b6a49faae654079226fee16ecfa9947134abbfed3d9d6": {
+      "schema": 1,
+      "semantics": "ink-conditional-laws-v1",
+      "params": {
+        "x": {
+          "Value": "I32"
+        }
+      },
+      "conditions": [],
+      "from": {
+        "sort": {
+          "Value": "I32"
+        },
+        "node": {
+          "Op": [
+            "binary:+",
+            [
+              {
+                "sort": {
+                  "Value": "I32"
+                },
+                "node": {
+                  "Free": "x"
+                }
+              },
+              {
+                "sort": {
+                  "Value": "I32"
+                },
+                "node": {
+                  "Word": 0
+                }
+              }
+            ]
+          ]
+        }
+      },
+      "to": {
+        "sort": {
+          "Value": "I32"
+        },
+        "node": {
+          "Free": "x"
+        }
+      },
+      "proof": "Normalize",
+      "dependencies": []
+    },
+    "f700389e4338f08b0494ea59fdb0a57ea3bcf20795202825cc75df6e1669b3ce": {
+      "schema": 1,
+      "semantics": "ink-conditional-laws-v1",
+      "params": {
+        "x": {
+          "Value": "U64"
+        }
+      },
+      "conditions": [],
+      "from": {
+        "sort": {
+          "Value": "U64"
+        },
+        "node": {
+          "Op": [
+            "binary:-",
+            [
+              {
+                "sort": {
+                  "Value": "U64"
+                },
+                "node": {
+                  "Free": "x"
+                }
+              },
+              {
+                "sort": {
+                  "Value": "U64"
+                },
+                "node": {
+                  "Free": "x"
+                }
+              }
+            ]
+          ]
+        }
+      },
+      "to": {
+        "sort": {
+          "Value": "U64"
+        },
+        "node": {
+          "Word": 0
+        }
+      },
+      "proof": "Normalize",
+      "dependencies": []
+    }
+  }
+}
