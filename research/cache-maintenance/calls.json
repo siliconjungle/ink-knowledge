@@ -1,0 +1,46 @@
+[
+  {
+    "call": "put",
+    "args": [
+      0,
+      43
+    ]
+  },
+  {
+    "call": "zero",
+    "args": []
+  },
+  {
+    "call": "flag",
+    "args": [
+      1,
+      true
+    ]
+  },
+  {
+    "call": "zero",
+    "args": []
+  },
+  {
+    "call": "erase",
+    "args": [
+      0,
+      true
+    ]
+  },
+  {
+    "call": "zero",
+    "args": []
+  },
+  {
+    "call": "erase",
+    "args": [
+      0,
+      false
+    ]
+  },
+  {
+    "call": "zero",
+    "args": []
+  }
+]

@@ -10,6 +10,7 @@ sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 from ink_knowledge import Store,identity
 from ink_knowledge.store import entry,read
 from action_replacement import var,call,cons,convert,trans
+from cache_maintenance import variables,unaffected,cases
 MATH='first-order-inductive-equality-v1'
 REP='ink-source-representation-v1'
 MIG='ink-representation-migration-v1'
@@ -28,7 +29,8 @@ def unchanged_query(model,action):
             and args[1]=={'Bool':False} and args[2]==var('version')
             and args[3]==cons(model['state'],0,[var(n) for n in action['case']['bindings']])
             and args[4]==cons(model['events'],0,[]))
-def generate(model,directory,replacement=None,cache_query=None,retain_queries=True):
+def generate(model,directory,replacement=None,cache_query=None,retain_queries=True,preserve_cache=False):
+    if preserve_cache and not cache_query:raise ValueError("--preserve-cache requires --cache-query")
     objects=dict(model['objects']);L={'Data':model['state']}
     if replacement:
         if replacement['input_core_sha256']!=model['source']:raise ValueError('replacement source mismatch')
@@ -40,7 +42,7 @@ def generate(model,directory,replacement=None,cache_query=None,retain_queries=Tr
         payload={'declaration':decl};body=next(iter(decl.values()))
         e=entry('theorem' if 'Theorem' in decl else 'definition',MATH,payload,refs(payload)|set(extra),parameters=dict(body.get('params',[])),result=body.get('result'))
         i=identity(e);objects[i]=e;return i
-    def fun(params,result,body):return add({'Function':dict(params=params,result=result,body=body,recursive=None)})
+    def fun(params,result,body,extra=()):return add({'Function':dict(params=params,result=result,body=body,recursive=None)},extra)
     requests=[];plans=[];ids=[]
     # Two genuinely different tuple layouts, chosen entirely by this database
     # producer. Neither the core nor the native emitter recognises their shape.
@@ -59,6 +61,8 @@ def generate(model,directory,replacement=None,cache_query=None,retain_queries=Tr
         encode=fun([['logical',L]],P,match(var('logical'),[(names,physical([var(n) for n in names]))]))
         pnames=[names[i] for i in order]+(['cached_reply'] if cache else ['valid'] if reverse else [])
         decode=fun([['physical',P]],L,match(var('physical'),[(pnames,cons(model['state'],0,[var(n) for n in names]))]))
+        if cache and preserve_cache:
+            cache_value=fun([['physical',P]],cache_sort,match(var('physical'),[(pnames,var('cached_reply'))]))
         lhs=call(decode,[call(encode,[var('logical')])]);rhs=var('logical')
         roundtrip=add({'Theorem':dict(params=[['logical',L]],conditions=[],**{'from':lhs,'to':rhs},proof={'Induction':dict(variable='logical',**{'from':lhs,'to':rhs},cases=[dict(bindings=names,proof=convert(call(decode,[call(encode,[cons(model['state'],0,[var(n) for n in names])])]),cons(model['state'],0,[var(n) for n in names])))])})})
         left=fun([['physical',P],['logical',L]],P,var('physical'))
@@ -75,22 +79,49 @@ def generate(model,directory,replacement=None,cache_query=None,retain_queries=Tr
             post=lambda o:match(o,[(['post_reply','post_committed','post_version','post_rows','post_events'],var('post_rows')),(['post_host','post_version','post_rows'],var('post_rows'))])
             result=a['result']
             retain=retain_queries and unchanged_query(model,a)
-            if retain or (cache and name==cache_query):
-                pair=add({'Datatype':dict(constructors=[dict(name='RetainedQuery',fields=[P,a['result']])])});result={'Data':pair}
+            maintain=bool(cache and preserve_cache and not retain and name!=cache_query)
+            if retain or maintain or (cache and name==cache_query):
+                carrier=[cache_sort,a['result']] if maintain else [P,a['result']]
+                pair=add({'Datatype':dict(constructors=[dict(name='CacheTransition' if maintain else 'RetainedQuery',fields=carrier)])});result={'Data':pair}
             if cache and name==cache_query:
                 obsid=a['result']['Data'];normal=cache['case']['normal']['Construct']['arguments']
                 reply=cons(obsid,0,[var('cached_reply'),{'Bool':False},var('version'),cons(model['state'],0,[var(n) for n in names]),normal[4]])
                 body=match(var('initial'),[(pnames,cons(pair,0,[var('initial'),reply]))])
                 execute=fun(params,result,body)
-            elif retain:
-                execute=fun(params,result,cons(pair,0,[var('initial'),call(sa['function'],[call(decode,[var('initial')])]+args)]))
+            elif retain or maintain:
+                retained=call(cache_value,[var('initial')]) if maintain else var('initial')
+                execute=fun(params,result,cons(pair,0,[retained,call(sa['function'],[call(decode,[var('initial')])]+args)]))
             else:
                 execute=fun(params,result,call(sa['function'],[call(decode,[var('initial')])]+args))
                 observe=fun([['observation',result]],a['result'],var('observation'))
                 nextf=fun([['observation',result]],P,call(encode,[post(var('observation'))]))
-            if retain or (cache and name==cache_query):
+            if retain or maintain or (cache and name==cache_query):
                 observe=fun([['observation',result]],a['result'],match(var('observation'),[(['retained','reply_value'],var('reply_value'))]))
-                nextf=fun([['observation',result]],P,match(var('observation'),[(['retained','reply_value'],var('retained'))]))
+                if maintain:
+                    reads=variables(cache['case']['normal']['Construct']['arguments'][0])
+                    dependencies=[i for i,n in enumerate(cache['case']['bindings']) if n in reads]
+                    reuse=unaffected(sa,dependencies,model['state'])
+                    newnames=['new_root_'+str(i) for i in range(len(fields))]
+                    retained_cache=cons(Pid,0,[var(newnames[i]) for i in order]+[var('cached_reply')])
+                    carried=match(var('post_rows'),[(newnames,retained_cache)])
+                    if reuse:
+                        refreshed=carried
+                    else:
+                        refreshed=call(encode,[var('post_rows')])
+                    # The complete source observation determines publication.
+                    # Only the cached value crosses the intermediate carrier.
+                    # Source post-state already supplies roots, including on
+                    # abort/host failure; carrying P would duplicate all roots.
+                    commit=carried if reuse else {'If':dict(condition=var('post_committed'),on_true=refreshed,on_false=carried)}
+                    observation_cases=[
+                        (['post_reply','post_committed','post_version','post_rows','post_events'],commit),
+                        (['post_host','post_version','post_rows'],carried),
+                    ]
+                    update=fun([['cached_reply',cache_sort],['observed',a['result']]],P,
+                               match(var('observed'),observation_cases),
+                               [model['state']])
+                    nextf=fun([['observation',result]],P,match(var('observation'),[(['retained','reply_value'],call(update,[var('retained'),var('reply_value')]))]))
+                else:nextf=fun([['observation',result]],P,match(var('observation'),[(['retained','reply_value'],var('retained'))]))
             executed=call(execute,[var('physical')]+args);observed=call(observe,[executed]);original=call(a['function'],[var('logical')]+args)
             same=call(sa['function'],[var('logical')]+args)
             if cache and name==cache_query:
@@ -107,7 +138,32 @@ def generate(model,directory,replacement=None,cache_query=None,retain_queries=Tr
             else:observation=trans(observation,convert(same,original))
             before,after=relation(call(nextf,[executed]),post(original))
             context=call(encode,[post(var('replacement'))])
-            if retain or (cache and name==cache_query):
+            if maintain:
+                bound=cons(model['state'],0,[var(n) for n in names])
+                normal=substitute_names(sa['case']['normal'],dict(zip(sa['case']['bindings'],names)))
+                before_update=lambda obs:call(update,[call(cache_value,[call(encode,[bound])]),obs])
+                after_update=lambda obs:call(encode,[post(obs)])
+                update_left=call(nextf,[call(execute,[call(encode,[var('logical')])]+args)])
+                update_right=call(encode,[post(same)])
+                branch_proof=trans(
+                    convert(call(nextf,[call(execute,[call(encode,[bound])]+args)]),before_update(normal)),
+                    cases(normal,before_update,after_update),
+                    convert(after_update(normal),call(encode,[post(call(sa['function'],[bound]+args))])),
+                )
+                induction={'Induction':dict(variable='logical',**{'from':update_left,'to':update_right},
+                                           cases=[dict(bindings=names,proof=branch_proof)])}
+                # Match scrutinees infer carrier types not spelled out in the
+                # term. Declare their fixed source datatype dependencies too.
+                carriers=[i for i,obj in model['objects'].items()
+                          if 'Datatype' in obj['payload'].get('declaration',{})]
+                update_law=add({'Theorem':dict(params=[['logical',L]]+rest,conditions=[],
+                                              **{'from':update_left,'to':update_right},proof=induction)},
+                               [Pid,result['Data'],*carriers])
+                lifted=lambda p:subst(p,call(nextf,[call(execute,[var('replacement')]+args)]))
+                preservation=trans(convert(before,call(nextf,[executed])),lifted(eq),{'Use':dict(theorem=update_law,arguments=[var('logical')]+args,premises=[])})
+                if replacement:preservation=trans(preservation,subst({'Sym':{'Use':dict(theorem=law,arguments=[var('logical')]+args,premises=[])}},context))
+                preservation=trans(preservation,convert(call(encode,[post(original)]),after))
+            elif retain or (cache and name==cache_query):
                 bound=cons(model['state'],0,[var(n) for n in names])
                 retained=call(nextf,[executed]);pbound=cons(Pid,0,[var(n) for n in pnames])
                 retention=add({'Theorem':dict(params=[['physical',P]]+rest,conditions=[],**{'from':retained,'to':var('physical')},proof={'Induction':dict(variable='physical',**{'from':retained,'to':var('physical')},cases=[dict(bindings=pnames,proof=convert(call(nextf,[call(execute,[pbound]+args)]),pbound))])})})
@@ -138,9 +194,9 @@ def substitute_names(x,mapping):
     if isinstance(x,str):return mapping.get(x,x)
     return x
 def main():
-    p=argparse.ArgumentParser(description=__doc__);p.add_argument('model',type=Path);p.add_argument('-o','--output',type=Path,required=True);p.add_argument('--replacement',type=Path);p.add_argument('--selected-model',type=Path);p.add_argument('--cache-query');p.add_argument('--rebuild-queries',action='store_true',help='comparison candidate: refresh physical state even after ordinary queries')
+    p=argparse.ArgumentParser(description=__doc__);p.add_argument('model',type=Path);p.add_argument('-o','--output',type=Path,required=True);p.add_argument('--replacement',type=Path);p.add_argument('--selected-model',type=Path);p.add_argument('--cache-query');p.add_argument('--preserve-cache',action='store_true',help='propose checked cache reuse on aborts and changes to unrelated tables');p.add_argument('--rebuild-queries',action='store_true',help='comparison candidate: refresh physical state even after ordinary queries')
     a=p.parse_args();a.output.parent.mkdir(parents=True,exist_ok=True)
     replacement=read(a.replacement) if a.replacement else None
     if replacement:replacement['selected_model']=read(a.selected_model)
-    result=generate(read(a.model),a.output.parent/'database',replacement,a.cache_query,not a.rebuild_queries);a.output.write_text(json.dumps(result,indent=2)+'\n')
+    result=generate(read(a.model),a.output.parent/'database',replacement,a.cache_query,not a.rebuild_queries,a.preserve_cache);a.output.write_text(json.dumps(result,indent=2)+'\n')
 if __name__=='__main__':main()

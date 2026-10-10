@@ -6,3 +6,10 @@ aggregate certificate. Its independent `encode` function agrees with Ink's
 bounded codec on supported action values. Admission checks exact definitions and
 source data; these entries do not certify an interpreter or a replacement.
 See ink-lang `docs/action-values.md` for the format and replay commands.
+
+`representations.py --cache-query NAME --preserve-cache` proposes source-bound
+cache retention after aborted changes/host failure and unrelated committed
+writes. `cache_maintenance.py` generates universal branch equations using the
+existing equality rules. Dependency analysis is an untrusted authoring heuristic;
+only checking the exact source-bound equations grants selection authority.
+See `research/cache-maintenance` for frozen requests and replay instructions.

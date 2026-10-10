@@ -44,3 +44,7 @@ Other physical definitions, cache update algorithms and proof producers use the
 same contract. Unsupported source semantics need fixed correspondence first;
 abstract assumptions, a name, a profile or a membership hash never establish
 correctness. Literal Rust lowering and the host remain trusted implementations.
+
+Further change-boundary candidates are in `../cache-maintenance`: aborted changes
+and writes to unrelated tables reuse the cached reply, with a compact transition
+carrier and universal proofs. The earlier fixtures here remain unchanged.
