@@ -62,7 +62,7 @@ python3 -m unittest discover -s tests -v
 
 `producers/` holds untrusted authoring/import tools. `research/` quarantines historical experiment formats, fixtures and Lean work; production discovery does not scan it or depend on experiment directory names. Research tools can still reproduce their original mathematical experiments. These formats are not compatibility aliases for the canonical API.
 
-The current snapshot contains 707 canonical entries, including 87 executable semantic laws. Earlier snapshots are retained; 20 checked append-view entries, six fixed change-boundary definitions/theorems and 46 general-law entries (`research/general-laws`: abstract sorts, functions and assumptions with eight parametric collection laws) were added without changing the existing rewrite payloads or name targets. The change-boundary laws bind to shared language primitives, but do not certify action bodies or physical rollback. See `research/incremental-views/canonical-review.json` for proof-admission evidence and scope. Reproduce its data with `python3 producers/build_store.py --output /tmp/ink-store`; this explicitly imports the research fixtures as an authoring operation. `store/rewrite-view.json` is a transport fixture for integration tests, not a second storage format or discovery API.
+The current snapshot contains 787 canonical entries, including 167 executable semantic laws. Earlier snapshots are retained; 20 checked append-view entries, six fixed change-boundary definitions/theorems and 46 general-law entries (`research/general-laws`: abstract sorts, functions and assumptions with eight parametric collection laws) were added without changing the existing rewrite payloads or name targets. The change-boundary laws bind to shared language primitives, but do not certify action bodies or physical rollback. See `research/incremental-views/canonical-review.json` for proof-admission evidence and scope. Reproduce its data with `python3 producers/build_store.py --output /tmp/ink-store`; this explicitly imports the research fixtures as an authoring operation. `store/rewrite-view.json` is a transport fixture for integration tests, not a second storage format or discovery API.
 
 Eleven effect-prefix composition entries add outer path/value/exit definitions,
 sequencing and six checked laws. Their definitions bind to the core's fixed
@@ -83,3 +83,13 @@ full `build_store.py` reproduces the canonical snapshot. These require Ink's
 buffer-observation/stopping-loop correspondence (core commit 77a47a6), and are
 checked locally. They do not prove owned mutation, map updates, heap correctness,
 A* correctness, physical emission or a universal speedup.
+
+The collection-pipeline extension adds 80 checked laws with no core change:
+length after map (25 input/output type combinations), map/fold and filter/fold
+fusion for sum/difference/product (four numeric types each), combined filter/map/fold fusion
+(twelve laws), and integer sum fusion (nine laws), and zero length/count after an always-false
+filter (five types each). `producers/collection_pipeline_laws.py` and
+`store/collection-pipeline-view.json` reproduce them. Fold fusion preserves
+right-fold operation order and initial value; it introduces no associativity or
+floating arithmetic law. The existing same-sort numeric foldr interface bounds
+the supported fold families. Previous canonical objects and snapshots remain.
