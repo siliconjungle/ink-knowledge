@@ -48,6 +48,14 @@ view = store.bundle(ids)
 
 Queries also support parameter types, effects, exact applicability conditions and an `after` ID for paging. `ink_knowledge/index.sql` specifies the SQLite schema with explicit tables for snapshots, entries, membership witnesses, dependencies, types, operations, effects, applicability, names and observations. Result order is deterministic. Indexed subset export loads only its selected objects and dependency closure, authenticating cached membership witnesses against the pinned root.
 
+`store.observations(program, plans, target, workload, limit=1024)` filters the
+requested plans in SQL before applying the result limit. It reads and hash-validates
+only matching canonical evidence files. Up to 1024 distinct plans are accepted;
+an empty plan set or zero limit needs no index or file access. Rebuild existing
+indexes to gain the covering observation index; older indexes remain compatible
+with the corrected query. Exact target/workload matching and canonical validation
+still determine comparability. Index tampering cannot create admissible evidence.
+
 ```sh
 python3 -m ink_knowledge --root . rebuild
 python3 -m ink_knowledge --root . query --kind rewrite --operation binary:+
@@ -62,7 +70,7 @@ python3 -m unittest discover -s tests -v
 
 `producers/` holds untrusted authoring/import tools. `research/` quarantines historical experiment formats, fixtures and Lean work; production discovery does not scan it or depend on experiment directory names. Research tools can still reproduce their original mathematical experiments. These formats are not compatibility aliases for the canonical API.
 
-The current snapshot contains 845 canonical entries, including 42 executable semantic laws and source-bound representation/cache-maintenance candidates (`research/cache-maintenance` and `research/compact-queries`). Earlier snapshots are retained; 20 checked append-view entries, six fixed change-boundary definitions/theorems and 46 general-law entries (`research/general-laws`: abstract sorts, functions and assumptions with eight parametric collection laws) were added without changing the existing rewrite payloads or name targets. The change-boundary laws bind to shared language primitives, but do not certify action bodies or physical rollback. See `research/incremental-views/canonical-review.json` for proof-admission evidence and scope. Reproduce its data with `python3 producers/build_store.py --output /tmp/ink-store`; this explicitly imports the research fixtures as an authoring operation. `store/rewrite-view.json` is a transport fixture for integration tests, not a second storage format or discovery API.
+The current snapshot contains 848 canonical entries, including 42 executable semantic laws and source-bound representation/cache-maintenance candidates (`research/cache-maintenance`, `research/compact-queries` and state-reusing bridges in `research/layout-switch`). Earlier snapshots are retained; 20 checked append-view entries, six fixed change-boundary definitions/theorems and 46 general-law entries (`research/general-laws`: abstract sorts, functions and assumptions with eight parametric collection laws) were added without changing the existing rewrite payloads or name targets. The change-boundary laws bind to shared language primitives, but do not certify action bodies or physical rollback. See `research/incremental-views/canonical-review.json` for proof-admission evidence and scope. Reproduce its data with `python3 producers/build_store.py --output /tmp/ink-store`; this explicitly imports the research fixtures as an authoring operation. `store/rewrite-view.json` is a transport fixture for integration tests, not a second storage format or discovery API.
 
 Eleven effect-prefix composition entries add outer path/value/exit definitions,
 sequencing and six checked laws. Their definitions bind to the core's fixed

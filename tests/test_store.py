@@ -1,5 +1,6 @@
 from contextlib import closing
 import copy,json,sqlite3,tempfile,unittest
+from unittest.mock import patch
 from pathlib import Path
 from ink_knowledge import Store,entry,identity,canonical
 class StoreTests(unittest.TestCase):
@@ -68,4 +69,49 @@ class StoreTests(unittest.TestCase):
         for bad in [-1,False,'0',0.0]:
             invalid=copy.deepcopy(obs);invalid['metrics']['peak_bytes']=bad
             with self.assertRaises(ValueError):self.store.observe(invalid)
+    def test_cost_lookup_filters_plans_before_limit_and_reads_only_selected_files(self):
+        obs=dict(schema=1,program='1'*64,entries=[identity(self.a)],plan='2'*64,
+                 target=dict(hardware='test',driver='test',toolchain='test',backend='cpu',bridge='host'),
+                 workload=dict(shape=[48],distribution='test',concurrency=1,residency='host'),
+                 metrics=dict(complete_call_ns=['100'],peak_bytes=None))
+        self.store.rebuild()
+        records=[]
+        for number in range(32):
+            value=copy.deepcopy(obs);value['plan']=identity({'candidate':number})
+            records.append((self.store.observe(value),value))
+        records.sort(key=lambda record:record[0]);selected=records[-1][1]
+        from ink_knowledge.store import read
+        with patch('ink_knowledge.store.read',wraps=read) as reads:
+            self.assertEqual(self.store.observations(obs['program'],[selected['plan']],obs['target'],obs['workload'],limit=1),[selected])
+            self.assertEqual(reads.call_count,1)
+        wanted=[records[0][1]['plan'],selected['plan']]
+        self.assertEqual(self.store.observations(obs['program'],wanted,obs['target'],obs['workload'],limit=2),[records[0][1],selected])
+        self.assertEqual(self.store.observations(obs['program'],wanted,obs['target'],obs['workload'],limit=1),[records[0][1]])
+        with closing(sqlite3.connect(self.root/'index.sqlite')) as db,db:
+            plan=db.execute('EXPLAIN QUERY PLAN SELECT id FROM observations WHERE program_id=? AND plan_id=? AND target=? AND workload=? ORDER BY id LIMIT 1',
+                            (obs['program'],selected['plan'],canonical(obs['target']).decode(),canonical(obs['workload']).decode())).fetchall()
+            self.assertTrue(any('COVERING INDEX observation_lookup' in row[3] for row in plan),plan)
+            # Previously built disposable indexes work with the new query too.
+            db.execute('DROP INDEX observation_lookup')
+            db.execute('CREATE INDEX observation_lookup ON observations(program_id,plan_id,target,workload)')
+        self.assertEqual(self.store.observations(obs['program'],[selected['plan']],obs['target'],obs['workload'],limit=1),[selected])
+        self.store.rebuild()
+        self.assertEqual(self.store.observations(obs['program'],[selected['plan']],obs['target'],obs['workload'],limit=1),[selected])
+    def test_cost_lookup_empty_budget_and_forged_index_never_supply_evidence(self):
+        with patch.object(self.store,'rebuild') as rebuild:
+            self.assertEqual(self.store.observations('1'*64,[],{},{}),[])
+            self.assertEqual(self.store.observations('1'*64,['2'*64],{}, {},limit=0),[])
+            rebuild.assert_not_called()
+        with self.assertRaises(ValueError):self.store.observations('1'*64,[identity({'plan':i}) for i in range(1025)],{}, {})
+        obs=dict(schema=1,program='1'*64,entries=[identity(self.a)],plan='2'*64,
+                 target=dict(hardware='test',driver='test',toolchain='test',backend='cpu',bridge='host'),
+                 workload=dict(shape=[48],distribution='test',concurrency=1,residency='host'),
+                 metrics=dict(complete_call_ns=['100'],peak_bytes=None))
+        self.store.rebuild();oid=self.store.observe(obs)
+        with closing(sqlite3.connect(self.root/'index.sqlite')) as db,db:
+            db.execute('UPDATE observations SET plan_id=? WHERE id=?',('3'*64,oid))
+        self.assertEqual(self.store.observations('1'*64,['3'*64],obs['target'],obs['workload']),[])
+        (self.root/'store/observations'/f'{oid}.json').write_text(json.dumps({**obs,'plan':'3'*64}))
+        with self.assertRaisesRegex(ValueError,'hash mismatch'):
+            self.store.observations('1'*64,['3'*64],obs['target'],obs['workload'])
 if __name__=='__main__':unittest.main()

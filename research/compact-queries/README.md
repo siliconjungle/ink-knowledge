@@ -23,8 +23,9 @@ unproved claims fail closed. It can be used without a cache or without change-bo
 cache maintenance; `--rebuild-queries` is a conflicting comparison mode.
 This is an authoring option, with no Ink syntax, core rule or backend change.
 
-The current snapshot is `0bd600c1b820898e6a96a17588c66d1bfb33d2d9328d94660a8b0173e846df79` with 845 entries. Older
-snapshots and requests remain replayable. SQLite remains a disposable index.
+These frozen requests pin snapshot `0bd600c1b820898e6a96a17588c66d1bfb33d2d9328d94660a8b0173e846df79` with 845 entries. Older
+snapshots and requests remain replayable. State-reusing direct switches between
+these cached candidates are in `../layout-switch`. SQLite remains a disposable index.
 `observations.json` lists 60 immutable timing evidence IDs under
 `store/observations`. They pin source, representation, exact workload and fused
 versus three-call transport. Peak memory is explicitly unknown (`null`), never

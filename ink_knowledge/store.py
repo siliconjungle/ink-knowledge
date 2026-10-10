@@ -254,12 +254,17 @@ class Store:
         hash_id(program)
         if not 0<=limit<=1024:raise ValueError('observation query limit')
         plans=set(plans)
+        if len(plans)>1024:raise ValueError('observation plan limit')
         for p in plans:hash_id(p)
+        if not plans or limit==0:return []
         index=self.root/'index.sqlite'
         if not index.exists():self.rebuild()
         with closing(sqlite3.connect(index.as_uri()+'?mode=ro',uri=True)) as db:
-            rows=db.execute('SELECT id FROM observations WHERE program_id=? AND target=? AND workload=? ORDER BY id LIMIT ?',
-                            (program,canonical(target).decode(),canonical(workload).decode(),limit)).fetchall()
+            # Filter candidates before limiting; unrelated plans must not exhaust
+            # the evidence budget. Old disposable indexes remain query-compatible.
+            placeholders=','.join('?' for _ in plans)
+            rows=db.execute(f'SELECT id FROM observations WHERE program_id=? AND plan_id IN ({placeholders}) AND target=? AND workload=? ORDER BY id LIMIT ?',
+                            [program,*sorted(plans),canonical(target).decode(),canonical(workload).decode(),limit]).fetchall()
         result=[]
         for (i,) in rows:
             o=read(self.data/'observations'/f'{hash_id(i)}.json');self.validate_observation(o)
