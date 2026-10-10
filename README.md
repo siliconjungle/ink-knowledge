@@ -29,7 +29,7 @@ Identity is SHA-256 of UTF-8 JSON with lexically sorted object keys, no whitespa
 
 `store/trees/` contains authenticated sorted leaves of at most 64 IDs and binary branch nodes. `store/snapshots/<id>.json` pins a Merkle root; `store/snapshot.json` selects the current snapshot. A bounded exported view carries selected roots, their exact dependency closure and membership proofs. The core authenticates membership, hashes, semantics, proof terms and applicability. It never needs the complete database. New snapshots do not invalidate replay of a plan carrying an older pinned view.
 
-`store/observations/<id>.json` stores performance evidence separately. Each observation pins program, plan and knowledge IDs; hardware, driver, toolchain, backend and bridge; shape, distribution, concurrency and residency; full-call nanosecond samples and peak allocation. Observations do not change the proof snapshot or become proof premises.
+`store/observations/<id>.json` stores performance evidence separately. Each observation pins program, plan and knowledge IDs; hardware, driver, toolchain, backend and bridge; shape, distribution, concurrency and residency; full-call nanosecond samples and peak allocation (`null` when unmeasured, distinct from measured zero). Observations do not change the proof snapshot or become proof premises.
 
 Formal storage schemas are in `schemas/`. Canonicalization, sortedness, hashes, exact dependency closure and mathematical validity require the library/checker in addition to JSON Schema validation.
 
@@ -48,6 +48,23 @@ view = store.bundle(ids)
 
 Queries also support parameter types, effects, exact applicability conditions and an `after` ID for paging. `ink_knowledge/index.sql` specifies the SQLite schema with explicit tables for snapshots, entries, membership witnesses, dependencies, types, operations, effects, applicability, names and observations. Result order is deterministic. Indexed subset export loads only its selected objects and dependency closure, authenticating cached membership witnesses against the pinned root.
 
+`store.bundle(roots)` uses one SQLite connection and read transaction for the
+selected dependency closure. Identical membership proof bytes share Merkle-path
+authentication within that export, while every ID must occur in its authenticated
+leaf. Each object is independently read, validated and hashed. Witnesses are
+retained for the output rather than fetched a second time. Indexed authentication reuse
+ends with the call; later exports recheck indexed proofs and canonical content.
+No full-tree scan is needed when exporting an indexed subset. The index-free
+path, exact bundle format and depth/1024-object limits are unchanged.
+
+`store.observations(program, plans, target, workload, limit=1024)` filters the
+requested plans in SQL before applying the result limit. It reads and hash-validates
+only matching canonical evidence files. Up to 1024 distinct plans are accepted;
+an empty plan set or zero limit needs no index or file access. Rebuild existing
+indexes to gain the covering observation index; older indexes remain compatible
+with the corrected query. Exact target/workload matching and canonical validation
+still determine comparability. Index tampering cannot create admissible evidence.
+
 ```sh
 python3 -m ink_knowledge --root . rebuild
 python3 -m ink_knowledge --root . query --kind rewrite --operation binary:+
@@ -62,7 +79,7 @@ python3 -m unittest discover -s tests -v
 
 `producers/` holds untrusted authoring/import tools. `research/` quarantines historical experiment formats, fixtures and Lean work; production discovery does not scan it or depend on experiment directory names. Research tools can still reproduce their original mathematical experiments. These formats are not compatibility aliases for the canonical API.
 
-The current snapshot contains 915 canonical entries, including 295 checked semantic laws. Earlier snapshots are retained; 20 checked append-view entries, six fixed change-boundary definitions/theorems and 46 general-law entries (`research/general-laws`: abstract sorts, functions and assumptions with eight parametric collection laws) were added without changing the existing rewrite payloads or name targets. The change-boundary laws bind to shared language primitives, but do not certify action bodies or physical rollback. See `research/incremental-views/canonical-review.json` for proof-admission evidence and scope. Reproduce its data with `python3 producers/build_store.py --output /tmp/ink-store`; this explicitly imports the research fixtures as an authoring operation. `store/rewrite-view.json` is a transport fixture for integration tests, not a second storage format or discovery API.
+The current snapshot contains 1101 canonical entries, including 295 checked semantic laws and source-bound representation/cache-maintenance candidates (`research/cache-maintenance`, `research/compact-queries` and state-reusing bridges in `research/layout-switch`). Earlier snapshots are retained; 20 checked append-view entries, six fixed change-boundary definitions/theorems and 46 general-law entries (`research/general-laws`: abstract sorts, functions and assumptions with eight parametric collection laws) were added without changing the existing rewrite payloads or name targets. The change-boundary laws bind to shared language primitives, but do not certify action bodies or physical rollback. See `research/incremental-views/canonical-review.json` for proof-admission evidence and scope. Reproduce its data with `python3 producers/build_store.py --output /tmp/ink-store`; this explicitly imports the research fixtures as an authoring operation. `store/rewrite-view.json` is a transport fixture for integration tests, not a second storage format or discovery API.
 
 Eleven effect-prefix composition entries add outer path/value/exit definitions,
 sequencing and six checked laws. Their definitions bind to the core's fixed
