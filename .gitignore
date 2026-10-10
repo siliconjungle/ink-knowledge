@@ -3,3 +3,5 @@ __pycache__/
 
 /index.sqlite
 /.ink-index-*
+*.egg-info/
+/dist/
