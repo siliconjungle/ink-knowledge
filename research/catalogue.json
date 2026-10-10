@@ -99,6 +99,14 @@
       "roots": 36
     },
     {
+      "name": "general-laws",
+      "lock": "general-laws/lock.json",
+      "lock_sha256": "ed69264bd72c876ddaacc1060bdd94309fca27a5f1753f8a222fb83abdec555a",
+      "semantics": "first-order-inductive-equality-v1",
+      "checker_command": "verify-library",
+      "roots": 46
+    },
+    {
       "name": "incremental-views",
       "lock": "incremental-views/lock.json",
       "lock_sha256": "bf2a81c6de56e60bb8dbe696fe58391bbe9d945a76674c94587b4df068aee320",
