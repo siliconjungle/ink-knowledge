@@ -20,7 +20,15 @@ def refs(x):
     return set()
 def match(x,branches):return {'Match':dict(scrutinee=x,branches=[dict(bindings=ns,body=t) for ns,t in branches])}
 def subst(proof,context):return {'Substitute':dict(variable='replacement',context=context,equality=proof)}
-def generate(model,directory,replacement=None,cache_query=None):
+def unchanged_query(model,action):
+    """Authoring heuristic only: the checker still proves universal preservation."""
+    normal=action['case']['normal'].get('Construct',{})
+    args=normal.get('arguments',[])
+    return (normal.get('constructor')==0 and len(args)==5
+            and args[1]=={'Bool':False} and args[2]==var('version')
+            and args[3]==cons(model['state'],0,[var(n) for n in action['case']['bindings']])
+            and args[4]==cons(model['events'],0,[]))
+def generate(model,directory,replacement=None,cache_query=None,retain_queries=True):
     objects=dict(model['objects']);L={'Data':model['state']}
     if replacement:
         if replacement['input_core_sha256']!=model['source']:raise ValueError('replacement source mismatch')
@@ -66,18 +74,23 @@ def generate(model,directory,replacement=None,cache_query=None):
             args=[var(n) for n,_ in rest]
             post=lambda o:match(o,[(['post_reply','post_committed','post_version','post_rows','post_events'],var('post_rows')),(['post_host','post_version','post_rows'],var('post_rows'))])
             result=a['result']
+            retain=retain_queries and unchanged_query(model,a)
+            if retain or (cache and name==cache_query):
+                pair=add({'Datatype':dict(constructors=[dict(name='RetainedQuery',fields=[P,a['result']])])});result={'Data':pair}
             if cache and name==cache_query:
                 obsid=a['result']['Data'];normal=cache['case']['normal']['Construct']['arguments']
-                pair=add({'Datatype':dict(constructors=[dict(name='RetainedQuery',fields=[P,a['result']])])});result={'Data':pair}
                 reply=cons(obsid,0,[var('cached_reply'),{'Bool':False},var('version'),cons(model['state'],0,[var(n) for n in names]),normal[4]])
                 body=match(var('initial'),[(pnames,cons(pair,0,[var('initial'),reply]))])
                 execute=fun(params,result,body)
-                observe=fun([['observation',result]],a['result'],match(var('observation'),[(['retained','reply_value'],var('reply_value'))]))
-                nextf=fun([['observation',result]],P,match(var('observation'),[(['retained','reply_value'],var('retained'))]))
+            elif retain:
+                execute=fun(params,result,cons(pair,0,[var('initial'),call(sa['function'],[call(decode,[var('initial')])]+args)]))
             else:
                 execute=fun(params,result,call(sa['function'],[call(decode,[var('initial')])]+args))
                 observe=fun([['observation',result]],a['result'],var('observation'))
                 nextf=fun([['observation',result]],P,call(encode,[post(var('observation'))]))
+            if retain or (cache and name==cache_query):
+                observe=fun([['observation',result]],a['result'],match(var('observation'),[(['retained','reply_value'],var('reply_value'))]))
+                nextf=fun([['observation',result]],P,match(var('observation'),[(['retained','reply_value'],var('retained'))]))
             executed=call(execute,[var('physical')]+args);observed=call(observe,[executed]);original=call(a['function'],[var('logical')]+args)
             same=call(sa['function'],[var('logical')]+args)
             if cache and name==cache_query:
@@ -94,7 +107,8 @@ def generate(model,directory,replacement=None,cache_query=None):
             else:observation=trans(observation,convert(same,original))
             before,after=relation(call(nextf,[executed]),post(original))
             context=call(encode,[post(var('replacement'))])
-            if cache and name==cache_query:
+            if retain or (cache and name==cache_query):
+                bound=cons(model['state'],0,[var(n) for n in names])
                 retained=call(nextf,[executed]);pbound=cons(Pid,0,[var(n) for n in pnames])
                 retention=add({'Theorem':dict(params=[['physical',P]]+rest,conditions=[],**{'from':retained,'to':var('physical')},proof={'Induction':dict(variable='physical',**{'from':retained,'to':var('physical')},cases=[dict(bindings=pnames,proof=convert(call(nextf,[call(execute,[pbound]+args)]),pbound))])})})
                 state_eq=add({'Theorem':dict(params=[['logical',L]]+rest,conditions=[],**{'from':post(original),'to':var('logical')},proof={'Induction':dict(variable='logical',**{'from':post(original),'to':var('logical')},cases=[dict(bindings=names,proof=convert(post(call(a['function'],[bound]+args)),bound))])})},[a['result']['Data']])
@@ -124,9 +138,9 @@ def substitute_names(x,mapping):
     if isinstance(x,str):return mapping.get(x,x)
     return x
 def main():
-    p=argparse.ArgumentParser(description=__doc__);p.add_argument('model',type=Path);p.add_argument('-o','--output',type=Path,required=True);p.add_argument('--replacement',type=Path);p.add_argument('--selected-model',type=Path);p.add_argument('--cache-query')
+    p=argparse.ArgumentParser(description=__doc__);p.add_argument('model',type=Path);p.add_argument('-o','--output',type=Path,required=True);p.add_argument('--replacement',type=Path);p.add_argument('--selected-model',type=Path);p.add_argument('--cache-query');p.add_argument('--rebuild-queries',action='store_true',help='comparison candidate: refresh physical state even after ordinary queries')
     a=p.parse_args();a.output.parent.mkdir(parents=True,exist_ok=True)
     replacement=read(a.replacement) if a.replacement else None
     if replacement:replacement['selected_model']=read(a.selected_model)
-    result=generate(read(a.model),a.output.parent/'database',replacement,a.cache_query);a.output.write_text(json.dumps(result,indent=2)+'\n')
+    result=generate(read(a.model),a.output.parent/'database',replacement,a.cache_query,not a.rebuild_queries);a.output.write_text(json.dumps(result,indent=2)+'\n')
 if __name__=='__main__':main()

@@ -13,6 +13,19 @@ all definitions and action equations against this exact application's fixed
 source transition projection. There is no speed claim or efficient delta
 maintenance claim.
 
+`retained-direct.json`, `retained-query-cache.json` and
+`retained-migration.json` add a checked work-skipping candidate: ordinary
+queries such as `get(key)` return the retained physical state instead of
+rebuilding it and refreshing an unrelated cached query. Universal proofs cover
+all query arguments and states. The earlier requests remain available for
+comparison. The producer defaults to this candidate; `--rebuild-queries`
+reproduces the earlier query behaviour for measurement.
+
+Changes still rebuild the cache. This is not delta maintenance. Complete-call
+measurements also include runtime/native transport costs and belong in the
+distribution's `reports/representation-performance` report; membership or a
+timing result never authorises replacement of source semantics.
+
 From an assembled ink-lang distribution:
 
 ```sh
