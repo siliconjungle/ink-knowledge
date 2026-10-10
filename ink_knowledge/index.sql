@@ -79,4 +79,4 @@ CREATE TABLE observations (
     workload TEXT NOT NULL CHECK (json_valid(workload)),
     metrics TEXT NOT NULL CHECK (json_valid(metrics))
 ) STRICT;
-CREATE INDEX observation_lookup ON observations (program_id, plan_id, target, workload);
+CREATE INDEX observation_lookup ON observations (program_id, plan_id, target, workload, id);

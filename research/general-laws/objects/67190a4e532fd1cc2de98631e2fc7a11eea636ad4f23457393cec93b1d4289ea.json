@@ -1,0 +1,1 @@
+{"schema":1,"semantics":"first-order-inductive-equality-v1","name":"ElementList","dependencies":["ef44fdad96222a36316586337b84265511cfe272049d40010a5de8d6b13da19b"],"declaration":{"Datatype":{"constructors":[{"name":"Nil","fields":[]},{"name":"Cons","fields":[{"Data":"ef44fdad96222a36316586337b84265511cfe272049d40010a5de8d6b13da19b"},"SelfType"]}]}}}

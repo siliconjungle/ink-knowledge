@@ -1,0 +1,1 @@
+{"schema":1,"semantics":"first-order-inductive-equality-v1","name":"WordRows","dependencies":["ac9cb5bad43f190928a5adff6077a242ef629a7d6c5c1e08b363ab306fd09125"],"declaration":{"Datatype":{"constructors":[{"name":"Nil","fields":[]},{"name":"Cons","fields":["U64",{"Data":"ac9cb5bad43f190928a5adff6077a242ef629a7d6c5c1e08b363ab306fd09125"},"SelfType"]}]}}}

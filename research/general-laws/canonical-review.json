@@ -1,0 +1,32 @@
+{
+  "schema": 1,
+  "reviewed_core_revision": "68f6d2177559c86c5969e6624dba5233a83f6b95",
+  "base_knowledge_revision": "f3a84fb6a7c85f14382e973c712c0d63d35ee25e",
+  "reviewed_import_revision": "5463c4a",
+  "snapshot": "00bf3ba45124029333e807bc2dac6d9ff2f54b2fcff273ba25faa8a5017c39c9",
+  "canonical_entries": 658,
+  "added_entries": 46,
+  "research_json_files_reproduced": 48,
+  "fresh_store_json_files_equal": 685,
+  "existing_names_preserved": 2490,
+  "new_names": 46,
+  "standalone_core_tests": 36,
+  "core_only_general_law_tests": 8,
+  "storage_tests": 6,
+  "general_law_admission": {
+    "checked": 46,
+    "verifier": "isolated ink-core library::load plus registry::CheckedBundle tests"
+  },
+  "negative_controls": [
+    "false sum_filter conclusion",
+    "missing/extra interpretations",
+    "wrong instantiated definitions",
+    "missing/false assumption discharge",
+    "circular assumption discharge",
+    "direct or transitive assumption escape",
+    "abstract inspection/recursion",
+    "open or ill-typed function interpretations"
+  ],
+  "kernel_change": "general abstract-symbol interpretation and checked assumption discharge; caps unchanged",
+  "scope": "Parametric mathematical laws, not whole-action or native physical refinement; no Hunchroom acceptance."
+}

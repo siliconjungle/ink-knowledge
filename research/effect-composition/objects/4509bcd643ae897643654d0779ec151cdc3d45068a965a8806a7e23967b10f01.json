@@ -1,0 +1,1 @@
+{"schema":1,"semantics":"first-order-inductive-equality-v1","name":"ValueShape","dependencies":[],"declaration":{"Datatype":{"constructors":[{"name":"Other","fields":[]},{"name":"False","fields":[]},{"name":"True","fields":[]},{"name":"None","fields":[]},{"name":"Some","fields":[]},{"name":"Ok","fields":[]},{"name":"Err","fields":[]}]}}}

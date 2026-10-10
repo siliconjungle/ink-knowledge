@@ -1,4 +1,4 @@
-from contextlib import closing
+from contextlib import closing, nullcontext
 import hashlib
 import json
 import os
@@ -94,6 +94,7 @@ class Store:
         if self.snapshot['schema'] != 1 or self.snapshot['semantics'] != SNAPSHOT: raise ValueError('unsupported snapshot')
         hash_id(self.snapshot['root']);self.snapshot_id=identity(self.snapshot)
         self._members=None
+        self._explicit_snapshot=snapshot is not None
     @classmethod
     def publish(cls, root, objects, names=None):
         root=Path(root);data=root/'store';ids=[]
@@ -147,9 +148,20 @@ class Store:
             if i not in self.members():raise ValueError('entry absent from pinned snapshot')
             return self.members()[i]
         with closing(sqlite3.connect(index.as_uri()+'?mode=ro',uri=True)) as db:
-            row=db.execute('SELECT witness FROM members WHERE snapshot_id=? AND entry_id=?',(self.snapshot_id,i)).fetchone()
+            if self._explicit_snapshot and not db.execute('SELECT 1 FROM snapshots WHERE id=?',(self.snapshot_id,)).fetchone():
+                if i not in self.members():raise ValueError('entry absent from pinned snapshot')
+                return self.members()[i]
+            return self._indexed_witness(i,db)
+    def _indexed_witness(self,i,db,verified=None):
+        row=db.execute('SELECT witness FROM members WHERE snapshot_id=? AND entry_id=?',(self.snapshot_id,i)).fetchone()
         if row is None:raise ValueError('entry absent from indexed snapshot; rebuild index')
-        w=json.loads(row[0]);fields(w,('entries','path'))
+        w=json.loads(row[0])
+        # Only identical proof bytes may share authentication within one export.
+        # Every requested ID must still occur in that authenticated leaf.
+        if verified is not None and row[0] in verified:
+            if i not in w['entries']:raise ValueError('invalid indexed membership proof')
+            return w
+        fields(w,('entries','path'))
         if len(w['entries'])>64 or w['entries']!=sorted(set(w['entries'])) or i not in w['entries'] or len(w['path'])>64:raise ValueError('invalid indexed membership proof')
         for x in w['entries']:hash_id(x)
         node=identity(dict(schema=1,entries=w['entries']))
@@ -158,24 +170,38 @@ class Store:
             if not isinstance(step['left'],bool):raise ValueError('invalid membership direction')
             node=identity(dict(schema=1,left=step['sibling'] if step['left'] else node,right=node if step['left'] else step['sibling']))
         if node!=self.snapshot['root']:raise ValueError('indexed membership does not match pinned snapshot')
+        if verified is not None:verified.add(row[0])
         return w
     def object(self, i):
         hash_id(i)
         self.witness(i)
+        return self._read_object(i)
+    def _read_object(self,i):
         obj=read(self.data/'objects'/f'{i}.json');validate_entry(obj)
         if identity(obj)!=i:raise ValueError('entry content mismatch')
         return obj
     def bundle(self, roots):
-        roots=sorted(set(roots));objects={};active=set()
-        def visit(i,depth):
-            if i in objects:return
-            if depth>64 or i in active or len(objects)+len(active)>=1024:raise ValueError('active dependency closure limit')
-            active.add(i);obj=self.object(i)
-            for d in obj['dependencies']:visit(d,depth+1)
-            active.remove(i);objects[i]=obj
-        for i in roots:visit(i,0)
+        roots=sorted(set(roots));objects={};active=set();membership={};verified=set()
+        index=self.root/'index.sqlite'
+        indexed=bool(roots) and self._members is None and index.exists()
+        with closing(sqlite3.connect(index.as_uri()+'?mode=ro',uri=True)) if indexed else nullcontext(None) as db:
+            # Keep one SQLite read snapshot even if another process rebuilds or
+            # writes the disposable index during traversal.
+            if db is not None:db.execute('BEGIN')
+            proof_db=db
+            if db is not None and self._explicit_snapshot and not db.execute('SELECT 1 FROM snapshots WHERE id=?',(self.snapshot_id,)).fetchone():
+                self.members();proof_db=None
+            def visit(i,depth):
+                if i in objects:return
+                if depth>64 or i in active or len(objects)+len(active)>=1024:raise ValueError('active dependency closure limit')
+                hash_id(i);active.add(i)
+                membership[i]=self._indexed_witness(i,proof_db,verified) if proof_db is not None else self.witness(i)
+                obj=self._read_object(i)
+                for d in obj['dependencies']:visit(d,depth+1)
+                active.remove(i);objects[i]=obj
+            for i in roots:visit(i,0)
         return dict(schema=1,snapshot=self.snapshot,roots=roots,objects=dict(sorted(objects.items())),
-                    membership={i:self.witness(i) for i in sorted(objects)})
+                    membership={i:membership[i] for i in sorted(objects)})
     def rebuild(self):
         target=self.root/'index.sqlite'; fd,tmp=tempfile.mkstemp(prefix='.ink-index-',dir=self.root);os.close(fd)
         try:
@@ -204,12 +230,41 @@ class Store:
         finally:
             if Path(tmp).exists():Path(tmp).unlink()
         return len(objects)
+    def _canonical_query(self,kind,semantics,operation,result,effect,parameter_type,condition,after,limit):
+        # Explicit immutable pins can coexist with the active disposable index.
+        # Authenticate the pinned tree and each candidate object; no index write
+        # or switch to a newer snapshot is needed for historical discovery.
+        if after is not None:hash_id(after)
+        result_key=None if result is None else canonical(result)
+        parameter_key=None if parameter_type is None else canonical(parameter_type)
+        condition_key=None if condition is None else canonical(condition)
+        found=[]
+        if limit==0:return found
+        for ident in sorted(self.members()):
+            if after is not None and ident<=after:continue
+            obj=self.object(ident);iface=obj['interface']
+            if kind is not None and obj['kind']!=kind:continue
+            if semantics is not None and obj['semantics']!=semantics:continue
+            if operation is not None and operation not in iface['operations']:continue
+            if result_key is not None and canonical(iface['result'])!=result_key:continue
+            if effect is not None and effect not in iface['effects']:continue
+            if parameter_key is not None and not any(canonical(v)==parameter_key for v in iface['parameters'].values()):continue
+            if condition_key is not None and not any(canonical(v)==condition_key for v in iface['conditions']):continue
+            found.append(ident)
+            if len(found)==limit:break
+        return found
+
     def query(self, *, kind=None, semantics=None, operation=None, result=None, effect=None, parameter_type=None, condition=None, after=None, limit=1024):
-        if not 0<=limit<=1024:raise ValueError('query limit')
+        if not isinstance(limit,int) or not 0<=limit<=1024:raise ValueError('query limit')
         index=self.root/'index.sqlite'
-        if not index.exists():self.rebuild()
+        constraints=(kind,semantics,operation,result,effect,parameter_type,condition,after,limit)
+        if not index.exists():
+            if self._explicit_snapshot:return self._canonical_query(*constraints)
+            self.rebuild()
         with closing(sqlite3.connect(index.as_uri()+'?mode=ro',uri=True)) as db:
-            if not db.execute('SELECT 1 FROM snapshots WHERE id=?',(self.snapshot_id,)).fetchone():raise ValueError('index belongs to another snapshot; rebuild it')
+            if not db.execute('SELECT 1 FROM snapshots WHERE id=?',(self.snapshot_id,)).fetchone():
+                if self._explicit_snapshot:return self._canonical_query(*constraints)
+                raise ValueError('index belongs to another snapshot; rebuild it')
             where=['m.snapshot_id=?'];args=[self.snapshot_id]
             for column,value in [('kind',kind),('semantics',semantics),('result',None if result is None else canonical(result).decode())]:
                 if value is not None:where.append('e.'+column+'=?');args.append(value)
@@ -237,7 +292,9 @@ class Store:
         if not isinstance(w['shape'],(list,dict)) or not isinstance(w['distribution'],(str,dict)) or not w['distribution'] or type(w['concurrency']) is not int or not 1<=w['concurrency']<=65536 or not isinstance(w['residency'],str) or not w['residency']:raise ValueError('invalid workload provenance')
         samples=obj['metrics']['complete_call_ns']
         if not isinstance(samples,list) or not 1<=len(samples)<=256 or any(not isinstance(x,str) or not x.isascii() or not x.isdigit() or len(x)>40 for x in samples):raise ValueError('invalid performance samples')
-        if type(obj['metrics']['peak_bytes']) is not int or obj['metrics']['peak_bytes']<0:raise ValueError('invalid memory metric')
+        peak=obj['metrics']['peak_bytes']
+        # Timing-only evidence must not invent a zero-allocation measurement.
+        if peak is not None and (type(peak) is not int or peak<0):raise ValueError('invalid memory metric')
         canonical(obj)
     def observe(self,obj):
         self.validate_observation(obj)
@@ -252,16 +309,17 @@ class Store:
         hash_id(program)
         if not 0<=limit<=1024:raise ValueError('observation query limit')
         plans=set(plans)
+        if len(plans)>1024:raise ValueError('observation plan limit')
         for p in plans:hash_id(p)
-        if not plans or limit == 0:return []
-        ordered_plans=sorted(plans)
+        if not plans or limit==0:return []
         index=self.root/'index.sqlite'
         if not index.exists():self.rebuild()
         with closing(sqlite3.connect(index.as_uri()+'?mode=ro',uri=True)) as db:
-            placeholders=','.join('?' for _ in ordered_plans)
-            rows=db.execute('SELECT id FROM observations WHERE program_id=? AND target=? AND workload=? '
-                            f'AND plan_id IN ({placeholders}) ORDER BY id LIMIT ?',
-                            (program,canonical(target).decode(),canonical(workload).decode(),*ordered_plans,limit)).fetchall()
+            # Filter candidates before limiting; unrelated plans must not exhaust
+            # the evidence budget. Old disposable indexes remain query-compatible.
+            placeholders=','.join('?' for _ in plans)
+            rows=db.execute(f'SELECT id FROM observations WHERE program_id=? AND plan_id IN ({placeholders}) AND target=? AND workload=? ORDER BY id LIMIT ?',
+                            [program,*sorted(plans),canonical(target).decode(),canonical(workload).decode(),limit]).fetchall()
         result=[]
         for (i,) in rows:
             o=read(self.data/'observations'/f'{hash_id(i)}.json');self.validate_observation(o)
