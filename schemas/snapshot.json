@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/siliconjungle/ink-knowledge/schemas/snapshot.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "semantics",
+    "root"
+  ],
+  "properties": {
+    "schema": {
+      "const": 1
+    },
+    "semantics": {
+      "const": "ink-knowledge-snapshot-v1"
+    },
+    "root": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    }
+  }
+}

@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/siliconjungle/ink-knowledge/schemas/tree.json",
+  "oneOf": [
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema",
+        "entries"
+      ],
+      "properties": {
+        "schema": {
+          "const": 1
+        },
+        "entries": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "uniqueItems": true,
+          "maxItems": 64
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema",
+        "left",
+        "right"
+      ],
+      "properties": {
+        "schema": {
+          "const": 1
+        },
+        "left": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "right": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      }
+    }
+  ]
+}

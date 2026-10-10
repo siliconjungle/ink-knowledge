@@ -1,276 +1,65 @@
 # Ink knowledge
 
-The independently versioned proof catalogue and untrusted proof producers for
-[Ink](https://github.com/siliconjungle/ink-lang). The compiler and its general
-checking rules live in `ink-lang`; this repository supplies mathematical
-definitions, theorems, proof certificates and candidate implementations.
+Immutable knowledge data for [Ink](https://github.com/siliconjungle/ink-lang), with a rebuildable SQLite discovery index. Search and execution policy live in [ink-planner](https://github.com/siliconjungle/ink-planner); proof checking stays in Ink's independently buildable semantic core. Storage never grants proof authority.
 
-The JSON format is the current storage backend. A future database or index must
-preserve the checked object identities and explicitly pinned dependencies.
-Changing storage does not change what is trusted.
+## Storage contract
 
-## Use
+`store/objects/<sha256>.json` contains canonical entries. Every entry has exactly these fields:
 
-```sh
-git clone https://github.com/siliconjungle/ink-knowledge.git
-python3 ink-knowledge/tools/catalogue.py list
-/path/to/ink verify-library ink-knowledge/source-search-layout/lock.json
-/path/to/ink build program.ink --implementation ink-knowledge/filtered/proposal.json -o program.o
+```json
+{
+  "schema": 1,
+  "kind": "rewrite",
+  "semantics": "ink-conditional-laws-v1",
+  "dependencies": [],
+  "interface": {
+    "parameters": {},
+    "result": null,
+    "operations": [],
+    "effects": [],
+    "conditions": []
+  },
+  "payload": {}
+}
 ```
 
-With a compiler supporting `ink-executable-core-v1`, pin both the executable
-program and the exact proof-library lock before admission:
+Kinds are `definition`, `theorem`, `rewrite`, `implementation`, `representation`, `maintenance`, and `bridge`. The semantics version determines the typed payload and admission domain. Declaring a kind or storing a proof does not implement its checker: unsupported domains reject. Mathematical definitions, scalar theorems, inductive theorems and executable semantic laws use this common entry contract. Program-specific certificates still have specialised proof terms; they are not automatically admitted as executable laws.
 
-```sh
-python3 ink-knowledge/tools/replacement_package.py \
-  ink-knowledge/filtered/kernels.lang ink-knowledge/filtered/proposal.json \
-  --compiler /path/to/ink --output-dir /tmp/ink-replacement
-/path/to/ink build /tmp/ink-replacement/core.json --core \
-  --replacement /tmp/ink-replacement/replacement.json -o program.o
+Identity is SHA-256 of UTF-8 JSON with lexically sorted object keys, no whitespace, and no trailing newline. Files add one newline for readability. JSON numbers are integers in the shared Rust/Python range; measured durations are decimal strings. Dependencies and index lists are sorted and unique. Display names live separately and have no authority. The Rust checker verifies the typed mathematical interface against the payload.
+
+`store/trees/` contains authenticated sorted leaves of at most 64 IDs and binary branch nodes. `store/snapshots/<id>.json` pins a Merkle root; `store/snapshot.json` selects the current snapshot. A bounded exported view carries selected roots, their exact dependency closure and membership proofs. The core authenticates membership, hashes, semantics, proof terms and applicability. It never needs the complete database. New snapshots do not invalidate replay of a plan carrying an older pinned view.
+
+`store/observations/<id>.json` stores performance evidence separately. Each observation pins program, plan and knowledge IDs; hardware, driver, toolchain, backend and bridge; shape, distribution, concurrency and residency; full-call nanosecond samples and peak allocation. Observations do not change the proof snapshot or become proof premises.
+
+Formal storage schemas are in `schemas/`. Canonicalization, sortedness, hashes, exact dependency closure and mathematical validity require the library/checker in addition to JSON Schema validation.
+
+## Query API
+
+Install with `python3 -m pip install -e .`, or use `PYTHONPATH=.` in a source checkout. Python 3.10+ and SQLite 3.37+ are required.
+
+```python
+from ink_knowledge import Store
+store = Store('/path/to/ink-knowledge', '/path/to/pinned-snapshot.json')
+store.rebuild()
+ids = store.query(kind='rewrite', semantics='ink-conditional-laws-v1',
+                  operation='binary:+', result={'Value': 'U32'}, limit=128)
+view = store.bundle(ids)
 ```
 
-The producer requires an empty output directory, copies immutable proof bytes,
-and asks the unchanged compiler to check the result. It is untrusted tooling.
-The current observation domain is pure total-value equality; this envelope
-does not authorise stateful migration, event changes or allocation-failure claims.
-
-`ink-lang` pins a commit of this repository as its `knowledge` submodule for
-integration tests and reproducible experiments. An installed compiler accepts
-explicit external package paths and does not fetch the latest catalogue.
-
-## Discovery and checking
-
-`catalogue.json` lists the primary proof-library locks, their byte identities,
-semantics versions and checking commands. It is generated discovery metadata,
-not a proof or a complete list of every candidate or legacy certificate.
+Queries also support parameter types, effects, exact applicability conditions and an `after` ID for paging. `ink_knowledge/index.sql` specifies the SQLite schema with explicit tables for snapshots, entries, membership witnesses, dependencies, types, operations, effects, applicability, names and observations. Result order is deterministic. Indexed subset export loads only its selected objects and dependency closure, authenticating cached membership witnesses against the pinned root.
 
 ```sh
-python3 tools/catalogue.py check
-python3 tools/catalogue.py verify --compiler /path/to/ink
-python3 tools/catalogue.py rebuild
-```
-
-The checker reloads and validates selected proof objects, including dependency
-closure and content hashes. A valid lock hash alone does not establish theorem
-validity or correspondence to native code. Changing a lock requires regenerating
-the index and explicitly updating consumers' pinned revision.
-
-## Produce proofs
-
-Python 3 is needed for producers; the bitvector-based producers additionally
-need `python-sat`. Production tools are outside the trusted compiler.
-
-```sh
-python3 tools/boolean_proofs.py boolean-rules.json /tmp/boolean-package
-INK_COMPILER=/path/to/ink INK_CORE_ROOT=/path/to/ink-lang \
-  python3 tools/search_layout_proofs.py /tmp/search-package \
-  --sorted source-sorted-layout --source /path/to/ink-lang/examples/source-row-undo.ink
-```
-
-Use explicit `--compiler`, `--maintenance` and other input arguments to reproduce
-historical experiments. `INK_COMPILER` overrides default compiler locations;
-`INK_CORE_ROOT` locates source examples and preserved compiler artifacts. When
-checked out as Ink's submodule, the core root is detected automatically.
-
-`proofs/` contains separately authored Lean research. Lean proofs are not
-automatically imported as Ink optimisation authority. Ink currently has its own
-restricted Rust checker; neither that implementation nor native lowering has
-an end-to-end formal correctness proof.
-
-The catalogue history was extracted from `ink-lang` through commit `c1b4035`.
-Original object bytes and package files are preserved. Proof producers were
-moved from that compiler revision with path configuration changes.
-
-## Bounded rewrite search
-
-```sh
-python3 tools/rewrite_search.py rewrite-search/kernels.ink \
-  --rules bitvector/rewrite-index.json --compiler /path/to/ink \
-  --output-dir /tmp/ink-search --budget 10000
-```
-
-The rule index is untrusted discovery/selection data. The producer reads theorem
-endpoints from the pinned library and constructs complete congruence/induction
-proofs; the compiler checks them independently. No SAT solver is needed when
-reusing these existing certificates. Search handles scalars and single mapped
-sums. `--fuse-mapped-sum` adds a fold candidate with an explicit induction proof.
-`--core` reads the checked executable format. The `scalar-logic/` index supplies
-Boolean/composed/conditional laws. Actual branch facts are closed in complete
-Boolean-split proofs, including DB-proved inactive branch behaviour.
-Unsupported structures, insufficient budget and square factoring retain the
-original implementation. A node-count estimate chooses smaller expressions;
-it is not a performance measurement. `rewrite-search/` is a reproducible example
-with lexical shadowing and a deliberately unproved factoring case.
-
-## Deterministic AST queries
-
-The general typed matcher accepts a database directory:
-
-```sh
-ink build program.ink --optimise /path/to/ink-knowledge -o program.o
-python3 tools/semantic_search.py --compiler /path/to/ink --core core.json \
-  --database . -o selection.json
-```
-
-It discovers typed `ink-conditional-laws-v1` law objects in `objects/<ID>.json`
-and existing `catalogue.json` views. Individual law files become eligible rewrite
-roots automatically. Inline views retain their explicit root set so supporting
-lemmas can remain private. The compiler owns the typed wire identity and proof
-checks; JSON whitespace and field order need not match its canonical encoding.
-The assembled bounded view is sorted by identity before typed AST querying and
-checked compositional search. Receipts include the database snapshot and producer
-identity. The resulting selection contains its checked view for offline replay.
-The current general checker admits at most 1024 active laws / 16 MB; discovering
-arbitrarily large databases and projecting their applicable closure remains work.
-
-The older first-order scalar bridge also discovers individual entries without
-an explicit rule index:
-
-```sh
-python3 tools/rewrite_search.py program.ink --database . \
-  --compiler /path/to/ink --output-dir /tmp/ink-selected --budget 10000
-```
-
-Add a theorem object as `objects/<sha256-of-exact-bytes>.json`, with its immutable
-dependencies present. No catalogue rebuild or algorithm installation is needed
-for this discovery mode. The producer discovers compatible objects, expands
-supported scalar definitions, filters rules by AST shape, checks typed pattern
-bindings and constructs application proofs. The unchanged compiler checks the
-actual source correspondence, definitions, conditions and proofs before emitting
-selected code. A newly added theorem is eligible knowledge, not automatically
-trusted or automatically profitable.
-
-Traversal is source declaration order, then children before parents. Rules are
-ordered by content hash. Each selected rewrite must decrease expression node
-count; the root query restarts after a successful rewrite. Shared node/rule
-budgets make selection deterministic for the same source, database entries,
-settings and compiler. Unsupported functions and exhausted searches retain their
-original bodies. This is a size heuristic, not target-specific performance search.
-
-`database-snapshot.json` records all discovered compatible entry identities.
-`search.json` records that snapshot hash, selected theorems and query counts.
-Only selected entries, generated source definitions and their dependency closure
-are copied into the build lock, so the replacement can be checked offline without
-the discovery database. Discovery itself has separate file/byte/expansion limits.
-The compiler still enforces its own admission limits.
-
-This older bridge's query subset is u64/Bool scalar expressions and scalar rewrites
-inside a single mapped u64 sum, including scoped short-circuit conditions and
-the existing optional fold proposal. It does not discover arbitrary collection,
-stateful representation, effectful or mixed-target transformations. General
-typed IR/data-flow queries and measured candidate ranking remain production work.
-The general typed path described below covers wider expressions and collections.
-Legacy `--rules` preserves explicit index order and historical artifact replay.
-
-Validate the query filter against exhaustive search:
-
-```sh
+python3 -m ink_knowledge --root . rebuild
+python3 -m ink_knowledge --root . query --kind rewrite --operation binary:+
+python3 -m ink_knowledge --root . export --entries ENTRY_SHA256 -o view.json
+/path/to/ink knowledge-check program.core.json view.json
 python3 -m unittest discover -s tests -v
 ```
 
-## Extension contract
+`index.sqlite` is ignored and disposable. Rebuilding atomically replaces it from canonical Git objects; a cache from another snapshot is rejected. A future database service must retain this object/snapshot/view contract. The database is an untrusted supplier of proof data, not an authority.
 
-New knowledge must use the fixed checking rules. Packages cannot install an
-axiom, trust flag or new kernel rule. See [the compiler boundary](https://github.com/siliconjungle/ink-lang/blob/main/docs/small-core-and-knowledge.md).
+## Authoring and research
 
-The production package interface will add typed applicability conditions,
-representation relations, initialisation/migration candidates and separate
-target-specific cost evidence. Those interfaces are planned, not implemented
-by this repository split. Existing mathematical layout proofs do not yet
-authorise native stateful representation replacement.
+`producers/` holds untrusted authoring/import tools. `research/` quarantines historical experiment formats, fixtures and Lean work; production discovery does not scan it or depend on experiment directory names. Research tools can still reproduce their original mathematical experiments. These formats are not compatibility aliases for the canonical API.
 
-The historical scalar format is verification-only in the current compiler.
-Translate it into general checked logic for current search/admission:
-
-```sh
-python3 tools/scalar_library.py --library boolean/lock.json \
-  --library composed/lock.json --library conditional/lock.json \
-  --compiler /path/to/ink --output-dir /tmp/ink-scalar-library
-```
-
-This reproduces the mathematical objects, index and names in `scalar-logic/`.
-Source bytes, translated hashes and a successful producer exit are not proof
-authority: the general checker validates the output locally.
-
-`definition-candidates/` contains executable first-order definitions and
-unconditional entry-selection proofs. They reproduce through:
-
-```sh
-python3 tools/definition_candidates.py --example map \
-  --compiler /path/to/ink --output-dir /tmp/ink-definition-map
-python3 tools/definition_candidates.py --example row \
-  --compiler /path/to/ink --output-dir /tmp/ink-definition-row
-python3 tools/definition_candidates.py --example ledger \
-  --compiler /path/to/ink --output-dir /tmp/ink-definition-ledger
-```
-
-The producer checks the original library, adds ordinary function definitions,
-pins the resulting bundle and asks `emit-definition --select` to check each
-complete replacement and emit its actual body. The map example combines passes.
-The row/ledger candidates convert rows to columns for an update and decode the
-result, using existing step and roundtrip theorems. No new axiom or kernel rule
-is required. These examples use boxed datatype storage and make no timing
-claim. Efficient physical storage, full Ink source transactions and native
-backend verification remain separate obligations.
-
-## Source placement and complete-cost selection
-
-`tools/source_routing.py` partitions an actual checked pure source entry into
-literal calls, shares repeated identical calls, and supplies explicit placements.
-The small core checks exact source reconstruction and typed edges; neither this
-producer nor a package name grants optimisation authority. Unsupported bodies or
-partition budgets retain an unchanged whole-entry CPU stage (`--baseline` can
-request it explicitly).
-
-```sh
-python3 tools/source_routing.py --core core.json --entry entry \
-  --placements placements.json --compiler /path/to/ink -o mixed.json
-python3 tools/source_routing.py --core core.json --entry entry --baseline \
-  --compiler /path/to/ink -o baseline.json
-python3 tools/route_selection.py --core core.json --baseline baseline.json \
-  --candidates candidates.json --measurements measurements.json \
-  --compiler /path/to/ink -o selected.json
-```
-
-The candidate index is an array of relative package paths. Measurements are
-separate schema-1 records naming core identity, entry, target, workload and
-`metric: "complete-call-ms"`; `samples` maps exact package-byte SHA256 identities
-to bounded nonnegative complete-call timings. Every candidate is checked before
-selection, even when its measured cost is zero. Missing comparable baseline
-measurements keep baseline; malformed measurements fail without overwriting
-output. Candidate count, file/sample sizes and checking time have explicit
-budgets. These are compile-time selection inputs, not semantic facts, runtime
-adaptation or formally verified physical bridges. See ink-lang's
-`docs/source-routing.md` and `reports/source-routing-phase1`.
-
-## General composable executable laws
-
-`semantic/catalogue.json` contains typed conditional semantic laws, including
-universal loop-count induction, integer identities and collection composition.
-`tools/semantic_laws.py` reproduces this example data. Neither the compiler nor
-`tools/semantic_search.py` contains these optimisation patterns.
-
-The external search matches arbitrary typed subexpressions, including binders,
-composes successive checked applications, and uses a bounded checker session.
-Every theorem and instantiated condition is checked locally. Structural costs
-are estimates, not proof premises. Use the distribution's `--optimise` option,
-or produce a replayable package explicitly:
-
-```sh
-python3 tools/semantic_search.py --compiler /path/to/ink --core core.json \
-  --catalogue semantic/catalogue.json -o selection.json
-ink check-selection core.json selection.json
-ink emit-core core.json --core --selection selection.json -o selected.json
-```
-
-Adding a theorem is a data change. Objects are identified by SHA-256 of the
-versioned compact wire encoding, dependencies are explicit, and a catalogue view
-pins its enabled roots. The checker accepts no trusted-theorem flags. See the
-language repository's `docs/semantic-optimisation.md` for semantics, budgets,
-trust boundaries and current stateful/physical-routing limits.
-
-Supporting dependency lemmas can discharge applicability conditions without
-being enabled as rewrite roots. The measured route selector also accepts
-`{"route":"candidate.json","proof":"evidence.json"}` candidates, checks each
-through the same semantic calculus, and saves selected evidence in
-`OUTPUT.proof.json`. Measured costs never supply applicability facts.
+The initial snapshot contains 575 canonical entries, including 42 executable semantic laws. Reproduce its data with `python3 producers/build_store.py --output /tmp/ink-store`; this explicitly imports the research fixtures as an authoring operation. `store/rewrite-view.json` is a transport fixture for integration tests, not a second storage format or discovery API.

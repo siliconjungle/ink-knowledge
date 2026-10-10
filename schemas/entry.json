@@ -1,0 +1,80 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/siliconjungle/ink-knowledge/schemas/entry.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "kind",
+    "semantics",
+    "dependencies",
+    "interface",
+    "payload"
+  ],
+  "properties": {
+    "schema": {
+      "const": 1
+    },
+    "kind": {
+      "enum": [
+        "definition",
+        "theorem",
+        "rewrite",
+        "implementation",
+        "representation",
+        "maintenance",
+        "bridge"
+      ]
+    },
+    "semantics": {
+      "type": "string",
+      "minLength": 1
+    },
+    "dependencies": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[0-9a-f]{64}$"
+      },
+      "uniqueItems": true,
+      "maxItems": 128
+    },
+    "interface": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "parameters",
+        "result",
+        "operations",
+        "effects",
+        "conditions"
+      ],
+      "properties": {
+        "parameters": {
+          "type": "object"
+        },
+        "result": {},
+        "operations": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "uniqueItems": true
+        },
+        "effects": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "uniqueItems": true
+        },
+        "conditions": {
+          "type": "array"
+        }
+      }
+    },
+    "payload": {
+      "type": "object"
+    }
+  }
+}
