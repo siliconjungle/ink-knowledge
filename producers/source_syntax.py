@@ -111,7 +111,7 @@ def main():
     args = parser.parse_args()
     output = Path(args.output)
     # Construction and validation finish before publishing pointers.
-    roles, view = publish(read(args.core), read(args.actions), output / 'database')
+    roles, view = publish(read(Path(args.core)), read(Path(args.actions)), output / 'database')
     output.mkdir(parents=True, exist_ok=True)
     (output / 'roles.json').write_text(json.dumps(roles, indent=2) + '\n')
     (output / 'view.json').write_text(json.dumps(view, indent=2) + '\n')

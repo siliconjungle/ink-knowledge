@@ -166,7 +166,7 @@ def main():
     parser.add_argument('-o', '--output', required=True)
     args = parser.parse_args()
     output = Path(args.output)
-    syntax, roles, view = publish(read(args.core), read(args.actions), output / 'database')
+    syntax, roles, view = publish(read(Path(args.core)), read(Path(args.actions)), output / 'database')
     for name, value in [('syntax-roles', syntax), ('value-roles', roles), ('view', view)]:
         (output / (name + '.json')).write_text(json.dumps(value, indent=2) + '\n')
     print(json.dumps(dict(status='produced', value=roles['value'], authority='code and value data only')))
