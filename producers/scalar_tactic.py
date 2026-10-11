@@ -5,7 +5,7 @@ uses the kernel's ordinary Use rule and the exact supplied premise proofs.
 """
 import hashlib,json,os,subprocess,tempfile
 from pathlib import Path
-from action_replacement import var
+from producers.action_replacement import var
 from bitvector_proofs import certificate
 
 class Scalar:

@@ -9,10 +9,10 @@ from pathlib import Path
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 from ink_knowledge import Store,identity
 from ink_knowledge.store import entry
-from representations import refs
-from action_replacement import var,call,cons,trans
-from point_delta import sub,match
-from tree_proofs import Tactic
+from producers.representations import refs
+from producers.action_replacement import var,call,cons,trans
+from producers.point_delta import sub,match
+from producers.tree_proofs import Tactic
 
 def projection(term,datatype):
     return match(term,[(['compact_reply','compact_commit','compact_version','compact_rows','compact_events'],cons(datatype,0,[var(n)for n in ['compact_reply','compact_commit','compact_version','compact_events']])),(['compact_host','compact_version','compact_rows'],cons(datatype,1,[var('compact_host'),var('compact_version')]))])

@@ -3,8 +3,8 @@
 Only Convert, congruence, exhaustive Cases/BoolSplit, checked lemma use and
 explicit induction hypotheses are emitted. No tree algorithm is kernel authority.
 """
-from action_replacement import var, call, cons, convert, trans
-from point_delta import normal, replace, sub
+from producers.action_replacement import var, call, cons, convert, trans
+from producers.point_delta import normal, replace, sub
 import json
 
 

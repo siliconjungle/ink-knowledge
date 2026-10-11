@@ -5,9 +5,9 @@ including arbitrary table constructors (not just ordered, unique host tables).
 """
 import json,os,subprocess,tempfile
 from pathlib import Path
-from action_replacement import var,call,cons,convert,trans
-from point_delta import normal,sub,replace,binary,choice,match,lift
-from cache_maintenance import leaves,variables
+from producers.action_replacement import var,call,cons,convert,trans
+from producers.point_delta import normal,sub,replace,binary,choice,match,lift
+from producers.cache_maintenance import leaves,variables
 
 def setup(model,cache,add,objects):
     original_add=add
@@ -113,4 +113,4 @@ def setup(model,cache,add,objects):
         use={'Use':dict(theorem=updates[name],arguments=args,premises=[])}
         delta=contrib(args[2])if name=='insert'else call(delta_functions[name],args)
         return trans(use,lift(query_equality(args[0],bindings),binary('+',var('delta_hole'),delta)))
-    return dict(action=action,recipe=recipe,equality=query_equality,index=0,contribution=contribution,fold=fold,fusion=fusion)
+    return dict(action=action,recipe=recipe,equality=query_equality,index=0,contribution=contribution,fold=fold,fusion=fusion,updates=updates,delta_functions=delta_functions,prove_arithmetic=arithmetic)

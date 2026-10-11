@@ -1,10 +1,10 @@
 """Author ordinary universal laws for a row-parametric ordered sequence tree."""
-from action_replacement import var,call,cons
-from sequence_tree import D
+from producers.action_replacement import var,call,cons
+from producers.sequence_tree import D
 
 def prove(names,objects,add,row_sort):
     table,option=names['table'],names['option']
-    from tree_proofs import Tactic
+    from producers.tree_proofs import Tactic
     tactic=Tactic(objects,add)
     tactic.blocked.update(names[n]for n in ['minimum','maximum','height','measure'])
     f=lambda name,*xs:call(names[name],list(xs))
@@ -21,8 +21,8 @@ def prove(names,objects,add,row_sort):
     names['join-right-order']=tactic.theorem('join-right-order',[['left',D(names['datatype'])],['right',D(names['datatype'])]],flatten(f('join_right',l,r)),pair(l,r),'right',['left'])
     names['join-order']=tactic.theorem('join-order',[['left',D(names['datatype'])],['right',D(names['datatype'])]],flatten(f('join',l,r)),pair(l,r),'left',['right'])
     names['roundtrip']=tactic.theorem('roundtrip',[['xs',D(table)]],flatten(f('encode',x)),x,'xs')
-    from scalar_tactic import Scalar
-    from point_delta import binary
+    from producers.scalar_tactic import Scalar
+    from producers.point_delta import binary
     tactic.scalar=Scalar(add,tactic.sort,tactic.normal)
     tactic.blocked.discard(names['node'])
     tactic.cases_first=True
@@ -45,7 +45,7 @@ def prove(names,objects,add,row_sort):
     for label,operation in [('node','node'),('balance','balance'),('join-right','join_right'),('join','join')]:
         names[label+'-valid']=tactic.theorem(label+'-valid',params,valid(f(operation,l,r)),{'Bool':True},guard=guard)
     names['encode-valid']=tactic.theorem('encode-valid',[['xs',D(table)]],valid(f('encode',x)),{'Bool':True})
-    from point_delta import match
+    from producers.point_delta import match
     k=var('key');none=cons(option,0,[])
     found=lambda t:f('rows_get',t,k)
     choose_first=lambda a,b:match(a,[([],b),(['found'],cons(option,1,[var('found')]))])

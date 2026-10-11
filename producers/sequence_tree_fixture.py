@@ -8,9 +8,9 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from ink_knowledge import Store, identity
 from ink_knowledge.store import entry
-from representations import refs
-from sequence_tree import define, D, U
-from action_replacement import var, call, cons
+from producers.representations import refs
+from producers.sequence_tree import define, D, U
+from producers.action_replacement import var, call, cons
 
 
 def generate(directory, proofs=False):
@@ -42,7 +42,7 @@ def generate(directory, proofs=False):
     names = define(table, 'U64', option, add)
     names.update(table=table, option=option)
     if proofs:
-        from sequence_tree_proofs import prove
+        from producers.sequence_tree_proofs import prove
         prove(names,objects,add,'U64')
     pending=list(names.values());reachable=set()
     while pending:

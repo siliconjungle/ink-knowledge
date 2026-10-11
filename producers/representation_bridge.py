@@ -10,10 +10,10 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from ink_knowledge import Store, identity
+from ink_knowledge import Store, identity, canonical
 from ink_knowledge.store import entry, read
-from representations import MATH, MIG, refs, subst
-from action_replacement import call, convert, trans, var
+from producers.representations import MATH, MIG, refs, subst
+from producers.action_replacement import call, convert, trans, var
 
 
 def generate(before, after, directory, via_logical=False):
@@ -42,9 +42,16 @@ def generate(before, after, directory, via_logical=False):
         after_term = lambda side: call(relation[side], [call(fid, [var('physical')]), var('logical')])
         if via_logical:
             encoded = call(b['encode'], [call(a['decode'], [var('physical')])])
-            proofs.append(trans(convert(after_term('left'), encoded),
-                                subst(a['snapshot'], call(b['encode'], [var('replacement')])),
-                                convert(call(b['encode'], [var('logical')]), after_term('right'))))
+            initial={side:call(relation[side],[call(b['encode'],[var('logical')]),var('logical')]) for side in ['left','right']}
+            theorem={'Theorem':dict(params=[['logical',b['logical_state']]],conditions=[],**{'from':initial['left'],'to':initial['right']},proof=b['initialisation'][index])}
+            law=entry('theorem',MATH,{'declaration':theorem},refs(theorem),parameters={'logical':b['logical_state']})
+            lid=identity(law);objects[lid]=law
+            context=lambda side:call(relation[side],[call(b['encode'],[var('replacement')]),var('logical')])
+            proofs.append(trans(convert(after_term('left'),call(relation['left'],[encoded,var('logical')])),
+                                subst(a['snapshot'],context('left')),
+                                {'Use':dict(theorem=lid,arguments=[var('logical')],premises=[])},
+                                {'Sym':subst(a['snapshot'],context('right'))},
+                                convert(call(relation['right'],[encoded,var('logical')]),after_term('right'))))
             continue
         proofs.append(trans(convert(after_term('left'), before_term('left')),
                             {'Hypothesis': index},
@@ -55,7 +62,7 @@ def generate(before, after, directory, via_logical=False):
     bridge['interface']['operations'] = ['migrate']
     bid = identity(bridge)
     objects[bid] = bridge
-    store = Store.publish(directory, objects.values(), {'migration/state-reusing': bid})
+    store = Store.publish(directory, objects.values(), {'migration/state-reusing': bid}, leaf_size=2)
     return dict(root=bid, knowledge=store.bundle([bid]))
 
 
@@ -68,7 +75,7 @@ def main():
     args = parser.parse_args()
     args.output.parent.mkdir(parents=True, exist_ok=True)
     result = generate(read(args.before), read(args.after), args.output.parent / 'database', args.via_logical)
-    args.output.write_text(json.dumps(result, indent=2) + '\n')
+    args.output.write_bytes(canonical(result) + b'\n')
 
 
 if __name__ == '__main__':

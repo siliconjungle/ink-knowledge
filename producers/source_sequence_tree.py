@@ -9,11 +9,11 @@ from pathlib import Path
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 from ink_knowledge import Store,identity
 from ink_knowledge.store import entry
-from action_replacement import var,call,cons,convert,trans
-from point_delta import match,binary,sub
-from representations import refs,REP,MATH
-from sequence_tree import define,D
-from sequence_tree_proofs import prove
+from producers.action_replacement import var,call,cons,convert,trans
+from producers.point_delta import match,binary,sub
+from producers.representations import refs,REP,MATH
+from producers.sequence_tree import define,D
+from producers.sequence_tree_proofs import prove
 
 def generate(model,directory,cache_query=None):
     if len(model['tables'])!=1:raise ValueError('indexed sequence authoring currently requires one table')
@@ -33,7 +33,7 @@ def generate(model,directory,cache_query=None):
     option=objects[table['get']]['payload']['declaration']['Function']['result']['Data']
     aggregate=None
     if cache_query:
-        from aggregate_delta import setup
+        from producers.aggregate_delta import setup
         aggregate=setup(model,model['actions'][cache_query],add,objects)
     names=define(table_id,row_sort,option,add,aggregate['contribution']if aggregate else None)
     names.update(table=table_id,option=option)
@@ -56,8 +56,8 @@ def generate(model,directory,cache_query=None):
         theorem=add({'Theorem':dict(params=[['tree',tree_sort],['key','U64']]+([]if not extras else[['value',row_sort]]),conditions=[guard],**{'from':a,'to':z},proof=proof)})
         names['source-'+op+'-tree']=theorem;tactic.register(theorem)
     if aggregate:
-        from word_ring import Tactic as WordTactic
-        from scalar_tactic import Scalar
+        from producers.word_ring import Tactic as WordTactic
+        from producers.scalar_tactic import Scalar
         ring=WordTactic(add,tactic.scalar.compiler);memo={}
         def arithmetic(a,z):
             opaque=[]
@@ -156,7 +156,7 @@ def generate(model,directory,cache_query=None):
         reachable.add(i);pending.extend(objects[i]['dependencies'])
     store=Store.publish(directory,[objects[i]for i in sorted(reachable)],{'indexed-sequence':rid})
     request=dict(schema=1,semantics=REP,input_core_sha256=model['source'],knowledge=store.bundle([rid]),representation=rid)
-    from compact_observation import attach as compact
+    from producers.compact_observation import attach as compact
     return compact(request,Path(directory)/'compact')
 
 if __name__=='__main__':

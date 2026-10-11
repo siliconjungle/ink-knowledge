@@ -1,5 +1,7 @@
 # Frozen source-bound representations
 
+Current active requests were re-authored for executable-core V8 and universally checked; see `../representation-republication.json` and `producers/research_representations.py --compiler PATH --distribution INK_ROOT`. Historical snapshot counts and timings below describe their original publications and do not transfer to the refreshed requests.
+
 `app.ink` is unchanged across both selections. `direct.json` stores the source
 tables directly in a database-defined tuple. `reversed-query-cache.json` changes
 the physical field order and stores the reply of `zero`. Query execution retains

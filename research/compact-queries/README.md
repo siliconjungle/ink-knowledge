@@ -1,5 +1,7 @@
 # Compact query transitions
 
+Current active requests were re-authored for executable-core V8 and universally checked; see `../representation-republication.json` and `producers/research_representations.py --compiler PATH --distribution INK_ROOT`. Historical snapshot counts and timings below describe their original publications and do not transfer to the refreshed requests.
+
 `app.ink` is unchanged across `previous.json` and `cached.json`. Both cached
 representations preserve caches on aborts and unrelated writes, and compose the
 canonical whole-action removal-idempotence law. The new candidate changes only

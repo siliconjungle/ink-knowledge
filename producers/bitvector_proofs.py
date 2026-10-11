@@ -10,10 +10,9 @@ import subprocess
 import time
 import threading
 from pathlib import Path
-from pysat.solvers import Glucose3
-from inductive_proofs import SEMANTICS, var, binary
+from producers.inductive_proofs import SEMANTICS, var, binary
 
-from workspace import CORE_ROOT as ROOT, KNOWLEDGE_ROOT, compiler_path
+from producers.workspace import CORE_ROOT as ROOT, KNOWLEDGE_ROOT, compiler_path
 
 
 def source(term):
@@ -76,6 +75,7 @@ def hints_for(clause, clauses):
 
 
 def certificate(problem, seconds=60, conflicts=100_000):
+    from pysat.solvers import Glucose3
     with Glucose3(bootstrap_with=problem['clauses'], with_proof=True) as solver:
         solver.conf_budget(conflicts)
         timer = threading.Timer(seconds, solver.interrupt)

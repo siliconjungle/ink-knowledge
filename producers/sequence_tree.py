@@ -5,8 +5,8 @@ pruning without assuming that the input is sorted. AVL concatenation and rotatio
 are ordinary first-order definitions. A definition is not replacement authority:
 the accompanying universal equations must be checked before representation use.
 """
-from action_replacement import var, call, cons
-from point_delta import binary, choice, match
+from producers.action_replacement import var, call, cons
+from producers.point_delta import binary, choice, match
 
 U = lambda n: {'U64': n}
 D = lambda i: {'Data': i}

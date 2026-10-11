@@ -99,21 +99,36 @@ class Store:
         self._members=None
         self._explicit_snapshot=snapshot is not None
     @classmethod
-    def publish(cls, root, objects, names=None):
+    def publish(cls, root, objects, names=None, *, leaf_size=64):
+        if type(leaf_size) is not int or not 1<=leaf_size<=64:raise ValueError('snapshot leaf size')
         root=Path(root);data=root/'store';ids=[]
         for obj in objects:
             validate_entry(obj);i=identity(obj);immutable(data/'objects'/f'{i}.json',obj);ids.append(i)
         ids=sorted(set(ids)); known=set(ids)
         for i in ids:
             if not set(read(data/'objects'/f'{i}.json')['dependencies']) <= known: raise ValueError('dependency absent from snapshot')
-        nodes=[]
-        for at in range(0,max(1,len(ids)),64):
-            node=dict(schema=1,entries=ids[at:at+64]);i=identity(node);immutable(data/'trees'/f'{i}.json',node);nodes.append(i)
-        while len(nodes)>1:
-            next_nodes=[]
-            for at in range(0,len(nodes),2):
-                node=dict(schema=1,left=nodes[at],right=nodes[min(at+1,len(nodes)-1)]);i=identity(node);immutable(data/'trees'/f'{i}.json',node);next_nodes.append(i)
-            nodes=next_nodes
+        # Stable hash-prefix buckets prevent an insertion shifting every later
+        # leaf. Topology grows only at powers of two; an oversized bucket splits
+        # locally. Nodes and membership witnesses keep the existing contract.
+        bits=((max(1,len(ids))-1)//64).bit_length()
+        buckets=[[] for _ in range(1<<bits)]
+        for i in ids:buckets[int(i[:16],16)>>(64-bits) if bits else 0].append(i)
+        def node(value):
+            i=identity(value);immutable(data/'trees'/f'{i}.json',value);return i
+        def leaf(items):
+            if len(items)<=64:return node(dict(schema=1,entries=items))
+            middle=len(items)//2
+            return node(dict(schema=1,left=leaf(items[:middle]),right=leaf(items[middle:])))
+        nodes=[leaf(items) for items in buckets]
+        if leaf_size != 64:
+            nodes=[]
+            for at in range(0,max(1,len(ids)),leaf_size):
+                value=dict(schema=1,entries=ids[at:at+leaf_size]);i=identity(value);immutable(data/'trees'/f'{i}.json',value);nodes.append(i)
+            while len(nodes)>1:
+                nodes=[node(dict(schema=1,left=nodes[at],right=nodes[min(at+1,len(nodes)-1)])) for at in range(0,len(nodes),2)]
+        else:
+            while len(nodes)>1:
+                nodes=[node(dict(schema=1,left=nodes[at],right=nodes[at+1])) for at in range(0,len(nodes),2)]
         snapshot=dict(schema=1,semantics=SNAPSHOT,root=nodes[0]);sid=identity(snapshot)
         immutable(data/'snapshots'/f'{sid}.json',snapshot)
         for name,value in [('names.json',names or {}),('snapshot.json',snapshot)]:
@@ -239,6 +254,48 @@ class Store:
         finally:
             if Path(tmp).exists():Path(tmp).unlink()
         return len(objects)
+    def refresh_index(self):
+        """Incrementally refresh a disposable index with atomic publication.
+
+        Unchanged discovery rows are reused, never as proof authority. Export
+        still reads/hashes objects and authenticates witnesses independently.
+        Rebuild remains the repair operation for a missing/corrupt index.
+        """
+        target=self.root/'index.sqlite'
+        if not target.exists():return self.rebuild()
+        fd,tmp=tempfile.mkstemp(prefix='.ink-index-',dir=self.root);os.close(fd)
+        try:
+            with closing(sqlite3.connect(target.as_uri()+'?mode=ro',uri=True)) as source, closing(sqlite3.connect(tmp)) as db:
+                source.backup(db)
+                db.execute('PRAGMA foreign_keys=ON')
+                with db:
+                    db.execute('INSERT OR IGNORE INTO snapshots VALUES(?,?)',(self.snapshot_id,self.snapshot['root']))
+                    members=self.members();encode=lambda x:canonical(x).decode()
+                    indexed={r[0] for r in db.execute('SELECT id FROM entries')}
+                    added=0
+                    for i in members:
+                        if i not in indexed:
+                            obj=self._read_object(i);iface=obj['interface'];added+=1
+                            db.execute('INSERT INTO entries VALUES(?,?,?,?,?,?)',(i,obj['kind'],obj['semantics'],encode(iface['result']),encode(iface['parameters']),encode(iface['conditions'])))
+                            db.execute('INSERT INTO types VALUES(?,?,?,?)',(i,'result','',encode(iface['result'])))
+                            db.executemany('INSERT INTO types VALUES(?,?,?,?)',[(i,'parameter',n,encode(t)) for n,t in iface['parameters'].items()])
+                            db.executemany('INSERT INTO applicability VALUES(?,?,?)',[(i,n,encode(c)) for n,c in enumerate(iface['conditions'])])
+                            db.executemany('INSERT INTO operations VALUES(?,?)',[(i,x) for x in iface['operations']])
+                            db.executemany('INSERT INTO effects VALUES(?,?)',[(i,x) for x in iface['effects']])
+                            db.executemany('INSERT INTO dependencies VALUES(?,?)',[(i,d) for d in obj['dependencies']])
+                        db.execute('INSERT OR REPLACE INTO members VALUES(?,?,?)',(self.snapshot_id,i,encode(members[i])))
+                    db.execute('DELETE FROM names')
+                    for name,i in read(self.data/'names.json').items():
+                        if i in members:db.execute('INSERT INTO names VALUES(?,?)',(name,i))
+                    for p in sorted((self.data/'observations').glob('*.json')):
+                        if db.execute('SELECT 1 FROM observations WHERE id=?',(p.stem,)).fetchone():continue
+                        obj=read(p);self.validate_observation(obj)
+                        if identity(obj)!=p.stem:raise ValueError('observation content mismatch')
+                        db.execute('INSERT INTO observations VALUES(?,?,?,?,?,?)',(p.stem,obj['program'],obj['plan'],encode(obj['target']),encode(obj['workload']),encode(obj['metrics'])))
+            os.replace(tmp,target)
+        finally:
+            if Path(tmp).exists():Path(tmp).unlink()
+        return added
     def _canonical_query(self,kind,semantics,operation,result,effect,parameter_type,condition,after,limit):
         # Explicit immutable pins can coexist with the active disposable index.
         # Authenticate the pinned tree and each candidate object; no index write

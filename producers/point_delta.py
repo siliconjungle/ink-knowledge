@@ -3,38 +3,37 @@
 Recognises fixed-key remove/replace histories; unsupported changes use refresh.
 The core knows no query/update pattern and rechecks all future-state obligations.
 """
-from action_replacement import var,call,cons,convert,trans
-from cache_maintenance import variables
+from producers.action_replacement import var,call,cons,convert,trans
+from producers.cache_maintenance import variables
 
 def choice(c,t,f):return {'If':dict(condition=c,on_true=t,on_false=f)}
 def binary(n,a,b):return {'Binary':dict(op=n,left=a,right=b)}
 def match(t,branches):return {'Match':dict(scrutinee=t,branches=[dict(bindings=ns,body=b) for ns,b in branches])}
+def free_variables(t,bound=frozenset()):
+    if isinstance(t,list):return set().union(*(free_variables(x,bound) for x in t)) if t else set()
+    if not isinstance(t,dict):return set()
+    if set(t)=={'Var'}:return set() if t['Var'] in bound else {t['Var']}
+    if 'Match'in t:
+        x=t['Match'];return free_variables(x['scrutinee'],bound)|set().union(*(free_variables(b['body'],bound|set(b['bindings'])) for b in x['branches']))
+    return set().union(*(free_variables(x,bound) for x in t.values())) if t else set()
 def sub(t,m):
     if isinstance(t,list):return [sub(x,m) for x in t]
     if not isinstance(t,dict):return t
     if set(t)=={'Var'}:return m.get(t['Var'],t)
     if 'Match' in t:
-        # Library helpers may reuse binder names. Avoid capturing a free name
-        # in an inserted argument; proposed reductions still replay in core.
-        def names(x):
-            if isinstance(x,list):return set().union(*(names(v)for v in x)) if x else set()
-            if not isinstance(x,dict):return set()
-            if set(x)=={'Var'}:return {x['Var']}
-            result=set().union(*(names(v)for v in x.values())) if x else set()
-            if 'Match'in x:
-                result|=set(n for b in x['Match']['branches']for n in b['bindings'])
-            return result
         x=t['Match'];branches=[]
         for b in x['branches']:
-            local={k:v for k,v in m.items()if k not in b['bindings']}
-            inserted=names(list(local.values()));avoid=names(t)|inserted|set(m);renaming={}
-            for n in b['bindings']:
-                if n not in inserted:continue
-                fresh=n+'_fresh'
-                while fresh in avoid:fresh+='_fresh'
-                avoid.add(fresh);renaming[n]=var(fresh)
-            bindings=[renaming[n]['Var']if n in renaming else n for n in b['bindings']]
-            body=sub(b['body'],renaming)if renaming else b['body']
+            bindings=list(b['bindings']);local={k:v for k,v in m.items() if k not in bindings};body=b['body']
+            captures=set().union(*(free_variables(v) for v in local.values())) if local else set()
+            occupied=variables(body)|captures|set(local)|set(bindings);renames={}
+            for i,n in enumerate(bindings):
+                if n not in captures:continue
+                serial=0
+                while True:
+                    fresh=n[:40]+'_proposal_'+str(serial);serial+=1
+                    if fresh not in occupied:break
+                occupied.add(fresh);bindings[i]=fresh;renames[n]=var(fresh)
+            if renames:body=sub(body,renames)
             branches.append((bindings,sub(body,local)))
         return match(sub(x['scrutinee'],m),branches)
     return {k:sub(v,m) for k,v in t.items()}
@@ -44,14 +43,16 @@ def replace(t,a,z):
     if isinstance(t,dict):return {k:replace(x,a,z) for k,x in t.items()}
     return t
 
-def normal(t,objects,depth=0,blocked=(),eager=()):
+def normal(t,objects,depth=0,opaque=(),*,blocked=(),eager=()):
     """Authoring computation only. Every proposed reduction is checked by Convert."""
     if depth>96:raise ValueError('point delta producer depth budget')
-    recur=lambda t:normal(t,objects,depth+1,blocked,eager)
+    recur=lambda t:normal(t,objects,depth+1,opaque,blocked=blocked,eager=eager)
     if not isinstance(t,dict):return t
     if 'Call' in t:
-        x=t['Call'];args=[recur(a) for a in x['arguments']];f=objects[x['function']]['payload']['declaration']['Function']
+        x=t['Call'];args=[recur(a) for a in x['arguments']];decl=objects[x['function']]['payload']['declaration']
+        if x['function'] in opaque or 'AbstractFunction' in decl:return call(x['function'],args)
         if x['function'] in blocked and not (x['function']in eager and any('Construct'in a for a in args)):return call(x['function'],args)
+        f=decl['Function']
         if f['recursive'] is not None and 'Construct' not in args[f['recursive']]:return call(x['function'],args)
         body=f['body']
         def selfcalls(x):
@@ -71,7 +72,18 @@ def normal(t,objects,depth=0,blocked=(),eager=()):
         x=t['Match'];scrutinee=recur(x['scrutinee'])
         if 'Construct' in scrutinee:
             c=scrutinee['Construct'];b=x['branches'][c['constructor']];return recur(sub(b['body'],dict(zip(b['bindings'],c['arguments']))))
-        return match(scrutinee,[(b['bindings'],b['body']) for b in x['branches']])
+        branches=[]
+        for b in x['branches']:
+            bindings=list(b['bindings']);used=free_variables(b['body']);occupied=set(used)
+            for i,name in enumerate(bindings):
+                if name in used:continue
+                serial=0
+                while True:
+                    fresh='unused_binding_'+str(i)+'_'+str(serial);serial+=1
+                    if fresh not in occupied:break
+                bindings[i]=fresh;occupied.add(fresh)
+            branches.append((bindings,b['body']))
+        return match(scrutinee,branches)
     if 'Binary' in t:
         x=t['Binary'];a,z=recur(x['left']),recur(x['right'])
         if 'U64' in a and 'U64' in z:
