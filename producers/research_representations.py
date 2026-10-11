@@ -13,13 +13,14 @@ from ink_knowledge.implementation_candidates import identity_selection, publish_
 from producers.representations import generate
 from producers.representation_bridge import generate as bridge
 from producers.action_replacement import produce
+from producers.packed_representations import generate as packed
 
 
 def refresh(compiler, distribution):
     compiler, distribution = compiler.resolve(), distribution.resolve()
     knowledge = Path(__file__).resolve().parents[1]
     os.environ['INK_COMPILER'] = str(compiler)
-    requests, migrations, sources = {}, {}, {}
+    requests, migrations, sources, layouts = {}, {}, {}, {}
     with tempfile.TemporaryDirectory(prefix='ink-research-republication-') as temporary:
         scratch = Path(temporary)
         def run(*args):
@@ -90,6 +91,25 @@ def refresh(compiler, distribution):
         propose('filtered-aggregate', source, ['direct', 'refresh'], None, cache_query='total_query', preserve_cache=True)
         propose('filtered-aggregate', source, ['direct', 'sum-delta'], 'sum-forward', cache_query='total_query', preserve_cache=True, aggregate_query=True)
         propose('filtered-aggregate', source, ['direct', 'count-delta'], 'count-forward', cache_query='count_query', preserve_cache=True, aggregate_query=True)
+        source = knowledge / 'research/storage-bulk/app.ink'
+        propose('storage-bulk', source, ['direct'], None)
+        original = model(source, 'packed-source')
+        for label, width, hot_keys in [('packed-2', 2, ()), ('packed-4', 4, ()),
+                                      ('indexed-2-hot-0', 2, (0,)), ('indexed-4-hot-0', 4, (0,)),
+                                      ('indexed-4-hot-1023', 4, (1023,))]:
+            proposal = packed(original, scratch / (label + '-database'), width, hot_keys, compiler)
+            request = proposal['request']
+            path = knowledge / 'research/storage-bulk' / (label + '.json')
+            test = scratch / (label + '.json')
+            write(test, request)
+            run('check-representation', source, test)
+            requests[path], sources[path], layouts[label] = request, source, proposal['layouts']
+            print('checked storage-bulk', label, flush=True)
+        source = knowledge / 'research/storage-bulk/booleans.ink'
+        propose('storage-bulk', source, ['boolean-direct', 'any-delta'], None,
+                cache_query='any_query', preserve_cache=True, aggregate_query=True)
+        propose('storage-bulk', source, ['boolean-direct', 'all-delta'], None,
+                cache_query='all_query', preserve_cache=True, aggregate_query=True)
         for path, (a, b, result) in migrations.items():
             test = scratch / 'bridge-check.json'
             before, after = scratch / 'before.json', scratch / 'after.json'
@@ -114,6 +134,7 @@ def refresh(compiler, distribution):
             write(path, request)
         for path, (_, _, result) in migrations.items():
             write(path, {**result, 'knowledge': published.bundle([result['root']])})
+        write(knowledge / 'research/storage-bulk/layouts.json', layouts)
         request = read(knowledge / 'research/point-delta/delta.json')
         root = knowledge / 'research/implementation-candidates'
         candidates, ids = publish_candidates(root, [identity_selection(request['input_core_sha256']), request])
