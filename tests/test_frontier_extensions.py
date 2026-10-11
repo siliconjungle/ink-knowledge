@@ -3,7 +3,7 @@ import gzip,hashlib,json,os,subprocess,sys,tempfile,unittest
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1]
 sys.path[:0]=[str(ROOT),str(ROOT/'producers')]
-from freeze_frontier_extensions import candidates
+from freeze_frontier_extensions import candidates,bridge
 from point_delta import free_variables
 from test_column_layouts import wrong_bit
 
@@ -11,15 +11,31 @@ def read(directory,name):return json.loads(gzip.decompress((directory/(name+'.gz
 
 @unittest.skipUnless(os.environ.get('INK_COMPILER'),'requires explicit compiler')
 class FrontierExtensions(unittest.TestCase):
-    def test_frozen_requests_reproduce_and_archive_hashes_bind_exact_bytes(self):
+    def test_archive_integrity_and_current_source_checked_reproduction(self):
         for directory in sorted((ROOT/'research/frontier-extensions-current').iterdir()):
             if not(directory/'manifest.json').exists():continue
             with self.subTest(case=directory.name),tempfile.TemporaryDirectory()as output:
                 manifest=json.loads((directory/'manifest.json').read_text())
                 for name,expected in manifest['files'].items():self.assertEqual(hashlib.sha256(gzip.decompress((directory/(name+'.gz')).read_bytes())).hexdigest(),expected)
                 self.assertEqual(hashlib.sha256((directory/'source.ink').read_bytes()).hexdigest(),manifest['source_sha256'])
-                generated=candidates(directory.name,read(directory,'model.json'),Path(output)/'database')
-                for i,request in enumerate(generated):self.assertEqual(request,read(directory,str(i)+'.json'))
+                # Historical packets bind the authoring implementation and
+                # source model that produced them. Keep their exact hashes;
+                # current producers must instead re-admit the current source.
+                out=Path(output);compiler=os.environ['INK_COMPILER']
+                def check(*args):
+                    result=subprocess.run([compiler,*map(str,args)],capture_output=True,text=True)
+                    self.assertEqual(result.returncode,0,result.stderr)
+                check('emit-action-model',directory/'source.ink','-o',out/'model.json')
+                generated=candidates(directory.name,json.loads((out/'model.json').read_text()),out/'database')
+                self.assertEqual(len(generated),len(manifest['representations']))
+                paths=[]
+                for i,request in enumerate(generated):
+                    path=out/(str(i)+'.json');path.write_text(json.dumps(request));paths.append(path)
+                    check('check-representation',directory/'source.ink',path)
+                for label,before,after in [('forward',0,1),('reverse',1,0)]:
+                    request=bridge(generated[before],generated[after],out/(label+'-store'),True)
+                    path=out/(label+'.json');path.write_text(json.dumps(request))
+                    check('check-migration',directory/'source.ink',paths[before],paths[after],path)
 
     def reject(self,kind,index,mutator):
         directory=ROOT/'research/frontier-extensions-current'/kind

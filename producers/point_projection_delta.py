@@ -108,13 +108,21 @@ def setup(model,cache,add,objects):
         if found is None:return None
         lemma,captures=found;guard=binary('==',q,key)
         expr=P(call(present,[G(rows),new]));at_key=call(get,[rows,key])
-        reflection={'Use':dict(theorem=n['word_equal_from_guard'],arguments=[q,key],premises=[{'Hypothesis':0}])}
+        known=normal(guard,objects).get('Bool')
+        guard_proof=convert(guard,{'Bool':True})if known is True else {'Hypothesis':0}
+        reflection={'Use':dict(theorem=n['word_equal_from_guard'],arguments=[q,key],premises=[guard_proof])}
         yes=trans(lift(reflection,P(call(present,[call(get,[rows,var('delta_hole')]),new]))),{'Use':dict(theorem=lemma,arguments=[at_key]+[var(c)for c in captures],premises=[])},{'Sym':lift(reflection,P(call(get,[rows,var('delta_hole')])) )})
         middle=choice(guard,expr,Q(rows));target=Q(rows)
+        args=[rows,key,new]
+        first={'Use':dict(theorem=updates['replace'],arguments=args,premises=[])}
+        # A literal key comparison has only one reachable branch. Do not ask
+        # the equality tactic to derive an unreachable False premise after
+        # computation has already reduced the comparison to True.
+        if known is True:return trans(first,convert(middle,expr),yes)
+        if known is False:return trans(first,convert(middle,target))
         yes=trans(equality(middle,expr,objects,facts=[(guard,{'Bool':True},0)]),yes)
         no=equality(middle,target,objects,facts=[(guard,{'Bool':False},0)])
-        args=[rows,key,new]
-        return trans({'Use':dict(theorem=updates['replace'],arguments=args,premises=[])},{'BoolSplit':dict(condition=guard,**{'from':middle,'to':target},on_false=no,on_true=yes)})
+        return trans(first,{'BoolSplit':dict(condition=guard,**{'from':middle,'to':target},on_false=no,on_true=yes)})
     def recipe(root,old,bindings):
         remember_bindings(bindings)
         if root==var(bindings[index]):return old
