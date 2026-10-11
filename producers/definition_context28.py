@@ -53,6 +53,8 @@ def capture(core, subject, roots):
     context = dict(schema=1, definitions=dict(sorted(definitions.items())),
                    records=copy.deepcopy(program.get('records', {})),
                    enums=copy.deepcopy(program.get('enums', {})))
+    if program.get('ids'):
+        context['ids']=copy.deepcopy(program['ids'])
     if len(canonical(context)) > 4_000_000:
         raise ValueError('definition context byte limit')
     return context

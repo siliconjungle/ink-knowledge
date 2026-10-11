@@ -1,0 +1,1 @@
+{"schema":1,"semantics":"ink-executable-core-v1","program":{"module":"field_snapshot_schema","functions":[{"name":"identity","params":[["row",{"Named":"Row"}]],"result":{"Named":"Row"},"body":{"Var":"row"}}],"rules":[],"ids":[],"records":{"Row":[["id","U32"],["x","U32"],["y","U32"],["score","U32"],["flags","U32"]]},"enums":{},"states":[],"keeps":[],"events":{},"actions":[]}}

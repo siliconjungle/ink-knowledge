@@ -164,7 +164,7 @@ class Store:
             if i not in self.members():raise ValueError('entry absent from pinned snapshot')
             return self.members()[i]
         with closing(sqlite3.connect(index.as_uri()+'?mode=ro',uri=True)) as db:
-            if self._explicit_snapshot and not db.execute('SELECT 1 FROM snapshots WHERE id=?',(self.snapshot_id,)).fetchone():
+            if not db.execute('SELECT 1 FROM snapshots WHERE id=?',(self.snapshot_id,)).fetchone():
                 if i not in self.members():raise ValueError('entry absent from pinned snapshot')
                 return self.members()[i]
             return self._indexed_witness(i,db)
@@ -205,7 +205,7 @@ class Store:
             # writes the disposable index during traversal.
             if db is not None:db.execute('BEGIN')
             proof_db=db
-            if db is not None and self._explicit_snapshot and not db.execute('SELECT 1 FROM snapshots WHERE id=?',(self.snapshot_id,)).fetchone():
+            if db is not None and not db.execute('SELECT 1 FROM snapshots WHERE id=?',(self.snapshot_id,)).fetchone():
                 self.members();proof_db=None
             def visit(i,depth):
                 if i in objects:return
@@ -321,8 +321,7 @@ class Store:
             self.rebuild()
         with closing(sqlite3.connect(index.as_uri()+'?mode=ro',uri=True)) as db:
             if not db.execute('SELECT 1 FROM snapshots WHERE id=?',(self.snapshot_id,)).fetchone():
-                if self._explicit_snapshot:return self._canonical_query(*constraints)
-                raise ValueError('index belongs to another snapshot; rebuild it')
+                return self._canonical_query(*constraints)
             where=['m.snapshot_id=?'];args=[self.snapshot_id]
             for column,value in [('kind',kind),('semantics',semantics),('result',None if result is None else canonical(result).decode())]:
                 if value is not None:where.append('e.'+column+'=?');args.append(value)

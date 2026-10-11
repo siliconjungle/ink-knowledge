@@ -28,6 +28,17 @@ class StoreTests(unittest.TestCase):
                 self.assertEqual(node,view['snapshot']['root'])
         for size in [0,65,True]:
             with self.assertRaises(ValueError):Store.publish(self.root/'bad',objects,leaf_size=size)
+    def test_active_and_prior_readers_survive_a_stale_disposable_index(self):
+        self.store.rebuild();prior=Store(self.root)
+        c=entry('definition','test-v1',dict(body='new'))
+        next_store=Store.publish(self.root,[self.a,self.b,c],{'c':identity(c)})
+        current=Store(self.root)
+        self.assertEqual(set(current.bundle([identity(c)])['objects']),{identity(c)})
+        self.assertIn(identity(c),current.query(kind='definition'))
+        next_store.rebuild()
+        self.assertEqual(set(prior.bundle([identity(self.b)])['objects']),{identity(self.a),identity(self.b)})
+        self.assertNotIn(identity(c),prior.query(kind='definition'))
+
     def test_canonical_identity_is_key_order_independent_and_rejects_floats(self):
         self.assertEqual(identity({'b':2,'a':1}),identity({'a':1,'b':2}))
         self.assertEqual(canonical({'a':True}),b'{"a":true}')
@@ -121,11 +132,11 @@ class StoreTests(unittest.TestCase):
         p.write_text(json.dumps({**self.a,'semantics':'forged'}))
         with self.assertRaises(ValueError):Store(self.root).bundle([i])
         with self.assertRaises(ValueError):Store.publish(self.root,[self.b])
-    def test_pinned_snapshot_survives_publication_and_index_staleness_is_explicit(self):
+    def test_pinned_snapshot_survives_publication_and_stale_index_uses_canonical_pin(self):
         original=self.store.snapshot_id;self.store.rebuild()
         c=entry('definition','test-v1',dict(body='c'))
         newer=Store.publish(self.root,[self.a,self.b,c]);self.assertNotEqual(original,newer.snapshot_id)
-        with self.assertRaises(ValueError):newer.query()
+        self.assertEqual(set(newer.query()),{identity(self.a),identity(self.b),identity(c)})
         old=Store(self.root,self.root/'store/snapshots'/f'{original}.json')
         self.assertEqual(old.query(kind='theorem'),[identity(self.b)])
         self.assertEqual(set(old.bundle([identity(self.b)])['objects']),{identity(self.a),identity(self.b)})

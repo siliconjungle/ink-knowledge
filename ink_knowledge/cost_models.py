@@ -8,6 +8,11 @@ def structural_prices():
     return json.loads(files('ink_knowledge').joinpath('structural-costs.json').read_text())['operation_costs']
 
 
+def structural_components():
+    """Unmeasured search diversity metadata, never mathematical knowledge."""
+    return json.loads(files('ink_knowledge').joinpath('structural-costs.json').read_text()).get('search_components', {})
+
+
 def _decimal(v):
     if isinstance(v,float):
         if not math.isfinite(v):raise ValueError('nonfinite model price')

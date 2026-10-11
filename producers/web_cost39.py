@@ -6,6 +6,11 @@ freeze: train only declared cells and freeze EVERY prediction before evaluation.
 evaluate: compare frozen predictions with raw audited heldout timings; no fitting.
 No canonical database or default planner model is modified.
 """
+if __package__ in (None, ""):
+    import sys
+    from pathlib import Path
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
 import argparse
 from collections import defaultdict
 import hashlib

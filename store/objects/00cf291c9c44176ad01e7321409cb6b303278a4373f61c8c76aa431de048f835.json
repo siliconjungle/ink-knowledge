@@ -1,0 +1,1 @@
+{"dependencies":[],"interface":{"conditions":[],"effects":[],"operations":[],"parameters":{"argument_0":"U64"},"result":"Bool"},"kind":"definition","payload":{"declaration":{"AbstractFunction":{"name":"key_partition","params":[["argument_0","U64"]],"result":"Bool"}}},"schema":1,"semantics":"first-order-inductive-equality-v1"}

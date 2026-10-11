@@ -5,6 +5,11 @@ Exact decimal sample strings and original JSON model bytes preserve fractional n
 Store's legacy observation metric also receives rounded integer decimal strings.
 Publication and ordinary candidate checking remain the caller's separate actions.
 """
+if __package__ in (None, ""):
+    import sys
+    from pathlib import Path
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
 import argparse
 import json
 import math
