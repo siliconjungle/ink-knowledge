@@ -215,3 +215,20 @@ runs Lean. This optional additional verdict does not verify the entire Ink check
 source correspondence or backends and grants no new optimisation authority.
 Unsupported proof constructors/domains fail explicitly; existing production
 snapshot selection and repository-owned contributions are unchanged.
+
+Universal early-exit choices live in `producers/fold_until_laws.py`. Induction,
+case proofs and ordinary universal-law composition establish applicability;
+accumulator-dependent replacement trees fail closed. Owned map/indexed-map/scan/filter
+choices live in `producers/owned_transform_laws.py` and select explicit buffer
+operations understood literally by every target.
+
+Performance models live in `store/cost-models` with immutable observation
+provenance. They cannot enter mathematical entry discovery. Planner fits them;
+`ink-abi` applies their shared native/browser decision contract. Structural search
+prices in `ink_knowledge/structural-costs.json` remain unmeasured hypotheses.
+
+The installed producer catalog includes early-termination specialisation and checked
+definition unfolding. `ink-plan` runs these untrusted producers, records their source
+hashes, and places proposals in an immutable derived snapshot. The configured
+canonical snapshot stays intact. Every selected proposal and definition context is
+independently checked against the exact input module.

@@ -1,0 +1,17 @@
+{
+  "schema": 1,
+  "scope": "immutable union of current upstream knowledge and checked universal control/owned laws",
+  "parents": [
+    {
+      "snapshot_sha256": "731e64a6c766ff6cb38c3a5f18be80c19995c01d4336ca23c4c6cba649e65cd5",
+      "entries": 2881
+    },
+    {
+      "snapshot_sha256": "8b0489ee8dd3d443aba08e81a4e05ee65d7ff4cc2aef67199095cf2786389cf2",
+      "entries": 3424
+    }
+  ],
+  "snapshot_sha256": "7f9f98b44889114e6cb496a1f67da6984c9c454b76b387da2872f51183168fb0",
+  "entries": 3460,
+  "authority": "member inclusion is discovery only; selected exact closures are replayed by the core before use"
+}
