@@ -1,5 +1,7 @@
 # State-reusing representation switches
 
+Current active requests were re-authored for executable-core V8 and universally checked; see `../representation-republication.json` and `producers/research_representations.py --compiler PATH --distribution INK_ROOT`. Historical snapshot counts and timings below describe their original publications and do not transfer to the refreshed requests.
+
 The compact-query measurements favour different implementations for different
 executors. `../compact-queries/previous.json` and `../compact-queries/cached.json`
 have identical physical datatypes and abstraction relations. Recomputing the

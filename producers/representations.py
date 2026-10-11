@@ -105,12 +105,12 @@ def generate(model,directory,replacement=None,cache_query=None,retain_queries=Tr
             post=lambda o:match(o,[(['post_reply','post_committed','post_version','post_rows','post_events'],var('post_rows')),(['post_host','post_version','post_rows'],var('post_rows'))])
             result=a['result']
             predicted=delta['action'](sa) if delta else None
-            use_delta=predicted is not None
             cached_read=bool(cache and name==cache_query)
             query=unchanged_query(model,a)
             retain=retain_queries and query and not (compact_queries and (not cache or cached_read))
             maintain=bool(cache and not cached_read and
                           ((preserve_cache and not retain) or (compact_queries and query)))
+            use_delta=maintain and predicted is not None
             if use_delta:
                 delta_pair=add({'Datatype':dict(constructors=[dict(name='CacheDelta',fields=[cache_sort,cache_sort])])})
                 delta_sort={'Data':delta_pair}
