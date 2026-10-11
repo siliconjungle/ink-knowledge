@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "status": "checked",
-  "compiler_sha256": "79607a40c310e4d1d3605555de04eb30d6450632eb5da5404c49bebf70ccec77",
+  "compiler_sha256": "327e288b4e88554b7a5205ce0dbc8485e3d60b09b79721a73789074268d6e931",
   "snapshot": "f827577cbe2484b4e9cfcb06056640aa316e4269f9078e214a268daf2197e5d6",
   "candidates": [
     {
@@ -10,7 +10,7 @@
       "representation": "cf201ccfd3407f95a7b5914014145831dd571129c008cb6978b9bb1262669507",
       "source_file_sha256": "ad1368205fb47db874be6c98260b3d4a2f5ce494f7fc8add0bdaec79afd1b085",
       "source_file": "knowledge/research/keep-parity/app.ink",
-      "request_sha256": "63f925e87eb974e44922189bb7e5ec8651d7def67403bfba5e65901504c62ac6"
+      "request_sha256": "e955b622ae7575ec7f56c771eca5d391c1e455e83caba2a9396854db125aa696"
     },
     {
       "name": "current/keep-point",
@@ -18,7 +18,7 @@
       "representation": "0a6921b80b13aedc28c34c5bde72e04c592e29de8a4fe7fd89b73fad034e06dc",
       "source_file_sha256": "ad1368205fb47db874be6c98260b3d4a2f5ce494f7fc8add0bdaec79afd1b085",
       "source_file": "knowledge/research/keep-parity/app.ink",
-      "request_sha256": "b26ade635c5a7d552fc0cbb517ecd337b0e59a3b1f5fd8a4b6b35f80d2da294a"
+      "request_sha256": "d66f5101db353a523427753bb85aba3c4f4d97462c60bf38837963f9a8b4e435"
     },
     {
       "name": "current/index-point-cache",
@@ -26,7 +26,7 @@
       "representation": "d0cc25e140ee63ccf2d6168f2c3f480ba372f2207afc5326362396c1050117ab",
       "source_file_sha256": "ad1368205fb47db874be6c98260b3d4a2f5ce494f7fc8add0bdaec79afd1b085",
       "source_file": "knowledge/research/keep-parity/app.ink",
-      "request_sha256": "cc8f6d28bc4dc6380ecd02492689a7b11a2ae87c5b2046077797c8cfd6321e2a"
+      "request_sha256": "9cb5496e5ced63b5f1608b78628f56de6ead346662f3de944956e6b66800fc89"
     },
     {
       "name": "current/field-point",
@@ -34,7 +34,7 @@
       "representation": "68cc53b4c3c700698a18c0927b78076d8d5b034381dc4e3c73e187b0f42a0a49",
       "source_file_sha256": "80bda26769cef2e1b6d2f96077b45b062da4e78fb7df6d2a13d82e2a9cd6b1c6",
       "source_file": "examples/field-sensitive-point.ink",
-      "request_sha256": "c7ef108a14a7bc8c0e074fd23b4390650afbce945e83823d13ea0ee9853f9538"
+      "request_sha256": "d413d9cfd053e9c688bb18f62cde328a4a40ce24074a2f2f8556e541286d33ed"
     },
     {
       "name": "current/aggregate-direct",
@@ -42,7 +42,7 @@
       "representation": "bfa590c5d118ff62eaca9c72dc4f25779bcdc27fec93c26fa1aedbd6e839dd1a",
       "source_file_sha256": "2906c4a21bbdf9c778aceda165230b767ec606ff089b9deabc30f09419daca62",
       "source_file": "examples/composable-filtered-state.ink",
-      "request_sha256": "0ee1a97383441a5a0cafbaaed2e2ff2864b4ef3bca5b6afeee7f51afcc7c4896"
+      "request_sha256": "204468a3a89e0677ce38d074ae196dc50702e233ec8293868c64166a45d4c034"
     },
     {
       "name": "current/aggregate-total",
@@ -50,7 +50,7 @@
       "representation": "bf3e971e3e16433f06903e530da54a7019d517986884e037756d7be6e7e311a2",
       "source_file_sha256": "2906c4a21bbdf9c778aceda165230b767ec606ff089b9deabc30f09419daca62",
       "source_file": "examples/composable-filtered-state.ink",
-      "request_sha256": "fa70e79a2c0998750e49450f697fc7f95668bf89590e746d2cb7e3d1149f016b"
+      "request_sha256": "46563a4d8026636b0a09f9427d95c980331fceac7f422bfb5f270a9caf33604a"
     },
     {
       "name": "current/aggregate-count",
@@ -58,7 +58,7 @@
       "representation": "84d741116c3438d1c174ca0698a5bb1be144dec320a54857ec0616427b2a91cb",
       "source_file_sha256": "2906c4a21bbdf9c778aceda165230b767ec606ff089b9deabc30f09419daca62",
       "source_file": "examples/composable-filtered-state.ink",
-      "request_sha256": "222c1a8af5a0df6d57e3c4f45a1dd80e75d143b1ab287cc99e708857083574f6"
+      "request_sha256": "945e98006a1650f143f07ee4d4de24a6220d63fa23a244a3792ce78e1e100cb4"
     },
     {
       "name": "current/index-total-cache",
@@ -66,7 +66,7 @@
       "representation": "b56c5944259fd318081fef02cc926c68f3b12416a8c0eb178c4853120aad5fa0",
       "source_file_sha256": "2906c4a21bbdf9c778aceda165230b767ec606ff089b9deabc30f09419daca62",
       "source_file": "examples/composable-filtered-state.ink",
-      "request_sha256": "f1aa288198946ade491ca8806a23637b8964df365a16d14a439967baf0be7e7c"
+      "request_sha256": "bb77410dccf4923100cf056ae31d2cc2bffca8cd649cd3acf38e9aef7a0553a6"
     },
     {
       "name": "current/index-two-aggregates",
@@ -74,7 +74,7 @@
       "representation": "05ef0b0d20d3bd5e90ebbba26d1915747cbc4359348425abea695986c79ea8c8",
       "source_file_sha256": "2906c4a21bbdf9c778aceda165230b767ec606ff089b9deabc30f09419daca62",
       "source_file": "examples/composable-filtered-state.ink",
-      "request_sha256": "a8d9cc6fcb3c3a4b9a0732a840ba7f24206fdb77b4a0da2a8ff5ba98d208169b"
+      "request_sha256": "7002b84b96536f7d06490073869befb13349ff49d3223a31c06ad52d8cab4b0e"
     },
     {
       "name": "current/point-delta/direct",
@@ -82,7 +82,7 @@
       "representation": "b32158b585b073ae72f8c60fc4c9e607a77cf0710fb67d4f069cb3e14c89608c",
       "source_file_sha256": "4080fa10504c2e647a0185566aae16faec2dd66dc864e656bc456e3eaef15cce",
       "source_file": "knowledge/research/point-delta/app.ink",
-      "request_sha256": "7044df823547bc98f01a466f3f4b628bc6acd330f0bfeeca83247c4aca63ba3a"
+      "request_sha256": "54aa6719c7618a584d3cfbe41d09b43fa435a7758ccf2a2c2d8877994fe89549"
     },
     {
       "name": "current/point-delta/refresh",
@@ -90,7 +90,7 @@
       "representation": "a72366ed9f402b27d873ce2e466da8e1f47797f3c1db5b1e70715f497c44c36d",
       "source_file_sha256": "4080fa10504c2e647a0185566aae16faec2dd66dc864e656bc456e3eaef15cce",
       "source_file": "knowledge/research/point-delta/app.ink",
-      "request_sha256": "3adad4df755ff1af1ba07897e641f05ae385b16d1bd762ee39bad2ba55e64ec1"
+      "request_sha256": "6ddae978db8e36a781631a75ef502b4f411c142170384ab3a82a723d5b35dfb2"
     },
     {
       "name": "current/point-delta/delta",
@@ -98,7 +98,7 @@
       "representation": "3553ce23d93e3e3aa7a8e35fdb6e09220c7bf164b57f4ff934d10ce66b22aefa",
       "source_file_sha256": "4080fa10504c2e647a0185566aae16faec2dd66dc864e656bc456e3eaef15cce",
       "source_file": "knowledge/research/point-delta/app.ink",
-      "request_sha256": "7cb7f928962e695b8d8de9784a91e42e1584e309b91a8ec26adea417dd71f5ce"
+      "request_sha256": "b68b1f866622d50282e58cf8d4cc44a21f0ff3609811e974282166e652e0ab9f"
     },
     {
       "name": "current/source-representations/retained-direct",
@@ -106,7 +106,7 @@
       "representation": "994b639010b7792d3df582d609ca4dfb6d13321c233e03fdb80bb6bb5e8e65a1",
       "source_file_sha256": "acbbd89da316cf044271f23cc6fc5f0179f30cebdb59d1705c05cedd93bdcfa5",
       "source_file": "knowledge/research/source-representations/app.ink",
-      "request_sha256": "548624cbd2f57284ff16b6a8df84f0b49d1e3605a25653f1bd03f90c76eb6096"
+      "request_sha256": "7b34979fa0c6ff7c555e6d48c3f88ad5540a076a48b21382d83f616429488189"
     },
     {
       "name": "current/source-representations/retained-query-cache",
@@ -114,7 +114,7 @@
       "representation": "f2542a2c2cf26a6cb31d4d17f1bba01656aa49e5ebd2453befccd1509ea09e6b",
       "source_file_sha256": "acbbd89da316cf044271f23cc6fc5f0179f30cebdb59d1705c05cedd93bdcfa5",
       "source_file": "knowledge/research/source-representations/app.ink",
-      "request_sha256": "35359f85d37bf7887230a41a0d46148357e78aa66604d3ae1ed1730b408cab8b"
+      "request_sha256": "55a929fc8cd82a1f100f41e822edca0ff159197389650c93eaa585a9f1e36466"
     },
     {
       "name": "current/filtered-aggregate/direct",
@@ -122,7 +122,7 @@
       "representation": "016a71b38cd488a996eb03b43467e400a00c7e6c6bddcce54bdcc9a32986de8b",
       "source_file_sha256": "f774f738409c64715bde96f2a9af3f5a608187d0a1fddf5aa644da82f1a79b12",
       "source_file": "knowledge/research/column-layouts/source.ink",
-      "request_sha256": "19aa29df431ce9172680d93ad14f5c149087a51f410a1810ca3327df46d4ee49"
+      "request_sha256": "e524047fd64da8a3cc849f4fb6e3241a5c5a3aa76697d60373bfbd02a5304e63"
     },
     {
       "name": "current/filtered-aggregate/refresh",
@@ -130,7 +130,7 @@
       "representation": "1f539242934372ac8b0951f452274d22b3ca202aec8a51352b7712bbe04eb630",
       "source_file_sha256": "f774f738409c64715bde96f2a9af3f5a608187d0a1fddf5aa644da82f1a79b12",
       "source_file": "knowledge/research/column-layouts/source.ink",
-      "request_sha256": "8f8e91dd55003a0bc0cc285e82d11eb2e8fee9b19df4aeee400eff1c80ec2d3a"
+      "request_sha256": "c15eaaed25c20fb931b0597317af211d4c85b03d0cb72a96a734082e6e68f145"
     },
     {
       "name": "current/filtered-aggregate/sum-delta",
@@ -138,7 +138,7 @@
       "representation": "0aade96f5e307e0f48115914fc28765053f6e7af8a2812adc20791f5cfa63a8e",
       "source_file_sha256": "f774f738409c64715bde96f2a9af3f5a608187d0a1fddf5aa644da82f1a79b12",
       "source_file": "knowledge/research/column-layouts/source.ink",
-      "request_sha256": "2aa72f677850a076a1a0ddfcbc5a0c7b7896b1c7e904ede6581021b4fc8e9ff8"
+      "request_sha256": "e6d29bc183a011de5d952e130a1739916183812de67ebacba5cf7fbae05a4238"
     },
     {
       "name": "current/filtered-aggregate/count-delta",
@@ -146,7 +146,7 @@
       "representation": "482b6a631b1fd3b8b00768320099856d3f8922d268c2c5c26833fa2d67337805",
       "source_file_sha256": "f774f738409c64715bde96f2a9af3f5a608187d0a1fddf5aa644da82f1a79b12",
       "source_file": "knowledge/research/column-layouts/source.ink",
-      "request_sha256": "860e703e9efb07a425cae0cc93765f0392ef6a856618837c88250197874b1e4c"
+      "request_sha256": "963e672ada592b2869c3c2943f218c1244511cc5ba651b8442799120a5f3d2f8"
     },
     {
       "name": "current/compact-queries/previous",
@@ -154,7 +154,7 @@
       "representation": "91ebf6ff9ac00cf95de49d8ee406126291d4b226a686f0c32b8009faaa594386",
       "source_file_sha256": "5748c43d00e5f08cdc2fe5a400a2e73365fdfd12a1e846de9c446abd9fd61627",
       "source_file": "knowledge/research/cache-maintenance/app.ink",
-      "request_sha256": "f6158818795ac9ba9a468f516d9e982c314af2b3f1beae77e5d996bbf2b60d9f"
+      "request_sha256": "1131fec8624bd49267c723895fd8362ecdd8853abff504b4eea956848db91bc8"
     },
     {
       "name": "current/compact-queries/cached",
@@ -162,7 +162,7 @@
       "representation": "7038abbccaeca645e4976ff8ea059d38a7b3b967db9fbd2136ff690c7691ce27",
       "source_file_sha256": "5748c43d00e5f08cdc2fe5a400a2e73365fdfd12a1e846de9c446abd9fd61627",
       "source_file": "knowledge/research/cache-maintenance/app.ink",
-      "request_sha256": "3969e92732ff0b6826b218bda4a4892d012eded81577b2f44f9adbb746de8c79"
+      "request_sha256": "e9dc70c7b04a459cefebfa1f9708b92dc41aa310f7f1acc74acf9cfc4c8c6b58"
     }
   ],
   "mathematics": [
@@ -375,7 +375,7 @@
         "f07693239149b70eec0e9a9c0e310a27dd7fb28756b93080c051c4b9b9c85d1c"
       ],
       "core_file_sha256": "fab6cadc90a56360a141c18c8e9754ceea15bebcb7716fe23f3d85f374494153",
-      "view_sha256": "4eefe676b422338f3b93904c13fa96e475545f97fae22b30fec23196367b6381"
+      "view_sha256": "049c931e96ce56f7ef34f87f7d2e5acaaabe8323c736b330aa91f47cad07d646"
     },
     {
       "name": "current-source-group",
@@ -385,7 +385,7 @@
         "cf2ceba0479a2be906d4e9f8af7113cae7179ece3af5a2dcecb718e002bd7f64"
       ],
       "core_file_sha256": "71637e9f7bb4886e2b57c42d27459a5660c41a0a95016ec3ae143ce51df0c79c",
-      "view_sha256": "4c8596ad781d1737a8a1cc2c5085aa3b0ba6c80fd9d81e4e2dbb6716d7dae65f"
+      "view_sha256": "d2593eef757c68edafbc823f1304be32b68102153960d59fb2dc62aa18192c15"
     }
   ],
   "previous_admission_receipts": {
