@@ -10,9 +10,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from ink_knowledge import Store
 from ink_knowledge.store import canonical, read
 from ink_knowledge.implementation_candidates import identity_selection, publish_candidates
-from representations import generate
-from representation_bridge import generate as bridge
-from action_replacement import produce
+from producers.representations import generate
+from producers.representation_bridge import generate as bridge
+from producers.action_replacement import produce
 
 
 def refresh(compiler, distribution):
