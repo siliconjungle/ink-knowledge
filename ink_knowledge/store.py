@@ -6,6 +6,8 @@ import sqlite3
 import tempfile
 from pathlib import Path
 
+MAX_VIEW_ENTRIES = 4096
+MAX_VIEW_BYTES = 64_000_000
 SNAPSHOT = 'ink-knowledge-snapshot-v1'
 KINDS = {'definition', 'theorem', 'rewrite', 'implementation', 'representation', 'maintenance', 'bridge'}
 
@@ -81,8 +83,8 @@ def immutable(path, value):
         with path.open('xb') as f: f.write(data)
 
 def read(path):
-    with path.open('rb') as f: raw=f.read(64_000_001)
-    if len(raw)>64_000_000: raise ValueError('knowledge object byte limit')
+    with path.open('rb') as f: raw=f.read(MAX_VIEW_BYTES+1)
+    if len(raw)>MAX_VIEW_BYTES: raise ValueError('knowledge object byte limit')
     value=json.loads(raw)
     canonical(value)
     return value
@@ -209,7 +211,7 @@ class Store:
                 self.members();proof_db=None
             def visit(i,depth):
                 if i in objects:return
-                if depth>64 or i in active or len(objects)+len(active)>=4096:raise ValueError('active dependency closure limit')
+                if depth>64 or i in active or len(objects)+len(active)>=MAX_VIEW_ENTRIES:raise ValueError('active dependency closure limit')
                 hash_id(i);active.add(i)
                 membership[i]=self._indexed_witness(i,proof_db,verified) if proof_db is not None else self.witness(i)
                 obj=self._read_object(i)
