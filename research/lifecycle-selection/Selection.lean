@@ -40,7 +40,7 @@ def choose (cost : α → Nat) (baseline : α) (comparable : Bool)
     (candidates : List (α × Bool)) : α :=
   if comparable then candidates.foldl (consider cost baseline) baseline else baseline
 
-theorem missing_baseline_keeps_source (cost : α → Nat) (baseline : α)
+theorem missing_baseline_keeps_baseline (cost : α → Nat) (baseline : α)
     (candidates : List (α × Bool)) : choose cost baseline false candidates = baseline := rfl
 
 theorem consider_never_worsens (cost : α → Nat) (baseline best : α)

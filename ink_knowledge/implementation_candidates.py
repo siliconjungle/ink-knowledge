@@ -1,0 +1,40 @@
+"""Database packaging for checked implementation candidates, without authority.
+
+The package's existing proof protocol determines how it is checked. Names and
+membership do not establish equality, applicability, or profitability.
+"""
+from pathlib import Path
+from .store import Store, entry, identity, hash_id, read
+
+SEMANTICS = 'ink-implementation-candidate-v1'
+
+def identity_selection(source):
+    """An ordinary empty selection, represented as data like any other package."""
+    hash_id(source)
+    return dict(schema=1, semantics='ink-evidence-v1', input_core_sha256=source,
+                applications=[], knowledge=dict(schema=1,
+                snapshot=dict(schema=1, semantics='ink-knowledge-snapshot-v1',
+                              root=identity(dict(schema=1, entries=[]))),
+                roots=[], objects={}, membership={}))
+
+def candidate_entry(package):
+    return entry('implementation', SEMANTICS, dict(package=package),
+                 package['knowledge']['roots'])
+
+def publish_candidates(root, packages):
+    """Extend a publication without dropping existing entries or names."""
+    root = Path(root)
+    objects = {}; names = {}
+    if (root/'store/snapshot.json').exists():
+        previous = Store(root)
+        objects.update((i, previous.object(i)) for i in previous.members())
+        names = read(root/'store/names.json')
+    candidates = []
+    for package in packages:
+        for i, obj in package['knowledge']['objects'].items():
+            if identity(obj) != i:
+                raise ValueError('package dependency content mismatch')
+            objects[i] = obj
+        obj = candidate_entry(package); i = identity(obj)
+        objects[i] = obj; candidates.append(i)
+    return Store.publish(root, objects.values(), names), candidates
