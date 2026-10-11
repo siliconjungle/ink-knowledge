@@ -19,3 +19,20 @@ roots through query execution. Cached query replies reconstruct their next tuple
 directly; ordinary queries carry only the cached value where needed. Every
 observation/preservation equation is still checked. See `research/compact-queries`
 for frozen requests, migration, comparable cost observations and executor limits.
+
+Engine40 target-work diagnostics are optional external acquisition tools:
+`target_work40_js.mjs` and `target_work40_c.py` instrument literal emitted sites;
+`target_work40_prepare_js.py` binds the frozen suite and replays its exact captured
+JavaScript boundary untimed. Missing C/Rust/Wasm/GPU boundary work is not supplied
+from JavaScript. `web_cost40.py` freezes separately fitted target/host/boundary/
+emitter prices and predictions before heldout evaluation. It uses only explicitly
+supplied training labels and leaves defaults unchanged.
+
+`import_target_work40.py` prepares canonical diagnostic definitions, price
+JSON and measured observations without publishing. Namespaces
+`ink-target-work-measurement-v1` and `ink-target-work-prices-v1` carry no theorem
+or application authority. Exact fractional samples and model JSON remain bound;
+the observation index retains its existing rounded integer timing format and
+unknown peak memory. The publisher must retain ordinary snapshot-bound candidate
+checking. Full contract and offline acquisition exclusions are documented in
+`planner/docs-physical-features.md` in the distribution checkout.
