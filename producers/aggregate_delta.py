@@ -9,7 +9,10 @@ from action_replacement import var,call,cons,convert,trans
 from point_delta import normal,sub,replace,binary,choice,match,lift
 from cache_maintenance import leaves,variables
 
-def setup(model,cache,add,objects):
+def setup(model,cache,add,objects,specialized=False):
+    if 'Construct' in cache['case']['normal']['Construct']['arguments'][0]:
+        from grouped_aggregate import setup as grouped_setup
+        return grouped_setup(model,cache,add,objects,specialized=specialized)
     original_add=add
     carriers=[i for i,obj in model['objects'].items()if 'Datatype'in obj['payload'].get('declaration',{})]
     def add(declaration):return original_add(declaration,carriers if 'Theorem'in declaration else ())
@@ -20,7 +23,11 @@ def setup(model,cache,add,objects):
     def q(rows):return sub(query,{binding:rows})
     nil=cons(d,0,[]);rows=var('aggregate_rows');tail=var('aggregate_tail');key=var('aggregate_key');value=var('aggregate_value');target=var('aggregate_target');new=var('aggregate_new')
     bound=cons(d,1,[key,value,tail]);guard=binary('==',target,key)
-    contribution=add({'Function':dict(params=[['aggregate_value',row_sort]],result='U64',body=q(cons(d,1,[{'U64':0},value,nil])),recursive=None)})
+    singleton=q(cons(d,1,[{'U64':0},value,nil]))
+    if specialized:
+        from singleton_contribution import specialize
+        singleton=specialize(singleton,objects,'aggregate_value')
+    contribution=add({'Function':dict(params=[['aggregate_value',row_sort]],result='U64',body=singleton,recursive=None)})
     contrib=lambda v:call(contribution,[v])
     fold=add({'Function':dict(params=[['aggregate_rows',{'Data':d}]],result='U64',body=match(rows,[([],{'U64':0}),(['aggregate_key','aggregate_value','aggregate_tail'],binary('+',contrib(value),{'SelfCall':[tail]}))]),recursive=0)})
     total=lambda r:call(fold,[r])
@@ -113,4 +120,4 @@ def setup(model,cache,add,objects):
         use={'Use':dict(theorem=updates[name],arguments=args,premises=[])}
         delta=contrib(args[2])if name=='insert'else call(delta_functions[name],args)
         return trans(use,lift(query_equality(args[0],bindings),binary('+',var('delta_hole'),delta)))
-    return dict(action=action,recipe=recipe,equality=query_equality,index=0)
+    return dict(action=action,recipe=recipe,equality=query_equality,index=0,fused=total(var(binding)),fusion=lambda root:{'Use':dict(theorem=fusion,arguments=[root],premises=[])})

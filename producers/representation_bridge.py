@@ -42,9 +42,14 @@ def generate(before, after, directory, via_logical=False):
         after_term = lambda side: call(relation[side], [call(fid, [var('physical')]), var('logical')])
         if via_logical:
             encoded = call(b['encode'], [call(a['decode'], [var('physical')])])
-            proofs.append(trans(convert(after_term('left'), encoded),
-                                subst(a['snapshot'], call(b['encode'], [var('replacement')])),
-                                convert(call(b['encode'], [var('logical')]), after_term('right'))))
+            at = lambda side, value: call(relation[side], [value, var('logical')])
+            logical_encoded = call(b['encode'], [var('logical')])
+            proofs.append(trans(
+                convert(after_term('left'), at('left', encoded)),
+                subst(a['snapshot'], at('left', call(b['encode'], [var('replacement')]))),
+                b['initialisation'][index],
+                {'Sym': subst(a['snapshot'], at('right', call(b['encode'], [var('replacement')])) )},
+                convert(at('right', encoded), after_term('right'))))
             continue
         proofs.append(trans(convert(after_term('left'), before_term('left')),
                             {'Hypothesis': index},
