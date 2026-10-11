@@ -178,3 +178,17 @@ Batch36 adds four content-bound U32 source deployment certificates for plain, ne
 Batch37 adds six U32/I32/U64 independent-list indexed-map demand-erasure endpoints, twelve Nat-offset/beta induction supports and four helper-bound U32 source certificates. Both zip orientations preserve min-length extent and selected value order while removing arbitrary pure total unobserved indexed callbacks. Generalized supports cover Nat index state and wrapping U32 callback indices. `producers/web_pipeline37_laws.py` and `tests/test_web_pipeline37_laws.py` pin the original 2,512-entry snapshot; a full forward/reverse alpha endpoint audit finds no duplicates, without claiming nonderivability from prior laws. The unchanged publisher admits a closed 22-object extension with no old dependencies. Canonical totals become 2,534 entries, 4,281 names and 25,940 separate empirical observations after 840 new groups. Benchmarks consume every vector word; physical GPU dispatch/transfer contracts remain unchanged, five prior cells regress and all strong controls are retained. Correctness and measured profitability remain separate; no runtime/cost policy is installed.
 
 Batch38 adds six U32/I32/U64 same-origin padded observed indexed-zip fusion endpoints, six Nat-beta supports and four content-bound U32 source certificates. Both indexed mapper values and the ordered pair helper remain observed; output extent is length(xs), and arbitrary padding must be appended after the exact shared input prefix. The induction generalizes over arbitrary Nat offsets with wrapping U32 callback indices. `producers/web_pipeline38_laws.py` and `tests/test_web_pipeline38_laws.py` pin the original 2,534-entry snapshot. A full consistent-alpha forward/reverse endpoint audit finds no duplicates for the twelve new generic objects, without claiming nonderivability from older laws. The unchanged publisher admits sixteen fresh objects, no shared-old objects or old mathematical dependencies. Canonical totals become 2,550 entries, 4,297 names and 26,780 empirical observation files after 840 new groups; old objects, names and observation bytes are preserved. GPU requests execute four graph stages before and one legacy shader after selection, while upload grows by twenty bytes and readback is unchanged. All twenty classified prior CPU regressions, uncertainty and strong controls remain recorded; correctness and measured profitability stay distinct. No core, runtime, target routing or cost policy changes are installed.
+
+
+## Independent Boolean proof verdict
+
+`research/verified-kernel/BooleanKernel.lean` proves soundness of a separate
+Boolean equality calculus in Lean 4.19.0, without added axioms, `sorry` or
+`native_decide`. Its standard axiom dependencies are `propext` and `Quot.sound`.
+`producers/boolean_verdict.py` translates a bounded subset of historical Boolean
+equality objects into certificates; the translator is not verified. The Ink CLI
+`check-boolean-verdict` checks the exact input with its Rust checker and then
+runs Lean. This optional additional verdict does not verify the entire Ink checker,
+source correspondence or backends and grants no new optimisation authority.
+Unsupported proof constructors/domains fail explicitly; existing production
+snapshot selection and repository-owned contributions are unchanged.
