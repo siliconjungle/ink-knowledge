@@ -201,3 +201,17 @@ Checking cost depends on closure/witness bytes, so a representation entry ID alo
 is insufficient for comparable measurements. Observations remain separate from
 proof snapshots. The current point-delta fixture loses to the simpler direct
 layout; no profitability claim follows from its preservation proofs.
+
+
+## Independent Boolean proof verdict
+
+`research/verified-kernel/BooleanKernel.lean` proves soundness of a separate
+Boolean equality calculus in Lean 4.19.0, without added axioms, `sorry` or
+`native_decide`. Its standard axiom dependencies are `propext` and `Quot.sound`.
+`producers/boolean_verdict.py` translates a bounded subset of historical Boolean
+equality objects into certificates; the translator is not verified. The Ink CLI
+`check-boolean-verdict` checks the exact input with its Rust checker and then
+runs Lean. This optional additional verdict does not verify the entire Ink checker,
+source correspondence or backends and grants no new optimisation authority.
+Unsupported proof constructors/domains fail explicitly; existing production
+snapshot selection and repository-owned contributions are unchanged.
