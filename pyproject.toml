@@ -11,3 +11,4 @@ packages = ["ink_knowledge", "producers"]
 
 [tool.setuptools.package-data]
 ink_knowledge = ["index.sql", "structural-costs.json", "producer-catalog.json"]
+producers = ["data/*.json"]
