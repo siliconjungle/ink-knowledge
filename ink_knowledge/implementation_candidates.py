@@ -37,4 +37,6 @@ def publish_candidates(root, packages):
             objects[i] = obj
         obj = candidate_entry(package); i = identity(obj)
         objects[i] = obj; candidates.append(i)
-    return Store.publish(root, objects.values(), names), candidates
+    store = Store.publish(root, objects.values(), names)
+    store.rebuild()
+    return store, candidates
