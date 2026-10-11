@@ -180,5 +180,8 @@ def legacy_setup(model,cache,add,objects):
 
 def setup(model,cache,add,objects):
     from producers.point_projection_delta import setup as projected_setup
-    try:return projected_setup(model,cache,add,objects)
-    except ValueError:return legacy_setup(model,cache,add,objects)
+    reply=cache['case']['normal']['Construct']['arguments'][0]
+    if 'Match' in reply:
+        try:return legacy_setup(model,cache,add,objects)
+        except ValueError:pass
+    return projected_setup(model,cache,add,objects)

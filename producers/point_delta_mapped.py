@@ -22,7 +22,7 @@ def setup(model,cache,add,objects,dynamic):
     if dynamic:
         from producers.point_delta_dynamic import setup as raw_setup
     else:
-        from producers.point_delta import setup as raw_setup
+        from producers.point_delta import legacy_setup as raw_setup
     raw=raw_setup(model,fake,add,objects);table=raw['table'];d=table['datatype'];q=raw['q'];index=raw['index']
     raw_option=objects[raw['get']]['payload']['declaration']['Function']['result'];row_sort=objects[table['replace']]['payload']['declaration']['Function']['params'][2][1]
     option=yes['datatype'];output={'Data':option};none=cons(option,0,[])

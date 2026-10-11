@@ -1,0 +1,142 @@
+{
+  "schema": 1,
+  "status": "checked",
+  "previous_snapshot": "de92ae15fb1db6de20ee7474fd5ee7c0a2836921db43c3217e00253b38d528ff",
+  "snapshot": "1261081022675851adc8d1d2ecf21e3b1d3669276192332fc9252e35ef1ca825",
+  "compiler_sha256": "2bb809313e9388e48bf0dbb199b11f76c314b132a6ff8d2c1abb1c21fcb5b90c",
+  "added_entries": 231,
+  "candidates": [
+    {
+      "name": "current/point-index",
+      "source": "e85d7bcd12b9abb1170dbcdf265b9cec21bc7b91d0dc8e7c02db021b82541cd7",
+      "representation": "cf201ccfd3407f95a7b5914014145831dd571129c008cb6978b9bb1262669507",
+      "source_file_sha256": "ad1368205fb47db874be6c98260b3d4a2f5ce494f7fc8add0bdaec79afd1b085"
+    },
+    {
+      "name": "current/keep-point",
+      "source": "e85d7bcd12b9abb1170dbcdf265b9cec21bc7b91d0dc8e7c02db021b82541cd7",
+      "representation": "0a6921b80b13aedc28c34c5bde72e04c592e29de8a4fe7fd89b73fad034e06dc",
+      "source_file_sha256": "ad1368205fb47db874be6c98260b3d4a2f5ce494f7fc8add0bdaec79afd1b085"
+    },
+    {
+      "name": "current/index-point-cache",
+      "source": "e85d7bcd12b9abb1170dbcdf265b9cec21bc7b91d0dc8e7c02db021b82541cd7",
+      "representation": "d0cc25e140ee63ccf2d6168f2c3f480ba372f2207afc5326362396c1050117ab",
+      "source_file_sha256": "ad1368205fb47db874be6c98260b3d4a2f5ce494f7fc8add0bdaec79afd1b085"
+    },
+    {
+      "name": "current/field-point",
+      "source": "bd29a7aaa6e4b33d95f08d89e22b86e164b61666a8982313c54a1a3dbec2d1b8",
+      "representation": "68cc53b4c3c700698a18c0927b78076d8d5b034381dc4e3c73e187b0f42a0a49",
+      "source_file_sha256": "80bda26769cef2e1b6d2f96077b45b062da4e78fb7df6d2a13d82e2a9cd6b1c6"
+    },
+    {
+      "name": "current/aggregate-direct",
+      "source": "07d3b5efb561b8597cfa874b0a78e4e93e30309dbbdecabdc75c5d934d2763ae",
+      "representation": "bfa590c5d118ff62eaca9c72dc4f25779bcdc27fec93c26fa1aedbd6e839dd1a",
+      "source_file_sha256": "2906c4a21bbdf9c778aceda165230b767ec606ff089b9deabc30f09419daca62"
+    },
+    {
+      "name": "current/aggregate-total",
+      "source": "07d3b5efb561b8597cfa874b0a78e4e93e30309dbbdecabdc75c5d934d2763ae",
+      "representation": "bf3e971e3e16433f06903e530da54a7019d517986884e037756d7be6e7e311a2",
+      "source_file_sha256": "2906c4a21bbdf9c778aceda165230b767ec606ff089b9deabc30f09419daca62"
+    },
+    {
+      "name": "current/aggregate-count",
+      "source": "07d3b5efb561b8597cfa874b0a78e4e93e30309dbbdecabdc75c5d934d2763ae",
+      "representation": "84d741116c3438d1c174ca0698a5bb1be144dec320a54857ec0616427b2a91cb",
+      "source_file_sha256": "2906c4a21bbdf9c778aceda165230b767ec606ff089b9deabc30f09419daca62"
+    },
+    {
+      "name": "current/index-total-cache",
+      "source": "07d3b5efb561b8597cfa874b0a78e4e93e30309dbbdecabdc75c5d934d2763ae",
+      "representation": "b56c5944259fd318081fef02cc926c68f3b12416a8c0eb178c4853120aad5fa0",
+      "source_file_sha256": "2906c4a21bbdf9c778aceda165230b767ec606ff089b9deabc30f09419daca62"
+    },
+    {
+      "name": "current/index-two-aggregates",
+      "source": "07d3b5efb561b8597cfa874b0a78e4e93e30309dbbdecabdc75c5d934d2763ae",
+      "representation": "05ef0b0d20d3bd5e90ebbba26d1915747cbc4359348425abea695986c79ea8c8",
+      "source_file_sha256": "2906c4a21bbdf9c778aceda165230b767ec606ff089b9deabc30f09419daca62"
+    },
+    {
+      "name": "current/point-delta/direct",
+      "source": "a0cf93860bcf16361c003fc714b71fb93688da3a7b27f43f30b7868c578cda19",
+      "representation": "b32158b585b073ae72f8c60fc4c9e607a77cf0710fb67d4f069cb3e14c89608c",
+      "source_file_sha256": "4080fa10504c2e647a0185566aae16faec2dd66dc864e656bc456e3eaef15cce"
+    },
+    {
+      "name": "current/point-delta/refresh",
+      "source": "a0cf93860bcf16361c003fc714b71fb93688da3a7b27f43f30b7868c578cda19",
+      "representation": "a72366ed9f402b27d873ce2e466da8e1f47797f3c1db5b1e70715f497c44c36d",
+      "source_file_sha256": "4080fa10504c2e647a0185566aae16faec2dd66dc864e656bc456e3eaef15cce"
+    },
+    {
+      "name": "current/point-delta/delta",
+      "source": "a0cf93860bcf16361c003fc714b71fb93688da3a7b27f43f30b7868c578cda19",
+      "representation": "3553ce23d93e3e3aa7a8e35fdb6e09220c7bf164b57f4ff934d10ce66b22aefa",
+      "source_file_sha256": "4080fa10504c2e647a0185566aae16faec2dd66dc864e656bc456e3eaef15cce"
+    },
+    {
+      "name": "current/source-representations/retained-direct",
+      "source": "aa663c3e779dc8fe68202bd770fd8602ee9710ffd7152c271c724ad10b2cd6ee",
+      "representation": "994b639010b7792d3df582d609ca4dfb6d13321c233e03fdb80bb6bb5e8e65a1",
+      "source_file_sha256": "acbbd89da316cf044271f23cc6fc5f0179f30cebdb59d1705c05cedd93bdcfa5"
+    },
+    {
+      "name": "current/source-representations/retained-query-cache",
+      "source": "aa663c3e779dc8fe68202bd770fd8602ee9710ffd7152c271c724ad10b2cd6ee",
+      "representation": "f2542a2c2cf26a6cb31d4d17f1bba01656aa49e5ebd2453befccd1509ea09e6b",
+      "source_file_sha256": "acbbd89da316cf044271f23cc6fc5f0179f30cebdb59d1705c05cedd93bdcfa5"
+    },
+    {
+      "name": "current/filtered-aggregate/direct",
+      "source": "b79d2303fd0e80416ef884f1ebdfb57d7a27c1a1167786e7f6e0ce15e65f665e",
+      "representation": "016a71b38cd488a996eb03b43467e400a00c7e6c6bddcce54bdcc9a32986de8b",
+      "source_file_sha256": "f774f738409c64715bde96f2a9af3f5a608187d0a1fddf5aa644da82f1a79b12"
+    },
+    {
+      "name": "current/filtered-aggregate/refresh",
+      "source": "b79d2303fd0e80416ef884f1ebdfb57d7a27c1a1167786e7f6e0ce15e65f665e",
+      "representation": "1f539242934372ac8b0951f452274d22b3ca202aec8a51352b7712bbe04eb630",
+      "source_file_sha256": "f774f738409c64715bde96f2a9af3f5a608187d0a1fddf5aa644da82f1a79b12"
+    },
+    {
+      "name": "current/filtered-aggregate/sum-delta",
+      "source": "b79d2303fd0e80416ef884f1ebdfb57d7a27c1a1167786e7f6e0ce15e65f665e",
+      "representation": "0aade96f5e307e0f48115914fc28765053f6e7af8a2812adc20791f5cfa63a8e",
+      "source_file_sha256": "f774f738409c64715bde96f2a9af3f5a608187d0a1fddf5aa644da82f1a79b12"
+    },
+    {
+      "name": "current/filtered-aggregate/count-delta",
+      "source": "b79d2303fd0e80416ef884f1ebdfb57d7a27c1a1167786e7f6e0ce15e65f665e",
+      "representation": "482b6a631b1fd3b8b00768320099856d3f8922d268c2c5c26833fa2d67337805",
+      "source_file_sha256": "f774f738409c64715bde96f2a9af3f5a608187d0a1fddf5aa644da82f1a79b12"
+    },
+    {
+      "name": "current/compact-queries/previous",
+      "source": "3f2b01a5dbf152c834cee64cc55b8f3119b818010cc43d3d44d6c0cac06ad89c",
+      "representation": "91ebf6ff9ac00cf95de49d8ee406126291d4b226a686f0c32b8009faaa594386",
+      "source_file_sha256": "5748c43d00e5f08cdc2fe5a400a2e73365fdfd12a1e846de9c446abd9fd61627"
+    },
+    {
+      "name": "current/compact-queries/cached",
+      "source": "3f2b01a5dbf152c834cee64cc55b8f3119b818010cc43d3d44d6c0cac06ad89c",
+      "representation": "7038abbccaeca645e4976ff8ea059d38a7b3b967db9fbd2136ff690c7691ce27",
+      "source_file_sha256": "5748c43d00e5f08cdc2fe5a400a2e73365fdfd12a1e846de9c446abd9fd61627"
+    }
+  ],
+  "mathematics": [
+    {
+      "name": "current/source-group",
+      "roots": [
+        "5661e49582de5c091382d75f9b358334c3097174e75964658cf1a86b3e53c318",
+        "b8c9682f525af5786fef9d5de68519c5f5780379fd78aff370e02c263963cc13",
+        "cf2ceba0479a2be906d4e9f8af7113cae7179ece3af5a2dcecb718e002bd7f64"
+      ],
+      "core_file_sha256": "71637e9f7bb4886e2b57c42d27459a5660c41a0a95016ec3ae143ce51df0c79c"
+    }
+  ],
+  "scope": "Representation admission checks complete source observations and universal state relations. Mathematical roots are checked separately. Profitability requires comparable lifecycle evidence."
+}
