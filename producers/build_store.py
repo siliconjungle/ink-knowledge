@@ -13,6 +13,7 @@ from collection_pipeline_laws import examples as pipeline_examples
 from shared_sequence_laws import examples as shared_examples
 from sort_cardinality_laws import examples as sort_examples
 from filtered_sort_laws import examples as filtered_sort_examples
+from literal_collection_laws import examples as literal_examples
 
 def build(output):
     source={};names={};objects={};translated={};active=set()
@@ -59,6 +60,10 @@ def build(output):
     for name,law in filtered_sort_laws.items():
         obj=semantic_entry(law);i=identity(obj);objects[i]=obj;names['rewrite/'+name]=i
         if name in filtered_sort_names:rewrites.append(i);filtered_sort_roots.append(i)
+    literal_roots=[]
+    for name,law in literal_examples().items():
+        obj=semantic_entry(law);i=identity(obj);objects[i]=obj;names['rewrite/'+name]=i
+        rewrites.append(i);literal_roots.append(i)
     store=Store.publish(output,objects.values(),names)
     store.rebuild()
     (Path(output)/'store/rewrite-view.json').write_bytes(canonical(store.bundle(rewrites))+b'\n')
@@ -67,6 +72,7 @@ def build(output):
     (Path(output)/'store/shared-sequence-view.json').write_bytes(canonical(store.bundle(shared_roots))+b'\n')
     (Path(output)/'store/sort-cardinality-view.json').write_bytes(canonical(store.bundle(sort_roots))+b'\n')
     (Path(output)/'store/filtered-sort-view.json').write_bytes(canonical(store.bundle(filtered_sort_roots))+b'\n')
+    (Path(output)/'store/literal-collection-view.json').write_bytes(canonical(store.bundle(literal_roots))+b'\n')
     return store
 if __name__=='__main__':
     p=argparse.ArgumentParser();p.add_argument('--output',type=Path,required=True);a=p.parse_args()
