@@ -198,7 +198,7 @@ def generate(model,directory,replacement=None,cache_query=None,retain_queries=Tr
                 before_update=lambda obs:call(update,[delta_carried if use_delta else call(cache_value,[call(encode,[bound])]),obs])
                 leaf_proof=None
                 if use_delta:
-                    def leaf_proof(obs):
+                    def leaf_proof(obs,facts):
                         x=obs['Construct'];args=x['arguments']
                         if x['constructor']!=0 or args[1]!={'Bool':True}:return convert(before_update(obs),after_update(obs))
                         roots=args[3]['Construct']['arguments']
@@ -208,7 +208,8 @@ def generate(model,directory,replacement=None,cache_query=None,retain_queries=Tr
                         rhs_cache=sub(cache['case']['normal']['Construct']['arguments'][0],dict(zip(cache['case']['bindings'],roots)))
                         aphys=cons(Pid,0,[roots[i] for i in order]+[cached]);zphys=cons(Pid,0,[roots[i] for i in order]+[rhs_cache])
                         bodyproof={'Construct':dict(datatype=Pid,constructor=0,arguments=[{'Refl':roots[i]} for i in order]+[{'Sym':cache_eq}])}
-                        return trans(convert(before_update(obs),aphys),bodyproof,convert(zphys,after_update(obs)))
+                        from point_delta import equality as branch_equality
+                        return trans(branch_equality(before_update(obs),aphys,objects,facts=facts),bodyproof,convert(zphys,after_update(obs)))
                 after_update=lambda obs:call(encode,[post(obs)])
                 update_left=call(nextf,[call(execute,[call(encode,[var('logical')])]+args)])
                 update_right=call(encode,[post(same)])

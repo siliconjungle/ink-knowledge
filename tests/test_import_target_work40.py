@@ -38,6 +38,16 @@ class PhysicalImportTests(unittest.TestCase):
             self.assertEqual(obj['payload']['model_json'],(f/'models/m.json').read_text());decoded=json.loads(obj['payload']['model_json']);PhysicalPrices(decoded);self.assertEqual(decoded,model)
             self.assertEqual(obj['dependencies'],[]);self.assertEqual(list(names.values()),[identity(obj)])
 
+    def test_publication_context_binds_provisional_limitations_to_prices(self):
+        with tempfile.TemporaryDirectory() as d:
+            root=Path(d);f,_=self.fixture(root);(root/'processes.txt').write_text('external contention snapshot')
+            write(root/'context.json',dict(schema=1,kind='ink-target-work-publication-context-v1',status='provisional-environmental-contention',scope='Synthetic acquisition test; no physical speed authority',bindings=[dict(path='processes.txt',sha256=file_hash(root/'processes.txt'))]))
+            objects,_,_=collect(root/'features.json',[root/'labels.json'],f,root/'context.json')
+            self.assertEqual(len(objects),2);scope,price=objects;validate_entry(scope);validate_entry(price)
+            self.assertEqual(price['dependencies'],[identity(scope)]);self.assertEqual(price['payload']['publication_context'],identity(scope));self.assertEqual(price['payload']['publication_context_contents'],json.loads((root/'context.json').read_text()));self.assertEqual(price['payload']['publication_context_sha256'],file_hash(root/'context.json'))
+            (root/'processes.txt').write_text('changed')
+            with self.assertRaisesRegex(ValueError,'provenance drift'):collect(root/'features.json',[root/'labels.json'],f,root/'context.json')
+
     def test_changed_models_and_label_sources_fail_closed(self):
         with tempfile.TemporaryDirectory() as d:
             root=Path(d);f,_=self.fixture(root);(f/'models/m.json').write_text('{}')

@@ -67,7 +67,19 @@ def trace_entry(feature, samples, provenance):
     return diagnostic, measured
 
 
-def collect(features_path, labels_paths, frozen=None):
+def publication_context(path):
+    data = read_json(path)
+    if set(data) != {'schema', 'kind', 'status', 'scope', 'bindings'} or type(data['schema']) is not int or data['schema'] != 1 or data['kind'] != 'ink-target-work-publication-context-v1':
+        raise ValueError('physical publication context format')
+    if any(not isinstance(data[k], str) or not 1 <= len(data[k]) <= 16384 for k in ('status', 'scope')):
+        raise ValueError('physical publication context scope')
+    bound_sources(path, {'sources': data['bindings']})
+    return entry('definition', 'ink-target-work-publication-context-v1',
+                 dict(context=data, context_sha256=file_hash(path),
+                      authority='Bound provenance and limitations only; no admission authority'))
+
+
+def collect(features_path, labels_paths, frozen=None, context_path=None):
     indexed = features(features_path)
     # features() resolves and authenticates every sidecar before data conversion.
     for feature in indexed.values():
@@ -99,6 +111,9 @@ def collect(features_path, labels_paths, frozen=None):
             records[row['feature_id']][row['round']] = value
             provenance[row['feature_id']].append(file_hash(label_path))
     objects, observations, names = [], [], {}
+    context = publication_context(context_path) if context_path else None
+    if context is not None:
+        objects.append(context); names['physical-work40/publication-context'] = identity(context)
     for id, rounds in sorted(records.items()):
         if set(rounds) != set(range(5)):
             raise ValueError('all five physical sample rounds required')
@@ -106,6 +121,15 @@ def collect(features_path, labels_paths, frozen=None):
                                            dict(features_sha256=file_hash(features_path),
                                                 sidecar_sha256=indexed[id]['sidecar_sha256'],
                                                 labels_sha256=sorted(set(provenance[id]))))
+        if context is not None:
+            diagnostic['dependencies'] = sorted(set(diagnostic['dependencies'] + [identity(context)]))
+            diagnostic['payload']['publication_context'] = identity(context)
+            diagnostic['payload']['publication_context_sha256'] = context['payload']['context_sha256']
+            diagnostic['payload']['publication_context_contents'] = context['payload']['context']
+            measured['plan'] = identity(dict(physical_measurement=identity(diagnostic)))
+            measured['workload']['distribution']['physical_measurement'] = identity(diagnostic)
+            measured['workload']['distribution']['evidence_status'] = context['payload']['context']['status']
+            measured['workload']['distribution']['publication_context'] = identity(context)
         objects.append(diagnostic); observations.append(measured)
         names['physical-work40/' + id] = identity(diagnostic)
     if frozen_path is not None:
@@ -126,6 +150,11 @@ def collect(features_path, labels_paths, frozen=None):
                                model_sha256=digest, freeze_sha256=file_hash(frozen_path / 'freeze.json'),
                                cohort=model['cohort'],
                                authority='Untrusted opt-in offline target prices; not theorem, application condition or default policy'))
+            if context is not None:
+                price['dependencies'] = [identity(context)]
+                price['payload']['publication_context'] = identity(context)
+                price['payload']['publication_context_sha256'] = context['payload']['context_sha256']
+                price['payload']['publication_context_contents'] = context['payload']['context']
             objects.append(price); names['physical-prices40/' + Path(name).stem] = identity(price)
     return objects, observations, names
 
@@ -135,11 +164,12 @@ def main():
     p.add_argument('--features', type=Path, required=True)
     p.add_argument('--labels', type=Path, nargs='+', required=True)
     p.add_argument('--frozen', type=Path)
+    p.add_argument('--publication-context', '--context', type=Path)
     p.add_argument('--output', type=Path, required=True)
     a = p.parse_args()
     if a.output.exists():
         raise ValueError('preserve physical publication preparation')
-    objects, observations, names = collect(a.features, a.labels, a.frozen)
+    objects, observations, names = collect(a.features, a.labels, a.frozen, a.publication_context)
     write(a.output / 'entries.json', objects); write(a.output / 'observations.json', observations)
     write(a.output / 'names.json', names)
     receipt = dict(status='prepared_no_publication', entries=len(objects), observations=len(observations),
