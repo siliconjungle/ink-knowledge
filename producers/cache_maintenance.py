@@ -50,14 +50,14 @@ def unaffected(action, dependencies, state):
     return True
 
 
-def cases(normal, left, right, hypotheses=0):
+def cases(normal, left, right, hypotheses=0, leaf_proof=None):
     """Lift each Boolean branch equation through both exact goal contexts.
 
     Only the existing BoolSplit/Substitute/Convert rules are used. The core
     rechecks the complete equation, including every abort and host-failure leaf.
     """
     if 'If' not in normal:
-        return convert(left(normal), right(normal))
+        return leaf_proof(normal) if leaf_proof else convert(left(normal), right(normal))
     decision = normal['If']
     hole = {'If': {**decision, 'condition': var('replacement')}}
     proof = {'Hypothesis': hypotheses}
@@ -67,7 +67,7 @@ def cases(normal, left, right, hypotheses=0):
         chosen = decision[name]
         branches[name] = trans(
             substitute(left(hole)),
-            cases(chosen, left, right, hypotheses + 1),
+            cases(chosen, left, right, hypotheses + 1, leaf_proof),
             {'Sym': substitute(right(hole))},
         )
     return {'BoolSplit': dict(condition=decision['condition'], **{'from': left(normal), 'to': right(normal)}, **branches)}
