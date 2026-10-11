@@ -73,13 +73,42 @@ python3 -m ink_knowledge --root . export --entries ENTRY_SHA256 -o view.json
 python3 -m unittest discover -s tests -v
 ```
 
-`index.sqlite` is ignored and disposable. Rebuilding atomically replaces it from canonical Git objects; a cache from another snapshot is rejected. A future database service must retain this object/snapshot/view contract. The database is an untrusted supplier of proof data, not an authority.
+`index.sqlite` is ignored and disposable. Rebuilding atomically replaces it from canonical Git objects; a cache from another snapshot is rejected. A future database service must retain this object/snapshot/view contract. The database is an untrusted supplier of proof data, not an authority. Explicit snapshot pins can authenticate and query their canonical trees when the active SQLite index belongs to another snapshot; this never changes the active index or chooses a newer catalogue. Active-pointer queries retain their explicit stale-index error.
 
 ## Authoring and research
 
 `producers/` holds untrusted authoring/import tools. `research/` quarantines historical experiment formats, fixtures and Lean work; production discovery does not scan it or depend on experiment directory names. Research tools can still reproduce their original mathematical experiments. These formats are not compatibility aliases for the canonical API.
 
-The current snapshot contains 1396 canonical entries, including 510 checked semantic laws and source-bound representation/cache-maintenance candidates (`research/cache-maintenance`, `research/compact-queries` and state-reusing bridges in `research/layout-switch`). Earlier snapshots are retained; 20 checked append-view entries, six fixed change-boundary definitions/theorems and 46 general-law entries (`research/general-laws`: abstract sorts, functions and assumptions with eight parametric collection laws) were added without changing the existing rewrite payloads or name targets. The change-boundary laws bind to shared language primitives, but do not certify action bodies or physical rollback. See `research/incremental-views/canonical-review.json` for proof-admission evidence and scope. Reproduce its data with `python3 producers/build_store.py --output /tmp/ink-store`; this explicitly imports the research fixtures as an authoring operation. `store/rewrite-view.json` is a transport fixture for integration tests, not a second storage format or discovery API.
+The merged main snapshot contains 2459 canonical entries and 4206 discovery names.
+It combines the independently developed main catalogue with the 1994-entry web
+performance catalogue, preserving both sets of immutable proofs, observations
+and historical snapshots. SQLite remains a rebuilt disposable index. Frozen web
+benchmark timings describe their recorded compiler and catalogue revisions; they
+do not measure this merged engine.
+
+The initial snapshot contained 648 canonical entries, including 89 executable semantic laws. Earlier snapshots are retained; 20 checked append-view entries and six fixed change-boundary definitions/theorems were added without changing the existing rewrite payloads. The change-boundary laws bind to shared language primitives, but do not certify action bodies or physical rollback. See `research/incremental-views/canonical-review.json` for proof-admission evidence and scope. Reproduce its data with `python3 producers/build_store.py --output /tmp/ink-store`; this explicitly imports the research fixtures as an authoring operation. `store/rewrite-view.json` is a transport fixture for integration tests, not a second storage format or discovery API.
+
+
+The web performance contribution adds 47 wrapping-word and pure collection laws
+without changing the checker: repeat subtraction/product/identity/cancellation,
+scaled/zero sums, discarded maps before counts, constant and redundant filters,
+and filter composition. F32 laws only rearrange pure collection traversal, not
+floating-point arithmetic. [Reproduction and proof evidence](research/performance-laws/README.md)
+include 47 accepted objects, eleven selected/replayed U32 applications and two
+hash-valid semantic rejection controls. Timings belong to separate web benchmark
+reports; proof admission alone makes no speed claim.
+
+To extend a reproduced initial store, build Ink and run:
+
+```sh
+python3 producers/publish_performance_laws.py --root /path/to/ink-knowledge \
+  --compiler /path/to/ink --report /path/to/publication.json
+```
+
+This stages the complete extension, checks the new proof view with Ink, then
+publishes a canonical snapshot and rebuilds discovery. It retains previous
+snapshot replay and records the unchanged compiler identity.
+The independently developed main catalogue reached 1101 canonical entries, including 295 checked semantic laws and source-bound representation/cache-maintenance candidates (`research/cache-maintenance`, `research/compact-queries` and state-reusing bridges in `research/layout-switch`). Earlier snapshots are retained; 20 checked append-view entries, six fixed change-boundary definitions/theorems and 46 general-law entries (`research/general-laws`: abstract sorts, functions and assumptions with eight parametric collection laws) were added without changing the existing rewrite payloads or name targets. The change-boundary laws bind to shared language primitives, but do not certify action bodies or physical rollback. See `research/incremental-views/canonical-review.json` for proof-admission evidence and scope. Reproduce its data with `python3 producers/build_store.py --output /tmp/ink-store`; this explicitly imports the research fixtures as an authoring operation. `store/rewrite-view.json` is a transport fixture for integration tests, not a second storage format or discovery API.
 
 Eleven effect-prefix composition entries add outer path/value/exit definitions,
 sequencing and six checked laws. Their definitions bind to the core's fixed
@@ -138,6 +167,18 @@ premise is demanded of source callers. Observed ordered outputs retain sorting.
 `producers/filtered_sort_laws.py` and `store/filtered-sort-view.json` reproduce
 them. The full rewrite view now carries 268 executable roots and 27 proof-only
 insertion dependencies. No compiler, core, planner or backend change is needed.
+
+The batch33 independent-list scan projection extension removes a scan whose values are unused by a zip callback, preserving the shorter-list extent. Six U32/I32/U64 endpoint laws, twelve supports, four source-bound certificates and four shared Normalize transports add 26 checked objects (22 fresh, four shared old transports). `producers/web_pipeline33_laws.py`, `producers/publish_web_pipeline33.py` and `tests/test_web_pipeline33_laws.py` reproduce and admit the extension. The canonical catalogue now has 2,485 entries. The 840 separately recorded empirical benchmark groups bring observations to 22,580; they are performance evidence, not mathematical certificates. No production compiler or runtime changes are required.
+
+Batch34 adds six U32/I32/U64 unused-map projection endpoints derived from existing map identity and independent mapped-zip/postmap fusion, plus four content-bound source certificates. Zip retains the shorter-list extent and composed helpers retain their exact definitions. These direct DB endpoints improve bounded search without a new core rule. `producers/web_pipeline34_laws.py` and `tests/test_web_pipeline34_laws.py` reproduce them; tests pin the original catalogue for later replay. The general `producers/publish_web_pipeline33.py` utility admits and publishes the closed extension. Canonical totals are now 2,495 entries and 23,420 separate empirical observations.
+
+Batch35 adds nine U32/I32/U64 direct observed mapped-zip fusion endpoints (left, right and both mapped), derived from map identity and existing batch17 mapped-zip/postmap fusion, plus four content-bound source certificates. Both paired values, mapper order and the shorter-list result extent are preserved. The direct endpoints expose existing algebra to ordinary bounded search, with no new core rule. `producers/web_pipeline35_laws.py` and `tests/test_web_pipeline35_laws.py` reproduce them using the original catalogue pin. The existing general publisher admits the closed extension. Canonical totals are 2,508 entries and 24,260 separate empirical observations. Measured profitability is mixed and distinct from correctness; observations retain regressions and do not install a runtime or cost-model policy.
+
+Batch36 adds four content-bound U32 source deployment certificates for plain, nested, filtered and concatenated ordered folds through named helpers. Existing arbitrary map/fold, filter/map/fold and concat/fold laws supply the mathematics; no new generic law is duplicated. Exact reachable direct/transitive helper definitions are bound by content hash, preserving all inputs and accumulator order. `producers/web_pipeline36_laws.py` and `tests/test_web_pipeline36_laws.py` pin the original catalogue for reproducible replay. The unchanged publisher admits a seven-object closure (four fresh certificates plus three old U32 dependencies); the full producer also checks old I32/U64 laws. Canonical totals are 2,512 entries, 4,259 discovery names and 25,100 separate empirical observations after adding 840 groups. Gains are measured against the full prior and already-fused controls: GPU profitability is mixed, Rust remains faster overall, and correctness admission does not install a runtime/cost policy. All previous entries, names and observation bytes are preserved.
+
+Batch37 adds six U32/I32/U64 independent-list indexed-map demand-erasure endpoints, twelve Nat-offset/beta induction supports and four helper-bound U32 source certificates. Both zip orientations preserve min-length extent and selected value order while removing arbitrary pure total unobserved indexed callbacks. Generalized supports cover Nat index state and wrapping U32 callback indices. `producers/web_pipeline37_laws.py` and `tests/test_web_pipeline37_laws.py` pin the original 2,512-entry snapshot; a full forward/reverse alpha endpoint audit finds no duplicates, without claiming nonderivability from prior laws. The unchanged publisher admits a closed 22-object extension with no old dependencies. Canonical totals become 2,534 entries, 4,281 names and 25,940 separate empirical observations after 840 new groups. Benchmarks consume every vector word; physical GPU dispatch/transfer contracts remain unchanged, five prior cells regress and all strong controls are retained. Correctness and measured profitability remain separate; no runtime/cost policy is installed.
+
+Batch38 adds six U32/I32/U64 same-origin padded observed indexed-zip fusion endpoints, six Nat-beta supports and four content-bound U32 source certificates. Both indexed mapper values and the ordered pair helper remain observed; output extent is length(xs), and arbitrary padding must be appended after the exact shared input prefix. The induction generalizes over arbitrary Nat offsets with wrapping U32 callback indices. `producers/web_pipeline38_laws.py` and `tests/test_web_pipeline38_laws.py` pin the original 2,534-entry snapshot. A full consistent-alpha forward/reverse endpoint audit finds no duplicates for the twelve new generic objects, without claiming nonderivability from older laws. The unchanged publisher admits sixteen fresh objects, no shared-old objects or old mathematical dependencies. Canonical totals become 2,550 entries, 4,297 names and 26,780 empirical observation files after 840 new groups; old objects, names and observation bytes are preserved. GPU requests execute four graph stages before and one legacy shader after selection, while upload grows by twenty bytes and readback is unchanged. All twenty classified prior CPU regressions, uncertainty and strong controls remain recorded; correctness and measured profitability stay distinct. No core, runtime, target routing or cost policy changes are installed.
 
 ## Owned collections and incremental point queries
 

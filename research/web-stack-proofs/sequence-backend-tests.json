@@ -1,0 +1,61 @@
+{
+  "schema": 1,
+  "status": "passed",
+  "execution_date": "2026-10-10",
+  "recorded_after_execution": true,
+  "rerun_for_this_receipt": false,
+  "evidence_source": "Successful exec_command/write_stdin tool outputs from the lean_runtime agent's earlier focused backend runs in this conversation. No standalone raw test log file was found; this receipt reconstructs the commands and reported results, not a new run.",
+  "working_directory": "/Users/james/Documents/ChatGPT/3d-modelling/research/ink-optimisation-2026-10-10/ink-lang",
+  "target_directory": "/tmp/ink-concat-backend-tests",
+  "source_hash_at_execution": null,
+  "source_hash_note": "No per-source hash was recorded by these test commands. Later distribution and benchmark receipts separately pin the built compiler and emitted artifacts.",
+  "total_final_focused_tests_passed": 5,
+  "tests": [
+    {
+      "backend": "C",
+      "command": ["cargo", "test", "-p", "ink-lowering-c", "--test", "concat", "--target-dir", "/tmp/ink-concat-backend-tests"],
+      "exit_code": 0,
+      "transcript_output_chunk_id": "10f365",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 0,
+      "reported_test_seconds": 0.80,
+      "names": [
+        "concat_rejects_unsupported_nested_packed_layouts_explicitly",
+        "scalar_count_of_concat_routes_to_compute_instead_of_the_legacy_list_backend",
+        "concat_has_one_fresh_allocation_preserves_bits_and_borrows_packed_u32_inputs"
+      ],
+      "scope": "Compiles and executes generated C using cc with C11/O2/fno-fast-math. Covers U32/U64/I32/F32/Bool/vector/record layouts, exact F32 bits, unchanged inputs, empty/self concat, one fresh concat allocation, helper evaluation once, contextual map literals, packed U32 borrowed ingress, output consumption before reset, and unsupported nested-layout rejection. This standalone run is native C, not a Wasm device execution."
+    },
+    {
+      "backend": "Rust",
+      "command": ["cargo", "test", "-p", "ink-lowering-rust", "--lib", "concat_borrows", "--target-dir", "/tmp/ink-concat-backend-tests"],
+      "exit_code": 0,
+      "transcript_output_chunk_id": "e163bc",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 0,
+      "reported_test_seconds": 0.61,
+      "names": ["pure_rust::tests::concat_borrows_operands_and_copies_each_element_once_into_a_fresh_vec"],
+      "scope": "Compiles and executes standalone generated Rust with rustc --edition=2021 -O. Covers U32/U64/Bool/String/nested lists/records, fresh result and unchanged operands, same-input/empty cases, exactly one clone per result record element, computed receivers and contextual literals; uses no unsafe aliasing."
+    },
+    {
+      "backend": "GPU lowering fallback",
+      "command": ["cargo", "test", "-p", "ink-lowering-gpu", "--test", "concat", "--target-dir", "/tmp/ink-concat-backend-tests"],
+      "exit_code": 0,
+      "transcript_output_chunk_id": "9e7ba8",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 0,
+      "reported_test_seconds": 0.00,
+      "names": ["concat_reports_cpu_fallback_and_emits_no_shader"],
+      "scope": "Checks U32 and U64 direct concat manifests have no shader and explicitly report compiled CPU fallback. No GPU device execution or performance measurement is claimed."
+    }
+  ]
+}

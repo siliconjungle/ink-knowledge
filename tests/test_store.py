@@ -111,6 +111,47 @@ class StoreTests(unittest.TestCase):
         old=Store(self.root,self.root/'store/snapshots'/f'{original}.json')
         self.assertEqual(old.query(kind='theorem'),[identity(self.b)])
         self.assertEqual(set(old.bundle([identity(self.b)])['objects']),{identity(self.a),identity(self.b)})
+    def test_explicit_pin_uses_canonical_queries_without_changing_active_index(self):
+        condition={'from':{'flag':True},'to':{'flag':True}}
+        scalar={'Value':'U32'}
+        chosen=entry('rewrite','test-v1',{'node':{'Op':['call:demo',[]]}},parameters={'x':scalar},result=scalar,effects=['read'],conditions=[condition])
+        near=entry('rewrite','test-v1',{'node':{'Op':['call:demo',[]]}},parameters={'x':scalar},result=scalar,effects=['read'],conditions=[{'from':{'flag':1},'to':{'flag':1}}])
+        old=Store.publish(self.root,[self.a,self.b,chosen,near]);old.rebuild()
+        cases=[{},dict(kind='rewrite'),dict(semantics='test-v1'),dict(operation='call:demo'),dict(result=scalar),dict(effect='read'),dict(parameter_type=scalar),dict(condition=condition),dict(kind='rewrite',semantics='test-v1',operation='call:demo',result=scalar,effect='read',parameter_type=scalar,condition=condition),dict(limit=0),dict(limit=1)]
+        cases += [dict(after=i,limit=1) for i in sorted(old.members())]
+        expected=[old.query(**case) for case in cases]
+        extra=entry('definition','test-v1',{'body':'newest'})
+        current=Store.publish(self.root,[self.a,self.b,chosen,near,extra]);current.rebuild()
+        index_before=(self.root/'index.sqlite').read_bytes()
+        pinned=Store(self.root,self.root/'store/snapshots'/f'{old.snapshot_id}.json')
+        self.assertEqual(pinned.object(identity(chosen)),chosen)
+        self.assertEqual([pinned.query(**case) for case in cases],expected)
+        self.assertEqual(set(pinned.bundle([identity(self.b)])['objects']),{identity(self.a),identity(self.b)})
+        self.assertEqual((self.root/'index.sqlite').read_bytes(),index_before)
+        self.assertEqual(Store(self.root).query(kind='definition'),sorted([identity(self.a),identity(extra)]))
+        (self.root/'index.sqlite').unlink()
+        self.assertEqual(Store(self.root,self.root/'store/snapshots'/f'{old.snapshot_id}.json').query(condition=condition),[identity(chosen)])
+        self.assertFalse((self.root/'index.sqlite').exists())
+        for limit in [-1,1025,0.5]:
+            with self.assertRaises(ValueError):pinned.query(limit=limit)
+        with self.assertRaises(ValueError):pinned.query(after='not-a-hash')
+
+    def test_explicit_pin_cannot_accept_forged_objects_trees_or_report_files(self):
+        old=self.store.snapshot_id
+        new=Store.publish(self.root,[self.a,self.b,entry('definition','test-v1',{'body':'new'})]);new.rebuild()
+        pin=self.root/'store/snapshots'/f'{old}.json'
+        pinned=Store(self.root,pin)
+        forged={**self.a,'semantics':'forged'}
+        object_path=self.root/'store/objects'/f'{identity(self.a)}.json'
+        original=object_path.read_bytes();object_path.write_text(json.dumps(forged))
+        with self.assertRaisesRegex(ValueError,'entry content mismatch'):pinned.object(identity(self.a))
+        object_path.write_bytes(original)
+        tree=self.root/'store/trees'/f'{pinned.snapshot["root"]}.json'
+        tree.write_text(json.dumps({'schema':1,'entries':[]}))
+        with self.assertRaises(ValueError):Store(self.root,pin).query()
+        report=self.root/'report.json';report.write_text(json.dumps({'schema':1,'snapshot':old,'status':'pass'}))
+        with self.assertRaises(ValueError):Store(self.root,report)
+
     def test_multilevel_membership_and_separate_observations(self):
         objects=[entry('definition','test-v1',dict(body=i)) for i in range(193)]
         s=Store.publish(self.root,objects);s.rebuild()
@@ -123,6 +164,19 @@ class StoreTests(unittest.TestCase):
         self.assertEqual(s.observations(obs['program'],[obs['plan']],obs['target'],obs['workload']),[obs])
         with closing(sqlite3.connect(self.root/'index.sqlite')) as db,db:self.assertEqual(db.execute('SELECT id FROM observations').fetchone()[0],i)
         with self.assertRaises(ValueError):s.object(i)
+    def test_observation_limit_applies_only_to_requested_plans(self):
+        self.store.rebuild()
+        base=dict(schema=1,program='1'*64,entries=[],
+                  target=dict(hardware='test',driver='test',toolchain='test',backend='cpu',bridge='host'),
+                  workload=dict(shape=[100],distribution='zeros',concurrency=1,residency='host'),
+                  metrics=dict(complete_call_ns=['100','200'],peak_bytes=0))
+        observations=[dict(base,plan=c*64) for c in ('2','3')]
+        observations.sort(key=identity)
+        for obj in observations:self.store.observe(obj)
+        wanted=observations[1]
+        self.assertEqual(self.store.observations(base['program'],[wanted['plan']],base['target'],base['workload'],limit=1),[wanted])
+        self.assertEqual(self.store.observations(base['program'],[],base['target'],base['workload'],limit=1),[])
+        self.assertEqual(self.store.observations(base['program'],[wanted['plan']],base['target'],base['workload'],limit=0),[])
     def test_unmeasured_memory_survives_observation_rebuild_without_becoming_zero(self):
         obs=dict(schema=1,program='1'*64,entries=[identity(self.a)],plan='2'*64,
                  target=dict(hardware='test',driver='test',toolchain='test',backend='cpu',bridge='three-call'),

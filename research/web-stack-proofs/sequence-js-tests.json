@@ -1,0 +1,52 @@
+{
+  "schema": 1,
+  "evidence_kind": "command_result_receipt",
+  "provenance": "Recorded from the successful existing exec session 29575 tool output; the command was not rerun and no original stdout file was saved.",
+  "working_directory": "/Users/james/Documents/ChatGPT/3d-modelling/research/ink-optimisation-2026-10-10/ink-lang/lowerings/js",
+  "preceding_command": [
+    "cargo",
+    "fmt",
+    "--all"
+  ],
+  "command": [
+    "cargo",
+    "test",
+    "--offline",
+    "--config",
+    "patch.\"https://github.com/siliconjungle/ink-lang\".ink-core.path=\"/Users/james/Documents/ChatGPT/3d-modelling/research/ink-optimisation-2026-10-10/ink-lang/core\"",
+    "--",
+    "--nocapture"
+  ],
+  "exit_code": 0,
+  "result": {
+    "integration_tests_passed": 4,
+    "integration_tests_failed": 0,
+    "reference_cases": 965,
+    "reference_entrypoints_per_case": [
+      "functions[name](...values)",
+      "call(name,values)"
+    ],
+    "reference_generated_calls": 1930,
+    "unit_tests": 0,
+    "doc_tests": 0
+  },
+  "tests": [
+    "compile_time_checking_still_rejects_ill_typed_functions",
+    "rejects_stateful_opaque_and_recursive_programs_without_changing_core_types",
+    "word_only_output_binds_direct_functions_and_omits_unused_runtime_helpers",
+    "generated_javascript_matches_reference_for_trusted_native_inputs"
+  ],
+  "coverage": [
+    "U32/I32/U64/Bool/F32 concat interpreter comparisons",
+    "nested lists, vectors and records",
+    "empty lists and fresh ordered outer output",
+    "typed-array input preservation and nonmutation",
+    "F32 signed zero, NaN payload, subnormal and exceptional value preservation",
+    "concat ordered F32 sum",
+    "expected List<u32> propagation through map(fn(x)=>0).concat(ys)",
+    "compile-time mismatched-list, arity and scalar-argument errors",
+    "absence of generated runtime validation and fuel machinery"
+  ],
+  "stdout_excerpt": "running 4 tests\ntest compile_time_checking_still_rejects_ill_typed_functions ... ok\ntest rejects_stateful_opaque_and_recursive_programs_without_changing_core_types ... ok\ntest word_only_output_binds_direct_functions_and_omits_unused_runtime_helpers ... ok\n965 reference comparisons and native caller regressions passed\ntest generated_javascript_matches_reference_for_trusted_native_inputs ... ok\ntest result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s",
+  "boundary": "Differential test evidence, not a formal emitted-code proof. Standalone backend dependency was explicitly patched to the updated local Ink core for concat support."
+}

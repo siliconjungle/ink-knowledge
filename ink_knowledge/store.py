@@ -94,6 +94,7 @@ class Store:
         if self.snapshot['schema'] != 1 or self.snapshot['semantics'] != SNAPSHOT: raise ValueError('unsupported snapshot')
         hash_id(self.snapshot['root']);self.snapshot_id=identity(self.snapshot)
         self._members=None
+        self._explicit_snapshot=snapshot is not None
     @classmethod
     def publish(cls, root, objects, names=None):
         root=Path(root);data=root/'store';ids=[]
@@ -147,6 +148,9 @@ class Store:
             if i not in self.members():raise ValueError('entry absent from pinned snapshot')
             return self.members()[i]
         with closing(sqlite3.connect(index.as_uri()+'?mode=ro',uri=True)) as db:
+            if self._explicit_snapshot and not db.execute('SELECT 1 FROM snapshots WHERE id=?',(self.snapshot_id,)).fetchone():
+                if i not in self.members():raise ValueError('entry absent from pinned snapshot')
+                return self.members()[i]
             return self._indexed_witness(i,db)
     def _indexed_witness(self,i,db,verified=None):
         row=db.execute('SELECT witness FROM members WHERE snapshot_id=? AND entry_id=?',(self.snapshot_id,i)).fetchone()
@@ -184,11 +188,14 @@ class Store:
             # Keep one SQLite read snapshot even if another process rebuilds or
             # writes the disposable index during traversal.
             if db is not None:db.execute('BEGIN')
+            proof_db=db
+            if db is not None and self._explicit_snapshot and not db.execute('SELECT 1 FROM snapshots WHERE id=?',(self.snapshot_id,)).fetchone():
+                self.members();proof_db=None
             def visit(i,depth):
                 if i in objects:return
                 if depth>64 or i in active or len(objects)+len(active)>=1024:raise ValueError('active dependency closure limit')
                 hash_id(i);active.add(i)
-                membership[i]=self._indexed_witness(i,db,verified) if db is not None else self.witness(i)
+                membership[i]=self._indexed_witness(i,proof_db,verified) if proof_db is not None else self.witness(i)
                 obj=self._read_object(i)
                 for d in obj['dependencies']:visit(d,depth+1)
                 active.remove(i);objects[i]=obj
@@ -223,12 +230,41 @@ class Store:
         finally:
             if Path(tmp).exists():Path(tmp).unlink()
         return len(objects)
+    def _canonical_query(self,kind,semantics,operation,result,effect,parameter_type,condition,after,limit):
+        # Explicit immutable pins can coexist with the active disposable index.
+        # Authenticate the pinned tree and each candidate object; no index write
+        # or switch to a newer snapshot is needed for historical discovery.
+        if after is not None:hash_id(after)
+        result_key=None if result is None else canonical(result)
+        parameter_key=None if parameter_type is None else canonical(parameter_type)
+        condition_key=None if condition is None else canonical(condition)
+        found=[]
+        if limit==0:return found
+        for ident in sorted(self.members()):
+            if after is not None and ident<=after:continue
+            obj=self.object(ident);iface=obj['interface']
+            if kind is not None and obj['kind']!=kind:continue
+            if semantics is not None and obj['semantics']!=semantics:continue
+            if operation is not None and operation not in iface['operations']:continue
+            if result_key is not None and canonical(iface['result'])!=result_key:continue
+            if effect is not None and effect not in iface['effects']:continue
+            if parameter_key is not None and not any(canonical(v)==parameter_key for v in iface['parameters'].values()):continue
+            if condition_key is not None and not any(canonical(v)==condition_key for v in iface['conditions']):continue
+            found.append(ident)
+            if len(found)==limit:break
+        return found
+
     def query(self, *, kind=None, semantics=None, operation=None, result=None, effect=None, parameter_type=None, condition=None, after=None, limit=1024):
-        if not 0<=limit<=1024:raise ValueError('query limit')
+        if not isinstance(limit,int) or not 0<=limit<=1024:raise ValueError('query limit')
         index=self.root/'index.sqlite'
-        if not index.exists():self.rebuild()
+        constraints=(kind,semantics,operation,result,effect,parameter_type,condition,after,limit)
+        if not index.exists():
+            if self._explicit_snapshot:return self._canonical_query(*constraints)
+            self.rebuild()
         with closing(sqlite3.connect(index.as_uri()+'?mode=ro',uri=True)) as db:
-            if not db.execute('SELECT 1 FROM snapshots WHERE id=?',(self.snapshot_id,)).fetchone():raise ValueError('index belongs to another snapshot; rebuild it')
+            if not db.execute('SELECT 1 FROM snapshots WHERE id=?',(self.snapshot_id,)).fetchone():
+                if self._explicit_snapshot:return self._canonical_query(*constraints)
+                raise ValueError('index belongs to another snapshot; rebuild it')
             where=['m.snapshot_id=?'];args=[self.snapshot_id]
             for column,value in [('kind',kind),('semantics',semantics),('result',None if result is None else canonical(result).decode())]:
                 if value is not None:where.append('e.'+column+'=?');args.append(value)
