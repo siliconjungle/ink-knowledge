@@ -1,5 +1,7 @@
 # Source-bound cache maintenance
 
+Current active requests were re-authored for executable-core V8 and universally checked; see `../representation-republication.json` and `producers/research_representations.py --compiler PATH --distribution INK_ROOT`. Historical snapshot counts and timings below describe their original publications and do not transfer to the refreshed requests. `whole-state.json` and its bridge remain historical experiments bound to their original source/core identity.
+
 The same unchanged `app.ink` underlies three requests: `direct.json` stores its
 two tables; `refresh.json` caches `zero` but refreshes it after every change;
 `preserve.json` retains the cached value after aborts or host failures and carries
