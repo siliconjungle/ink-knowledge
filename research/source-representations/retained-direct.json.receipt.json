@@ -1,0 +1,1364 @@
+{
+  "old_source": "c17b00c23cedd02dca5bd9d468144027ea547cf114321d0a34c20a8338e1415b",
+  "new_source": "c17b00c23cedd02dca5bd9d468144027ea547cf114321d0a34c20a8338e1415b",
+  "fixed_source_objects": 29,
+  "full_check": {
+    "obligations": [
+      {
+        "conditions": [],
+        "equation": {
+          "from": {
+            "Call": {
+              "arguments": [
+                {
+                  "Call": {
+                    "arguments": [
+                      {
+                        "Var": "logical"
+                      }
+                    ],
+                    "function": "01497cf6f565133d98d62bef04fb61e98ca6dfafc340471949a9e9694cad7402"
+                  }
+                },
+                {
+                  "Var": "logical"
+                }
+              ],
+              "function": "3ce2848777ad95811bef952f6b668e5ee4b4040554db32ad5caa8f8610c79155"
+            }
+          },
+          "to": {
+            "Call": {
+              "arguments": [
+                {
+                  "Call": {
+                    "arguments": [
+                      {
+                        "Var": "logical"
+                      }
+                    ],
+                    "function": "01497cf6f565133d98d62bef04fb61e98ca6dfafc340471949a9e9694cad7402"
+                  }
+                },
+                {
+                  "Var": "logical"
+                }
+              ],
+              "function": "a7c455bfbe8040ad58428f3aa6eba44e2022d76789f52007bc32dcb5e31ad8e2"
+            }
+          }
+        },
+        "params": [
+          [
+            "logical",
+            {
+              "Data": "0b904fd26438a2ba8a1132e111e32e349c866d9dfcffa9eb24dbf02f0f6f3980"
+            }
+          ]
+        ],
+        "role": "initialisation/0"
+      },
+      {
+        "conditions": [
+          {
+            "from": {
+              "Call": {
+                "arguments": [
+                  {
+                    "Var": "physical"
+                  },
+                  {
+                    "Var": "logical"
+                  }
+                ],
+                "function": "3ce2848777ad95811bef952f6b668e5ee4b4040554db32ad5caa8f8610c79155"
+              }
+            },
+            "to": {
+              "Call": {
+                "arguments": [
+                  {
+                    "Var": "physical"
+                  },
+                  {
+                    "Var": "logical"
+                  }
+                ],
+                "function": "a7c455bfbe8040ad58428f3aa6eba44e2022d76789f52007bc32dcb5e31ad8e2"
+              }
+            }
+          }
+        ],
+        "equation": {
+          "from": {
+            "Call": {
+              "arguments": [
+                {
+                  "Var": "physical"
+                }
+              ],
+              "function": "d1a1cdb65f8a2cb7bc348cb2a68415bc49fe898cbe53ffad214bc3ffb34bb7ba"
+            }
+          },
+          "to": {
+            "Var": "logical"
+          }
+        },
+        "params": [
+          [
+            "physical",
+            {
+              "Data": "bc682476febc1ee50e71054c80fb2c6774de0ae86d6d52e926fdd10f21f6fa8c"
+            }
+          ],
+          [
+            "logical",
+            {
+              "Data": "0b904fd26438a2ba8a1132e111e32e349c866d9dfcffa9eb24dbf02f0f6f3980"
+            }
+          ]
+        ],
+        "role": "snapshot"
+      },
+      {
+        "conditions": [
+          {
+            "from": {
+              "Call": {
+                "arguments": [
+                  {
+                    "Var": "physical"
+                  },
+                  {
+                    "Var": "logical"
+                  }
+                ],
+                "function": "3ce2848777ad95811bef952f6b668e5ee4b4040554db32ad5caa8f8610c79155"
+              }
+            },
+            "to": {
+              "Call": {
+                "arguments": [
+                  {
+                    "Var": "physical"
+                  },
+                  {
+                    "Var": "logical"
+                  }
+                ],
+                "function": "a7c455bfbe8040ad58428f3aa6eba44e2022d76789f52007bc32dcb5e31ad8e2"
+              }
+            }
+          }
+        ],
+        "equation": {
+          "from": {
+            "Call": {
+              "arguments": [
+                {
+                  "Call": {
+                    "arguments": [
+                      {
+                        "Var": "physical"
+                      },
+                      {
+                        "Var": "version"
+                      },
+                      {
+                        "Var": "arg_0"
+                      },
+                      {
+                        "Var": "arg_1"
+                      }
+                    ],
+                    "function": "464cc67e1dca1ff46931cfb20a56666e6867f131cc12beb07bb0f762a9a382d4"
+                  }
+                }
+              ],
+              "function": "b4509f9402504fdea3bc74451391a34c9ff1f98bed24d5eee4e875656c66c94e"
+            }
+          },
+          "to": {
+            "Call": {
+              "arguments": [
+                {
+                  "Var": "logical"
+                },
+                {
+                  "Var": "version"
+                },
+                {
+                  "Var": "arg_0"
+                },
+                {
+                  "Var": "arg_1"
+                }
+              ],
+              "function": "5829d8c7ccf992c3e83f63eebbbbd9a70b83b2b01aa6d8a4914beada43bbac3f"
+            }
+          }
+        },
+        "params": [
+          [
+            "physical",
+            {
+              "Data": "bc682476febc1ee50e71054c80fb2c6774de0ae86d6d52e926fdd10f21f6fa8c"
+            }
+          ],
+          [
+            "logical",
+            {
+              "Data": "0b904fd26438a2ba8a1132e111e32e349c866d9dfcffa9eb24dbf02f0f6f3980"
+            }
+          ],
+          [
+            "version",
+            "U64"
+          ],
+          [
+            "arg_0",
+            "U64"
+          ],
+          [
+            "arg_1",
+            "Bool"
+          ]
+        ],
+        "role": "erase/observation"
+      },
+      {
+        "conditions": [
+          {
+            "from": {
+              "Call": {
+                "arguments": [
+                  {
+                    "Var": "physical"
+                  },
+                  {
+                    "Var": "logical"
+                  }
+                ],
+                "function": "3ce2848777ad95811bef952f6b668e5ee4b4040554db32ad5caa8f8610c79155"
+              }
+            },
+            "to": {
+              "Call": {
+                "arguments": [
+                  {
+                    "Var": "physical"
+                  },
+                  {
+                    "Var": "logical"
+                  }
+                ],
+                "function": "a7c455bfbe8040ad58428f3aa6eba44e2022d76789f52007bc32dcb5e31ad8e2"
+              }
+            }
+          }
+        ],
+        "equation": {
+          "from": {
+            "Call": {
+              "arguments": [
+                {
+                  "Call": {
+                    "arguments": [
+                      {
+                        "Call": {
+                          "arguments": [
+                            {
+                              "Var": "physical"
+                            },
+                            {
+                              "Var": "version"
+                            },
+                            {
+                              "Var": "arg_0"
+                            },
+                            {
+                              "Var": "arg_1"
+                            }
+                          ],
+                          "function": "464cc67e1dca1ff46931cfb20a56666e6867f131cc12beb07bb0f762a9a382d4"
+                        }
+                      }
+                    ],
+                    "function": "23a600badf93d6529c1dab40e6509d97a70101ab118c3e9c76cbfee3aa7c8848"
+                  }
+                },
+                {
+                  "Match": {
+                    "branches": [
+                      {
+                        "bindings": [
+                          "post_reply",
+                          "post_committed",
+                          "post_version",
+                          "post_rows",
+                          "post_events"
+                        ],
+                        "body": {
+                          "Var": "post_rows"
+                        }
+                      },
+                      {
+                        "bindings": [
+                          "post_host",
+                          "post_version",
+                          "post_rows"
+                        ],
+                        "body": {
+                          "Var": "post_rows"
+                        }
+                      }
+                    ],
+                    "scrutinee": {
+                      "Call": {
+                        "arguments": [
+                          {
+                            "Var": "logical"
+                          },
+                          {
+                            "Var": "version"
+                          },
+                          {
+                            "Var": "arg_0"
+                          },
+                          {
+                            "Var": "arg_1"
+                          }
+                        ],
+                        "function": "5829d8c7ccf992c3e83f63eebbbbd9a70b83b2b01aa6d8a4914beada43bbac3f"
+                      }
+                    }
+                  }
+                }
+              ],
+              "function": "3ce2848777ad95811bef952f6b668e5ee4b4040554db32ad5caa8f8610c79155"
+            }
+          },
+          "to": {
+            "Call": {
+              "arguments": [
+                {
+                  "Call": {
+                    "arguments": [
+                      {
+                        "Call": {
+                          "arguments": [
+                            {
+                              "Var": "physical"
+                            },
+                            {
+                              "Var": "version"
+                            },
+                            {
+                              "Var": "arg_0"
+                            },
+                            {
+                              "Var": "arg_1"
+                            }
+                          ],
+                          "function": "464cc67e1dca1ff46931cfb20a56666e6867f131cc12beb07bb0f762a9a382d4"
+                        }
+                      }
+                    ],
+                    "function": "23a600badf93d6529c1dab40e6509d97a70101ab118c3e9c76cbfee3aa7c8848"
+                  }
+                },
+                {
+                  "Match": {
+                    "branches": [
+                      {
+                        "bindings": [
+                          "post_reply",
+                          "post_committed",
+                          "post_version",
+                          "post_rows",
+                          "post_events"
+                        ],
+                        "body": {
+                          "Var": "post_rows"
+                        }
+                      },
+                      {
+                        "bindings": [
+                          "post_host",
+                          "post_version",
+                          "post_rows"
+                        ],
+                        "body": {
+                          "Var": "post_rows"
+                        }
+                      }
+                    ],
+                    "scrutinee": {
+                      "Call": {
+                        "arguments": [
+                          {
+                            "Var": "logical"
+                          },
+                          {
+                            "Var": "version"
+                          },
+                          {
+                            "Var": "arg_0"
+                          },
+                          {
+                            "Var": "arg_1"
+                          }
+                        ],
+                        "function": "5829d8c7ccf992c3e83f63eebbbbd9a70b83b2b01aa6d8a4914beada43bbac3f"
+                      }
+                    }
+                  }
+                }
+              ],
+              "function": "a7c455bfbe8040ad58428f3aa6eba44e2022d76789f52007bc32dcb5e31ad8e2"
+            }
+          }
+        },
+        "params": [
+          [
+            "physical",
+            {
+              "Data": "bc682476febc1ee50e71054c80fb2c6774de0ae86d6d52e926fdd10f21f6fa8c"
+            }
+          ],
+          [
+            "logical",
+            {
+              "Data": "0b904fd26438a2ba8a1132e111e32e349c866d9dfcffa9eb24dbf02f0f6f3980"
+            }
+          ],
+          [
+            "version",
+            "U64"
+          ],
+          [
+            "arg_0",
+            "U64"
+          ],
+          [
+            "arg_1",
+            "Bool"
+          ]
+        ],
+        "role": "erase/preservation/0"
+      },
+      {
+        "conditions": [
+          {
+            "from": {
+              "Call": {
+                "arguments": [
+                  {
+                    "Var": "physical"
+                  },
+                  {
+                    "Var": "logical"
+                  }
+                ],
+                "function": "3ce2848777ad95811bef952f6b668e5ee4b4040554db32ad5caa8f8610c79155"
+              }
+            },
+            "to": {
+              "Call": {
+                "arguments": [
+                  {
+                    "Var": "physical"
+                  },
+                  {
+                    "Var": "logical"
+                  }
+                ],
+                "function": "a7c455bfbe8040ad58428f3aa6eba44e2022d76789f52007bc32dcb5e31ad8e2"
+              }
+            }
+          }
+        ],
+        "equation": {
+          "from": {
+            "Call": {
+              "arguments": [
+                {
+                  "Call": {
+                    "arguments": [
+                      {
+                        "Var": "physical"
+                      },
+                      {
+                        "Var": "version"
+                      },
+                      {
+                        "Var": "arg_0"
+                      }
+                    ],
+                    "function": "536af891c26f4dbe5177131e2901d332ef7ed6fa1600ba6eed009d317b55e025"
+                  }
+                }
+              ],
+              "function": "a58c9de447d74112cef08aa945141deed637a1c048618fc9b6644fe675caaa8d"
+            }
+          },
+          "to": {
+            "Call": {
+              "arguments": [
+                {
+                  "Var": "logical"
+                },
+                {
+                  "Var": "version"
+                },
+                {
+                  "Var": "arg_0"
+                }
+              ],
+              "function": "9a05a38f7940670e50c089d1a28c2c8d23c8ca63fa18004bccd347e75052e063"
+            }
+          }
+        },
+        "params": [
+          [
+            "physical",
+            {
+              "Data": "bc682476febc1ee50e71054c80fb2c6774de0ae86d6d52e926fdd10f21f6fa8c"
+            }
+          ],
+          [
+            "logical",
+            {
+              "Data": "0b904fd26438a2ba8a1132e111e32e349c866d9dfcffa9eb24dbf02f0f6f3980"
+            }
+          ],
+          [
+            "version",
+            "U64"
+          ],
+          [
+            "arg_0",
+            "U64"
+          ]
+        ],
+        "role": "get/observation"
+      },
+      {
+        "conditions": [
+          {
+            "from": {
+              "Call": {
+                "arguments": [
+                  {
+                    "Var": "physical"
+                  },
+                  {
+                    "Var": "logical"
+                  }
+                ],
+                "function": "3ce2848777ad95811bef952f6b668e5ee4b4040554db32ad5caa8f8610c79155"
+              }
+            },
+            "to": {
+              "Call": {
+                "arguments": [
+                  {
+                    "Var": "physical"
+                  },
+                  {
+                    "Var": "logical"
+                  }
+                ],
+                "function": "a7c455bfbe8040ad58428f3aa6eba44e2022d76789f52007bc32dcb5e31ad8e2"
+              }
+            }
+          }
+        ],
+        "equation": {
+          "from": {
+            "Call": {
+              "arguments": [
+                {
+                  "Call": {
+                    "arguments": [
+                      {
+                        "Call": {
+                          "arguments": [
+                            {
+                              "Var": "physical"
+                            },
+                            {
+                              "Var": "version"
+                            },
+                            {
+                              "Var": "arg_0"
+                            }
+                          ],
+                          "function": "536af891c26f4dbe5177131e2901d332ef7ed6fa1600ba6eed009d317b55e025"
+                        }
+                      }
+                    ],
+                    "function": "7cb820da5efbf61839fbc617b132af10ae3d08e1de0b739cbbd1cff4ce86e641"
+                  }
+                },
+                {
+                  "Match": {
+                    "branches": [
+                      {
+                        "bindings": [
+                          "post_reply",
+                          "post_committed",
+                          "post_version",
+                          "post_rows",
+                          "post_events"
+                        ],
+                        "body": {
+                          "Var": "post_rows"
+                        }
+                      },
+                      {
+                        "bindings": [
+                          "post_host",
+                          "post_version",
+                          "post_rows"
+                        ],
+                        "body": {
+                          "Var": "post_rows"
+                        }
+                      }
+                    ],
+                    "scrutinee": {
+                      "Call": {
+                        "arguments": [
+                          {
+                            "Var": "logical"
+                          },
+                          {
+                            "Var": "version"
+                          },
+                          {
+                            "Var": "arg_0"
+                          }
+                        ],
+                        "function": "9a05a38f7940670e50c089d1a28c2c8d23c8ca63fa18004bccd347e75052e063"
+                      }
+                    }
+                  }
+                }
+              ],
+              "function": "3ce2848777ad95811bef952f6b668e5ee4b4040554db32ad5caa8f8610c79155"
+            }
+          },
+          "to": {
+            "Call": {
+              "arguments": [
+                {
+                  "Call": {
+                    "arguments": [
+                      {
+                        "Call": {
+                          "arguments": [
+                            {
+                              "Var": "physical"
+                            },
+                            {
+                              "Var": "version"
+                            },
+                            {
+                              "Var": "arg_0"
+                            }
+                          ],
+                          "function": "536af891c26f4dbe5177131e2901d332ef7ed6fa1600ba6eed009d317b55e025"
+                        }
+                      }
+                    ],
+                    "function": "7cb820da5efbf61839fbc617b132af10ae3d08e1de0b739cbbd1cff4ce86e641"
+                  }
+                },
+                {
+                  "Match": {
+                    "branches": [
+                      {
+                        "bindings": [
+                          "post_reply",
+                          "post_committed",
+                          "post_version",
+                          "post_rows",
+                          "post_events"
+                        ],
+                        "body": {
+                          "Var": "post_rows"
+                        }
+                      },
+                      {
+                        "bindings": [
+                          "post_host",
+                          "post_version",
+                          "post_rows"
+                        ],
+                        "body": {
+                          "Var": "post_rows"
+                        }
+                      }
+                    ],
+                    "scrutinee": {
+                      "Call": {
+                        "arguments": [
+                          {
+                            "Var": "logical"
+                          },
+                          {
+                            "Var": "version"
+                          },
+                          {
+                            "Var": "arg_0"
+                          }
+                        ],
+                        "function": "9a05a38f7940670e50c089d1a28c2c8d23c8ca63fa18004bccd347e75052e063"
+                      }
+                    }
+                  }
+                }
+              ],
+              "function": "a7c455bfbe8040ad58428f3aa6eba44e2022d76789f52007bc32dcb5e31ad8e2"
+            }
+          }
+        },
+        "params": [
+          [
+            "physical",
+            {
+              "Data": "bc682476febc1ee50e71054c80fb2c6774de0ae86d6d52e926fdd10f21f6fa8c"
+            }
+          ],
+          [
+            "logical",
+            {
+              "Data": "0b904fd26438a2ba8a1132e111e32e349c866d9dfcffa9eb24dbf02f0f6f3980"
+            }
+          ],
+          [
+            "version",
+            "U64"
+          ],
+          [
+            "arg_0",
+            "U64"
+          ]
+        ],
+        "role": "get/preservation/0"
+      },
+      {
+        "conditions": [
+          {
+            "from": {
+              "Call": {
+                "arguments": [
+                  {
+                    "Var": "physical"
+                  },
+                  {
+                    "Var": "logical"
+                  }
+                ],
+                "function": "3ce2848777ad95811bef952f6b668e5ee4b4040554db32ad5caa8f8610c79155"
+              }
+            },
+            "to": {
+              "Call": {
+                "arguments": [
+                  {
+                    "Var": "physical"
+                  },
+                  {
+                    "Var": "logical"
+                  }
+                ],
+                "function": "a7c455bfbe8040ad58428f3aa6eba44e2022d76789f52007bc32dcb5e31ad8e2"
+              }
+            }
+          }
+        ],
+        "equation": {
+          "from": {
+            "Call": {
+              "arguments": [
+                {
+                  "Call": {
+                    "arguments": [
+                      {
+                        "Var": "physical"
+                      },
+                      {
+                        "Var": "version"
+                      },
+                      {
+                        "Var": "arg_0"
+                      },
+                      {
+                        "Var": "arg_1"
+                      }
+                    ],
+                    "function": "5821199821dbe2acc90150743577ff950f861e45a8d08f2dd982e6b37e39ed4d"
+                  }
+                }
+              ],
+              "function": "b4509f9402504fdea3bc74451391a34c9ff1f98bed24d5eee4e875656c66c94e"
+            }
+          },
+          "to": {
+            "Call": {
+              "arguments": [
+                {
+                  "Var": "logical"
+                },
+                {
+                  "Var": "version"
+                },
+                {
+                  "Var": "arg_0"
+                },
+                {
+                  "Var": "arg_1"
+                }
+              ],
+              "function": "66cfccbc3c8828af1d82f7717dbd7ea10d38644de68ccb6620942863bd5e7ca0"
+            }
+          }
+        },
+        "params": [
+          [
+            "physical",
+            {
+              "Data": "bc682476febc1ee50e71054c80fb2c6774de0ae86d6d52e926fdd10f21f6fa8c"
+            }
+          ],
+          [
+            "logical",
+            {
+              "Data": "0b904fd26438a2ba8a1132e111e32e349c866d9dfcffa9eb24dbf02f0f6f3980"
+            }
+          ],
+          [
+            "version",
+            "U64"
+          ],
+          [
+            "arg_0",
+            "U64"
+          ],
+          [
+            "arg_1",
+            "U64"
+          ]
+        ],
+        "role": "put/observation"
+      },
+      {
+        "conditions": [
+          {
+            "from": {
+              "Call": {
+                "arguments": [
+                  {
+                    "Var": "physical"
+                  },
+                  {
+                    "Var": "logical"
+                  }
+                ],
+                "function": "3ce2848777ad95811bef952f6b668e5ee4b4040554db32ad5caa8f8610c79155"
+              }
+            },
+            "to": {
+              "Call": {
+                "arguments": [
+                  {
+                    "Var": "physical"
+                  },
+                  {
+                    "Var": "logical"
+                  }
+                ],
+                "function": "a7c455bfbe8040ad58428f3aa6eba44e2022d76789f52007bc32dcb5e31ad8e2"
+              }
+            }
+          }
+        ],
+        "equation": {
+          "from": {
+            "Call": {
+              "arguments": [
+                {
+                  "Call": {
+                    "arguments": [
+                      {
+                        "Call": {
+                          "arguments": [
+                            {
+                              "Var": "physical"
+                            },
+                            {
+                              "Var": "version"
+                            },
+                            {
+                              "Var": "arg_0"
+                            },
+                            {
+                              "Var": "arg_1"
+                            }
+                          ],
+                          "function": "5821199821dbe2acc90150743577ff950f861e45a8d08f2dd982e6b37e39ed4d"
+                        }
+                      }
+                    ],
+                    "function": "23a600badf93d6529c1dab40e6509d97a70101ab118c3e9c76cbfee3aa7c8848"
+                  }
+                },
+                {
+                  "Match": {
+                    "branches": [
+                      {
+                        "bindings": [
+                          "post_reply",
+                          "post_committed",
+                          "post_version",
+                          "post_rows",
+                          "post_events"
+                        ],
+                        "body": {
+                          "Var": "post_rows"
+                        }
+                      },
+                      {
+                        "bindings": [
+                          "post_host",
+                          "post_version",
+                          "post_rows"
+                        ],
+                        "body": {
+                          "Var": "post_rows"
+                        }
+                      }
+                    ],
+                    "scrutinee": {
+                      "Call": {
+                        "arguments": [
+                          {
+                            "Var": "logical"
+                          },
+                          {
+                            "Var": "version"
+                          },
+                          {
+                            "Var": "arg_0"
+                          },
+                          {
+                            "Var": "arg_1"
+                          }
+                        ],
+                        "function": "66cfccbc3c8828af1d82f7717dbd7ea10d38644de68ccb6620942863bd5e7ca0"
+                      }
+                    }
+                  }
+                }
+              ],
+              "function": "3ce2848777ad95811bef952f6b668e5ee4b4040554db32ad5caa8f8610c79155"
+            }
+          },
+          "to": {
+            "Call": {
+              "arguments": [
+                {
+                  "Call": {
+                    "arguments": [
+                      {
+                        "Call": {
+                          "arguments": [
+                            {
+                              "Var": "physical"
+                            },
+                            {
+                              "Var": "version"
+                            },
+                            {
+                              "Var": "arg_0"
+                            },
+                            {
+                              "Var": "arg_1"
+                            }
+                          ],
+                          "function": "5821199821dbe2acc90150743577ff950f861e45a8d08f2dd982e6b37e39ed4d"
+                        }
+                      }
+                    ],
+                    "function": "23a600badf93d6529c1dab40e6509d97a70101ab118c3e9c76cbfee3aa7c8848"
+                  }
+                },
+                {
+                  "Match": {
+                    "branches": [
+                      {
+                        "bindings": [
+                          "post_reply",
+                          "post_committed",
+                          "post_version",
+                          "post_rows",
+                          "post_events"
+                        ],
+                        "body": {
+                          "Var": "post_rows"
+                        }
+                      },
+                      {
+                        "bindings": [
+                          "post_host",
+                          "post_version",
+                          "post_rows"
+                        ],
+                        "body": {
+                          "Var": "post_rows"
+                        }
+                      }
+                    ],
+                    "scrutinee": {
+                      "Call": {
+                        "arguments": [
+                          {
+                            "Var": "logical"
+                          },
+                          {
+                            "Var": "version"
+                          },
+                          {
+                            "Var": "arg_0"
+                          },
+                          {
+                            "Var": "arg_1"
+                          }
+                        ],
+                        "function": "66cfccbc3c8828af1d82f7717dbd7ea10d38644de68ccb6620942863bd5e7ca0"
+                      }
+                    }
+                  }
+                }
+              ],
+              "function": "a7c455bfbe8040ad58428f3aa6eba44e2022d76789f52007bc32dcb5e31ad8e2"
+            }
+          }
+        },
+        "params": [
+          [
+            "physical",
+            {
+              "Data": "bc682476febc1ee50e71054c80fb2c6774de0ae86d6d52e926fdd10f21f6fa8c"
+            }
+          ],
+          [
+            "logical",
+            {
+              "Data": "0b904fd26438a2ba8a1132e111e32e349c866d9dfcffa9eb24dbf02f0f6f3980"
+            }
+          ],
+          [
+            "version",
+            "U64"
+          ],
+          [
+            "arg_0",
+            "U64"
+          ],
+          [
+            "arg_1",
+            "U64"
+          ]
+        ],
+        "role": "put/preservation/0"
+      },
+      {
+        "conditions": [
+          {
+            "from": {
+              "Call": {
+                "arguments": [
+                  {
+                    "Var": "physical"
+                  },
+                  {
+                    "Var": "logical"
+                  }
+                ],
+                "function": "3ce2848777ad95811bef952f6b668e5ee4b4040554db32ad5caa8f8610c79155"
+              }
+            },
+            "to": {
+              "Call": {
+                "arguments": [
+                  {
+                    "Var": "physical"
+                  },
+                  {
+                    "Var": "logical"
+                  }
+                ],
+                "function": "a7c455bfbe8040ad58428f3aa6eba44e2022d76789f52007bc32dcb5e31ad8e2"
+              }
+            }
+          }
+        ],
+        "equation": {
+          "from": {
+            "Call": {
+              "arguments": [
+                {
+                  "Call": {
+                    "arguments": [
+                      {
+                        "Var": "physical"
+                      },
+                      {
+                        "Var": "version"
+                      }
+                    ],
+                    "function": "ea39edc750de64cf16ad7144fadcc2696e8c0d2e766ffcf4f6900386764fb9f1"
+                  }
+                }
+              ],
+              "function": "a58c9de447d74112cef08aa945141deed637a1c048618fc9b6644fe675caaa8d"
+            }
+          },
+          "to": {
+            "Call": {
+              "arguments": [
+                {
+                  "Var": "logical"
+                },
+                {
+                  "Var": "version"
+                }
+              ],
+              "function": "5342719ad922d9ff37fcf5f16148a532fce140611cef3ba071b603b455907923"
+            }
+          }
+        },
+        "params": [
+          [
+            "physical",
+            {
+              "Data": "bc682476febc1ee50e71054c80fb2c6774de0ae86d6d52e926fdd10f21f6fa8c"
+            }
+          ],
+          [
+            "logical",
+            {
+              "Data": "0b904fd26438a2ba8a1132e111e32e349c866d9dfcffa9eb24dbf02f0f6f3980"
+            }
+          ],
+          [
+            "version",
+            "U64"
+          ]
+        ],
+        "role": "zero/observation"
+      },
+      {
+        "conditions": [
+          {
+            "from": {
+              "Call": {
+                "arguments": [
+                  {
+                    "Var": "physical"
+                  },
+                  {
+                    "Var": "logical"
+                  }
+                ],
+                "function": "3ce2848777ad95811bef952f6b668e5ee4b4040554db32ad5caa8f8610c79155"
+              }
+            },
+            "to": {
+              "Call": {
+                "arguments": [
+                  {
+                    "Var": "physical"
+                  },
+                  {
+                    "Var": "logical"
+                  }
+                ],
+                "function": "a7c455bfbe8040ad58428f3aa6eba44e2022d76789f52007bc32dcb5e31ad8e2"
+              }
+            }
+          }
+        ],
+        "equation": {
+          "from": {
+            "Call": {
+              "arguments": [
+                {
+                  "Call": {
+                    "arguments": [
+                      {
+                        "Call": {
+                          "arguments": [
+                            {
+                              "Var": "physical"
+                            },
+                            {
+                              "Var": "version"
+                            }
+                          ],
+                          "function": "ea39edc750de64cf16ad7144fadcc2696e8c0d2e766ffcf4f6900386764fb9f1"
+                        }
+                      }
+                    ],
+                    "function": "7cb820da5efbf61839fbc617b132af10ae3d08e1de0b739cbbd1cff4ce86e641"
+                  }
+                },
+                {
+                  "Match": {
+                    "branches": [
+                      {
+                        "bindings": [
+                          "post_reply",
+                          "post_committed",
+                          "post_version",
+                          "post_rows",
+                          "post_events"
+                        ],
+                        "body": {
+                          "Var": "post_rows"
+                        }
+                      },
+                      {
+                        "bindings": [
+                          "post_host",
+                          "post_version",
+                          "post_rows"
+                        ],
+                        "body": {
+                          "Var": "post_rows"
+                        }
+                      }
+                    ],
+                    "scrutinee": {
+                      "Call": {
+                        "arguments": [
+                          {
+                            "Var": "logical"
+                          },
+                          {
+                            "Var": "version"
+                          }
+                        ],
+                        "function": "5342719ad922d9ff37fcf5f16148a532fce140611cef3ba071b603b455907923"
+                      }
+                    }
+                  }
+                }
+              ],
+              "function": "3ce2848777ad95811bef952f6b668e5ee4b4040554db32ad5caa8f8610c79155"
+            }
+          },
+          "to": {
+            "Call": {
+              "arguments": [
+                {
+                  "Call": {
+                    "arguments": [
+                      {
+                        "Call": {
+                          "arguments": [
+                            {
+                              "Var": "physical"
+                            },
+                            {
+                              "Var": "version"
+                            }
+                          ],
+                          "function": "ea39edc750de64cf16ad7144fadcc2696e8c0d2e766ffcf4f6900386764fb9f1"
+                        }
+                      }
+                    ],
+                    "function": "7cb820da5efbf61839fbc617b132af10ae3d08e1de0b739cbbd1cff4ce86e641"
+                  }
+                },
+                {
+                  "Match": {
+                    "branches": [
+                      {
+                        "bindings": [
+                          "post_reply",
+                          "post_committed",
+                          "post_version",
+                          "post_rows",
+                          "post_events"
+                        ],
+                        "body": {
+                          "Var": "post_rows"
+                        }
+                      },
+                      {
+                        "bindings": [
+                          "post_host",
+                          "post_version",
+                          "post_rows"
+                        ],
+                        "body": {
+                          "Var": "post_rows"
+                        }
+                      }
+                    ],
+                    "scrutinee": {
+                      "Call": {
+                        "arguments": [
+                          {
+                            "Var": "logical"
+                          },
+                          {
+                            "Var": "version"
+                          }
+                        ],
+                        "function": "5342719ad922d9ff37fcf5f16148a532fce140611cef3ba071b603b455907923"
+                      }
+                    }
+                  }
+                }
+              ],
+              "function": "a7c455bfbe8040ad58428f3aa6eba44e2022d76789f52007bc32dcb5e31ad8e2"
+            }
+          }
+        },
+        "params": [
+          [
+            "physical",
+            {
+              "Data": "bc682476febc1ee50e71054c80fb2c6774de0ae86d6d52e926fdd10f21f6fa8c"
+            }
+          ],
+          [
+            "logical",
+            {
+              "Data": "0b904fd26438a2ba8a1132e111e32e349c866d9dfcffa9eb24dbf02f0f6f3980"
+            }
+          ],
+          [
+            "version",
+            "U64"
+          ]
+        ],
+        "role": "zero/preservation/0"
+      }
+    ],
+    "representation": "52d384f72697102c3a5485d14bd507f87d39350ae50e75c32b6cf3422cf82d62",
+    "source": "c17b00c23cedd02dca5bd9d468144027ea547cf114321d0a34c20a8338e1415b",
+    "status": "checked",
+    "trust": [
+      "fixed source semantics",
+      "general equality checker",
+      "literal backend",
+      "host and snapshot codecs"
+    ]
+  }
+}

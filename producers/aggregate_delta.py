@@ -113,4 +113,4 @@ def setup(model,cache,add,objects):
         use={'Use':dict(theorem=updates[name],arguments=args,premises=[])}
         delta=contrib(args[2])if name=='insert'else call(delta_functions[name],args)
         return trans(use,lift(query_equality(args[0],bindings),binary('+',var('delta_hole'),delta)))
-    return dict(action=action,recipe=recipe,equality=query_equality,index=0)
+    return dict(action=action,recipe=recipe,equality=query_equality,index=0,contribution=contribution,fold=fold,fusion=fusion)
