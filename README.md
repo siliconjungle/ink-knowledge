@@ -79,7 +79,7 @@ python3 -m unittest discover -s tests -v
 
 `producers/` holds untrusted authoring/import tools. `research/` quarantines historical experiment formats, fixtures and Lean work; production discovery does not scan it or depend on experiment directory names. Research tools can still reproduce their original mathematical experiments. These formats are not compatibility aliases for the canonical API.
 
-The current snapshot contains 1101 canonical entries, including 295 checked semantic laws and source-bound representation/cache-maintenance candidates (`research/cache-maintenance`, `research/compact-queries` and state-reusing bridges in `research/layout-switch`). Earlier snapshots are retained; 20 checked append-view entries, six fixed change-boundary definitions/theorems and 46 general-law entries (`research/general-laws`: abstract sorts, functions and assumptions with eight parametric collection laws) were added without changing the existing rewrite payloads or name targets. The change-boundary laws bind to shared language primitives, but do not certify action bodies or physical rollback. See `research/incremental-views/canonical-review.json` for proof-admission evidence and scope. Reproduce its data with `python3 producers/build_store.py --output /tmp/ink-store`; this explicitly imports the research fixtures as an authoring operation. `store/rewrite-view.json` is a transport fixture for integration tests, not a second storage format or discovery API.
+The current snapshot contains 1396 canonical entries, including 510 checked semantic laws and source-bound representation/cache-maintenance candidates (`research/cache-maintenance`, `research/compact-queries` and state-reusing bridges in `research/layout-switch`). Earlier snapshots are retained; 20 checked append-view entries, six fixed change-boundary definitions/theorems and 46 general-law entries (`research/general-laws`: abstract sorts, functions and assumptions with eight parametric collection laws) were added without changing the existing rewrite payloads or name targets. The change-boundary laws bind to shared language primitives, but do not certify action bodies or physical rollback. See `research/incremental-views/canonical-review.json` for proof-admission evidence and scope. Reproduce its data with `python3 producers/build_store.py --output /tmp/ink-store`; this explicitly imports the research fixtures as an authoring operation. `store/rewrite-view.json` is a transport fixture for integration tests, not a second storage format or discovery API.
 
 Eleven effect-prefix composition entries add outer path/value/exit definitions,
 sequencing and six checked laws. Their definitions bind to the core's fixed
@@ -96,7 +96,8 @@ observations, successive filter fusion, identity filtering, zero-bound iteration
 immediate stopping and stopping proved by an actual application condition. Each
 family covers u32/u64/i32/f32/Bool values. `producers/local_collection_laws.py`
 reproduces the entries and the bounded `store/local-collection-view.json`; the
-full `build_store.py` reproduces the canonical snapshot. These require Ink's
+`build_store.py` reproduces its base authoring snapshot; later producers preserve
+and extend the checked-in snapshot. These require Ink's
 buffer-observation/stopping-loop correspondence (core commit 77a47a6), and are
 checked locally. They do not prove owned mutation, map updates, heap correctness,
 A* correctness, physical emission or a universal speedup.
@@ -137,3 +138,25 @@ premise is demanded of source callers. Observed ordered outputs retain sorting.
 `producers/filtered_sort_laws.py` and `store/filtered-sort-view.json` reproduce
 them. The full rewrite view now carries 268 executable roots and 27 proof-only
 insertion dependencies. No compiler, core, planner or backend change is needed.
+
+## Owned collections and incremental point queries
+
+`producers/owned_collection_laws.py --output-store .` adds 215 ordinary laws
+for existing Buffer/Map operations and owned stopping loops, preserving older
+canonical objects, name targets and snapshots. `store/owned-collection-view.json`
+is a transport fixture. Primitive meaning belongs to the core; these entries are
+not trusted merely because this producer generated them.
+
+`producers/point_delta.py` proposes fixed-key remove/replace maintenance through
+`representations.py --cache-query zero --preserve-cache --delta-query`; unsupported
+updates use refresh. Frozen requests and proved forward/reverse migrations live
+in `research/point-delta`. `representation_bridge.py --via-logical` proposes
+decode/encode bridges; the default proposes state reuse for identical relations.
+Every request and bridge still needs mathematical admission.
+
+`producers/lifecycle_observations.py` imports measured native phases with exact
+request-file SHA256 identities and exact bridge-file hashes for migration phases.
+Checking cost depends on closure/witness bytes, so a representation entry ID alone
+is insufficient for comparable measurements. Observations remain separate from
+proof snapshots. The current point-delta fixture loses to the simpler direct
+layout; no profitability claim follows from its preservation proofs.
