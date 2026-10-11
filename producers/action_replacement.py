@@ -60,6 +60,38 @@ def general_law():
     objects={identity(x):x for x in [row,rows,remove,law]}
     return objects,dict(StateRow=element,WordRows=datatype,remove=function,remove_idempotence=identity(law))
 
+def alpha_normal(t,depth=0,env=None):
+    """Producer alpha normal form; every conversion is separately replayed."""
+    env=env or {}
+    if isinstance(t,list):return [alpha_normal(x,depth,env)for x in t]
+    if not isinstance(t,dict):return t
+    if set(t)=={'Var'}:return var(env.get(t['Var'],t['Var']))
+    if 'Match'in t:
+        node=t['Match'];branches=[]
+        for branch in node['branches']:
+            names=[f'__action_alpha_{depth+i}'for i in range(len(branch['bindings']))]
+            local={**env,**dict(zip(branch['bindings'],names))}
+            branches.append(dict(bindings=names,body=alpha_normal(branch['body'],depth+len(names),local)))
+        return {'Match':dict(scrutinee=alpha_normal(node['scrutinee'],depth,env),branches=branches)}
+    return {k:alpha_normal(v,depth,env)for k,v in t.items()}
+
+def guarded_equality(a,z,objects,index=0,depth=0):
+    """Bounded branch proof, including runtime presence/error checks."""
+    from producers.point_delta import normal,replace,lift
+    a0,z0=alpha_normal(normal(a,objects)),alpha_normal(normal(z,objects))
+    if a0==z0:return convert(a,z)
+    if depth>=12:return convert(a,z) # kernel rejection is the fallback
+    conditional=a0.get('If',z0.get('If'))
+    if conditional is None:return convert(a,z)
+    guard=conditional['condition'];hole=var('delta_hole')
+    ca,cz=replace(a0,guard,hole),replace(z0,guard,hole)
+    branches={}
+    for flag in (False,True):
+        na=replace(a0,guard,{'Bool':flag});nz=replace(z0,guard,{'Bool':flag})
+        h={'Hypothesis':index}
+        branches['on_true'if flag else 'on_false']=trans(convert(a,a0),lift(h,ca),guarded_equality(na,nz,objects,index+1,depth+1),{'Sym':lift(h,cz)},convert(z0,z))
+    return {'BoolSplit':dict(condition=guard,**{'from':a,'to':z},**branches)}
+
 def produce(before,after,selected,directory,knowledge_root=None,snapshot=None):
     if before['semantics']!='ink-action-transition-v1' or after['semantics']!=before['semantics']:raise ValueError('incompatible projection')
     if before['state']!=after['state'] or before['events']!=after['events']:raise ValueError('transition representation changed')
@@ -69,11 +101,25 @@ def produce(before,after,selected,directory,knowledge_root=None,snapshot=None):
     roles={n:names['action-laws/'+n] for n in ['StateRow','WordRows','remove','remove_idempotence']}
     # Retrieve pinned database bytes. Authoring the four-entry induction library
     # is a separate command; proposals instantiate it rather than regenerate it.
-    general=database.bundle(sorted(roles.values()))['objects'];objects.update(general)
+    extra_names=['StateRow','WordRows','remove','replace','get','RowOption','contains','contains_replace','replace_overwrite','remove_after_replace','replace_after_remove']
+    extra={n:names['state-calculus/'+n] for n in extra_names} if all('state-calculus/'+n in names for n in extra_names) else {}
+    general=database.bundle(sorted(set(roles.values())|set(extra.values())))['objects'];objects.update(general)
+    coalescing=[]
     for t in before['tables']:
         ty=json.dumps(t['value_type'],sort_keys=True,separators=(',',':'));sort=before['types'][ty]
         laws[t['remove']]=dict(theorem=roles['remove_idempotence'],sorts={roles['StateRow']:sort},functions={},
             definitions={roles['WordRows']:t['datatype'],roles['remove']:t['remove']},assumptions={})
+        for rule in (['replace_overwrite','remove_after_replace','replace_after_remove','contains_replace'] if extra else []):
+            law=dict(theorem=extra[rule],sorts={extra['StateRow']:sort},functions={},
+                definitions={extra['WordRows']:t['datatype'],extra['remove']:t['remove'],extra['replace']:t['replace']},assumptions={})
+            # Exactly the definitions used by this theorem are required; extra
+            # remove for overwrite is harmless but creates an unnecessary edge.
+            if rule in ('replace_overwrite','contains_replace'):law['definitions'].pop(extra['remove'])
+            if rule=='contains_replace':
+                law['definitions'][extra['get']]=t['get'];law['definitions'][extra['contains']]=t['contains']
+                option=objects[t['get']]['payload']['declaration']['Function']['result']['Data']
+                law['definitions'][names['state-calculus/RowOption']]=option
+            coalescing.append((t,rule,law))
     for name,a in before['actions'].items():
         z=after['actions'][name];old=a['case']['call'];new=z['case']['call']
         if a['function']==z['function']:
@@ -87,6 +133,27 @@ def produce(before,after,selected,directory,knowledge_root=None,snapshot=None):
                 if f in laws and len(args)==2 and isinstance(args[0],dict) and args[0].get('Call',{}).get('function')==f:
                     inner=args[0]['Call']['arguments']
                     if len(inner)==2 and inner[1]==args[1]:return t,call(f,[inner[0],args[1]]),laws[f],[inner[0],args[1]]
+            if isinstance(t,dict) and 'Call' in t:
+                outer=t['Call'];args=outer['arguments']
+                if len(args)in (2,3) and isinstance(args[0],dict) and 'Call'in args[0]:
+                    inner=args[0]['Call'];inside=inner['arguments']
+                    if len(inside)in (2,3) and args[1]==inside[1]:
+                        for table,rule,law in coalescing:
+                            if rule=='replace_overwrite' and outer['function']==inner['function']==table['replace'] and len(args)==len(inside)==3:
+                                return t,call(table['replace'],[inside[0],args[1],args[2]]),law,[inside[0],args[1],inside[2],args[2]]
+                            if rule=='remove_after_replace' and outer['function']==table['remove'] and inner['function']==table['replace'] and len(args)==2 and len(inside)==3:
+                                return t,call(table['remove'],[inside[0],args[1]]),law,[inside[0],args[1],inside[2]]
+                            if rule=='replace_after_remove' and outer['function']==table['replace'] and inner['function']==table['remove'] and len(args)==3 and len(inside)==2:
+                                return t,call(table['remove'],[inside[0],args[1]]),law,[inside[0],args[1],args[2]]
+            if isinstance(t,dict) and 'Match'in t:
+                node=t['Match'];get=node['scrutinee'].get('Call',{})
+                ga=get.get('arguments',[]);branches=node['branches']
+                if len(ga)==2 and 'Call'in ga[0] and len(branches)==2 and branches[0]['body']=={'Bool':False} and branches[1]['body']=={'Bool':True}:
+                    update=ga[0]['Call'];ua=update['arguments']
+                    for table,rule,law in coalescing:
+                        if rule=='contains_replace' and get['function']==table['get'] and update['function']==table['replace'] and len(ua)==3 and ua[1]==ga[1]:
+                            target={'Match':dict(scrutinee=call(table['get'],[ua[0],ga[1]]),branches=branches)}
+                            return t,target,law,[ua[0],ga[1],ua[2]]
             if isinstance(t,dict):
                 for key in sorted(t):
                     r=find(t[key])
@@ -108,11 +175,13 @@ def produce(before,after,selected,directory,knowledge_root=None,snapshot=None):
             context=replace(current,original,var('replacement_rows'))
             steps.append({'Substitute':dict(variable='replacement_rows',context=context,equality={'Instance':dict(**law,arguments=args,premises=[])})})
             current=replace(current,original,replacement)
-        if current!=end:raise ValueError('bounded producer cannot prove complete action '+name)
-        case=trans(convert(old,start),*steps,convert(current,new)) if steps else convert(old,new)
+        # Convert rechecks the final complete observation, including hygienic
+        # binder changes caused by removing a statement. Syntactic identity is
+        # unnecessarily strict here; this proposal gains no authority from it.
+        case=trans(convert(old,start),*steps,guarded_equality(current,new,objects))
         args=[var(n) for n,_ in a['params']]
         proofs[name]={'Induction':dict(variable='initial',**{'from':call(a['function'],args),'to':call(z['function'],args)},cases=[dict(bindings=a['case']['bindings'],proof=case)])}
-    roots=sorted({a['function'] for a in before['actions'].values()}|{a['function'] for a in after['actions'].values()}|{law['theorem'] for law in laws.values()})
+    roots=sorted({a['function'] for a in before['actions'].values()}|{a['function'] for a in after['actions'].values()}|{law['theorem'] for law in laws.values()}|{law['theorem'] for _,_,law in coalescing})
     store=Store.publish(directory,list(objects.values()))
     return dict(schema=1,semantics='ink-evidence-v1',input_core_sha256=before['source'],knowledge=store.bundle(roots),applications=[],action_replacement=dict(selected=selected,proofs=proofs))
 

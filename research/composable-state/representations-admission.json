@@ -1,0 +1,35 @@
+{
+  "schema": 1,
+  "status": "checked",
+  "previous_snapshot": "d983634b7f49cb00a19ee9a5e2642e461bc8872c124b24035f64f318b71bc6af",
+  "snapshot": "0a86b08f1397f25520de8c4299661fa639eaf3d0693875df33739e05fba694dd",
+  "compiler_sha256": "ebfacdf0a3c074cfe8d31c4b584aef939bff5ab45ff1bbce79253e4a2214804e",
+  "added_entries": 537,
+  "candidates": [
+    {
+      "name": "point-index",
+      "source": "0443438bd88340e7752bf23c6f2be8a3b9f57d026af029ad0c0486437c0821e8",
+      "representation": "e161df186ccf0f4b7e8abfb1b2e02f10d7271d964f959f771a0d339b39c9fcc6",
+      "source_file_sha256": "ad1368205fb47db874be6c98260b3d4a2f5ce494f7fc8add0bdaec79afd1b085"
+    },
+    {
+      "name": "point-field",
+      "source": "e48f7487686955a3688cf6376a66f4af295d922b0bac24c8e29886e791f8e61e",
+      "representation": "366b98f80c91d2d4ec1648232a41c55c0649de051067bb6cafeaaefe36b6560a",
+      "source_file_sha256": "80bda26769cef2e1b6d2f96077b45b062da4e78fb7df6d2a13d82e2a9cd6b1c6"
+    },
+    {
+      "name": "aggregate-product",
+      "source": "575e77e937cd6c25e207af8987a7c375e45e936472ce7e2fe47f9fc024f168cd",
+      "representation": "2d5dde7364ca4076564fa00a5727fa7c1fa9e3606521b60dc6d3f8eaeebc52a1",
+      "source_file_sha256": "2906c4a21bbdf9c778aceda165230b767ec606ff089b9deabc30f09419daca62"
+    },
+    {
+      "name": "point-cache",
+      "source": "0443438bd88340e7752bf23c6f2be8a3b9f57d026af029ad0c0486437c0821e8",
+      "representation": "7fb14de8ef2959158a0a3eb5605d799495b5259c0779d58b49c29f2af61f3c22",
+      "source_file_sha256": "ad1368205fb47db874be6c98260b3d4a2f5ce494f7fc8add0bdaec79afd1b085"
+    }
+  ],
+  "scope": "Complete source observation and universal state relation; profitability requires separate comparable lifecycle evidence."
+}

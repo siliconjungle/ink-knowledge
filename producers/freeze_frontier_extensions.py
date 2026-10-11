@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
 """Freeze reproducible checked-candidate inputs without treating archives as proofs."""
+if __package__ in (None, ""):
+    import sys
+    from pathlib import Path
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
 import argparse,gzip,hashlib,json,os,subprocess,sys
 from pathlib import Path
 KNOWLEDGE=Path(__file__).resolve().parents[1]

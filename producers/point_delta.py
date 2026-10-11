@@ -1,6 +1,6 @@
 """Untrusted incremental point-query proposals and ordinary induction proofs.
 
-Recognises fixed-key remove/replace histories; unsupported changes use refresh.
+Repairs fixed point projections across parameter-key histories; unsupported changes refresh.
 The core knows no query/update pattern and rechecks all future-state obligations.
 """
 from producers.action_replacement import var,call,cons,convert,trans
@@ -86,7 +86,7 @@ def normal(t,objects,depth=0,opaque=()):
     if 'Binary' in t:
         x=t['Binary'];a,z=recur(x['left']),recur(x['right'])
         if 'U64' in a and 'U64' in z:
-            av,zv=a['U64'],z['U64'];op=x['op'];return {'Bool':{'==':av==zv,'!=':av!=zv,'<':av<zv,'<=':av<=zv,'>':av>zv,'>=':av>=zv}[op]} if op in ['==','!=','<','<=','>','>='] else {'U64':{'+':av+zv,'-':av-zv,'*':av*zv}[op]%(1<<64)}
+            av,zv=a['U64'],z['U64'];op=x['op'];return {'Bool':{'==':av==zv,'!=':av!=zv,'<':av<zv,'<=':av<=zv,'>':av>zv,'>=':av>=zv}[op]} if op in ['==','!=','<','<=','>','>='] else {'U64':{'+':av+zv,'-':av-zv,'*':av*zv,'&':av&zv}[op]%(1<<64)}
         return binary(x['op'],a,z)
     return t
 
@@ -107,14 +107,16 @@ def equality(a,z,objects,hyp=None,facts=(),rewrite=replace):
             if not changed:return current,proof
         raise ValueError('point delta tactic rewrite budget')
     na,pa=simplify(a);nz,pz=simplify(z)
-    if na==nz:return trans(pa,convert(na,nz),{'Sym':pz})
+    from producers.action_replacement import alpha_normal
+    if alpha_normal(na)==alpha_normal(nz):return trans(pa,convert(na,nz),{'Sym':pz})
     if hyp:
-        ha,hz,index=hyp;ha,hz=normal(ha,objects),normal(hz,objects)
-        context=rewrite(na,ha,var('delta_hole'));rewritten=rewrite(na,ha,hz)
-        if normal(rewritten,objects)==nz:return trans(pa,lift(index if isinstance(index,dict) else {'Hypothesis':index},context),convert(rewritten,nz),{'Sym':pz})
+        ha,hz,index=hyp;ha,ha_proof=simplify(ha);hz,hz_proof=simplify(hz)
+        inherited=trans({'Sym':ha_proof},index if isinstance(index,dict) else {'Hypothesis':index},hz_proof)
+        context=replace(na,ha,var('delta_hole'));rewritten=replace(na,ha,hz)
+        if normal(rewritten,objects)==nz:return trans(pa,lift(inherited,context),convert(rewritten,nz),{'Sym':pz})
     raise ValueError('point delta proof tactic cannot establish this equation: '+str((na,nz)))
 
-def setup(model,cache,add,objects):
+def legacy_setup(model,cache,add,objects):
     reply=cache['case']['normal']['Construct']['arguments'][0]
     if 'Match' in reply:
         from producers.point_delta_mapped import setup as mapped_setup
@@ -175,3 +177,8 @@ def setup(model,cache,add,objects):
         context=match(var('delta_hole'),[([],none),(['delta_old'],some(args[2]))])
         return trans(use,lift(query_equality(args[0],bindings),context))
     return dict(action=action,recipe=recipe,equality=query_equality,index=index,get=get,q=q,option=option,updates=updates,table=table,some=some)
+
+def setup(model,cache,add,objects):
+    from producers.point_projection_delta import setup as projected_setup
+    try:return projected_setup(model,cache,add,objects)
+    except ValueError:return legacy_setup(model,cache,add,objects)

@@ -2,6 +2,11 @@
 Exact actual runner capture/consume expressions surround every emitted entry.
 No native/Wasm/Rust/GPU counts are borrowed; training labels are not opened.
 """
+if __package__ in (None, ""):
+    import sys
+    from pathlib import Path
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
 import argparse,json,platform,subprocess,sys
 from pathlib import Path
 B=Path(__file__).resolve().parents[2];sys.path[:0]=[str(B/'planner'),str(B/'knowledge')]

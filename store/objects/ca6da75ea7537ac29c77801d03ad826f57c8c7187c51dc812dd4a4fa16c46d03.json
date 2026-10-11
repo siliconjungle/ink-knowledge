@@ -1,0 +1,1 @@
+{"dependencies":[],"interface":{"conditions":[],"effects":[],"operations":[],"parameters":{},"result":null},"kind":"theorem","payload":{"declaration":{"Theorem":{"conditions":[],"from":{"U64":0},"params":[],"proof":{"Trans":[{"Refl":{"U64":0}},{"Sym":{"Refl":{"U64":0}}}]},"to":{"U64":0}}}},"schema":1,"semantics":"first-order-inductive-equality-v1"}
