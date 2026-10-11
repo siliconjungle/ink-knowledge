@@ -76,8 +76,7 @@ theorem surviving_owners_positive {α : Type} (xs : List (α × Nat))
     by_cases unique : n = 1
     · simpa [release, unique] using ih rest
     · intro entry h
-      rw [release, if_neg unique] at h
-      simp only [List.mem_cons] at h
+      simp [release, unique] at h
       rcases h with h | h
       · subst entry
         omega
