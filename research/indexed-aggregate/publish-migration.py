@@ -24,7 +24,7 @@ objects.update({i: staged.object(i) for i in staged.members()})
 names = read(a.root / 'store/names.json')
 names.update({'indexed-aggregate/direct': before['representation'],
               'indexed-aggregate/migration': bridge['root']})
-published = Store.publish(a.root, objects.values(), names, leaf_size=2)
+published = Store.publish(a.root, objects.values(), names)
 for directory in ('trees', 'snapshots'):
     for path in (a.database / 'store' / directory).glob('*.json'):
         immutable(a.root / 'store' / directory / path.name, read(path))

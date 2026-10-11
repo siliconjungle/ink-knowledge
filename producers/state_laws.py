@@ -10,9 +10,9 @@ sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0,str(Path(__file__).resolve().parent))
 from ink_knowledge import Store,identity,canonical
 from ink_knowledge.store import entry
-from action_replacement import var,call,cons,convert,trans
-from representations import refs,match
-from point_delta import normal
+from producers.action_replacement import var,call,cons,convert,trans
+from producers.representations import refs,match
+from producers.point_delta import normal
 
 def replace(t,a,z):
     if t==a:return copy.deepcopy(z)

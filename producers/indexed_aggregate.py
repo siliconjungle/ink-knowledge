@@ -10,11 +10,11 @@ sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0,str(Path(__file__).resolve().parent))
 from ink_knowledge import Store,identity,canonical
 from ink_knowledge.store import entry
-from action_replacement import var,call,cons,convert,trans
-from representations import refs,match
-from point_delta import binary,choice,sub,normal
-from state_laws import derive,replace
-from aggregate_delta import setup
+from producers.action_replacement import var,call,cons,convert,trans
+from producers.representations import refs,match
+from producers.point_delta import binary,choice,sub,normal
+from producers.state_laws import derive,replace
+from producers.aggregate_delta import setup
 
 def definitions(model):
     objects=dict(model['objects']);names={}
@@ -508,7 +508,7 @@ def definitions(model):
     induction('encode_preserves_rows',[['rows',R]],a,z,[([],convert(logical(enc(nil)),nil)),(['encode_key','encode_value','encode_tail'],trans(convert(replace(a,var('rows'),b),logical(pn)),p))])
     # A checked flattening identity does not yet grant range pruning authority.
     # Those obligations are produced separately from metadata validity.
-    from indexed_representation import proposal
+    from producers.indexed_representation import proposal
     proposal(model,objects,names,add,fun,law)
     return objects,names
 
@@ -526,7 +526,7 @@ def publish_checked(staged,root,compiler,source,report):
     objects={i:old.object(i) for i in old.members()}
     objects.update({i:candidate.object(i) for i in candidate.members()})
     names=read(root/'store/names.json');names.update(read(staged/'store/names.json'))
-    admitted=Store.publish(root,objects.values(),names,leaf_size=2)
+    admitted=Store.publish(root,objects.values(),names)
     # Immutable compact snapshots are ordinary database history. They keep
     # authenticated views below the existing request bound as the catalog grows.
     for directory in ['trees','snapshots']:

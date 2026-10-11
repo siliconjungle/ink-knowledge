@@ -5,9 +5,9 @@ including arbitrary table constructors (not just ordered, unique host tables).
 """
 import json,os,subprocess,tempfile
 from pathlib import Path
-from action_replacement import var,call,cons,convert,trans
-from point_delta import normal,sub,replace,binary,choice,match,lift
-from cache_maintenance import leaves,variables
+from producers.action_replacement import var,call,cons,convert,trans
+from producers.point_delta import normal,sub,replace,binary,choice,match,lift
+from producers.cache_maintenance import leaves,variables
 
 def setup(model,cache,add,objects):
     original_add=add

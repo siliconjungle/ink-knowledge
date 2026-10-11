@@ -2,10 +2,10 @@
 
 External authoring only. No selector or runtime source evaluator is introduced.
 """
-from action_replacement import var,call,cons,convert,trans
-from point_delta import sub,choice
-from representations import match,refs
-from state_laws import derive
+from producers.action_replacement import var,call,cons,convert,trans
+from producers.point_delta import sub,choice
+from producers.representations import match,refs
+from producers.state_laws import derive
 from ink_knowledge import identity
 from ink_knowledge.store import entry
 

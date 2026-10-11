@@ -12,8 +12,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from ink_knowledge import Store, identity, canonical
 from ink_knowledge.store import entry, read
-from representations import MATH, MIG, refs, subst
-from action_replacement import call, convert, trans, var
+from producers.representations import MATH, MIG, refs, subst
+from producers.action_replacement import call, convert, trans, var
 
 
 def generate(before, after, directory, via_logical=False):

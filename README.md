@@ -232,3 +232,8 @@ definition unfolding. `ink-plan` runs these untrusted producers, records their s
 hashes, and places proposals in an immutable derived snapshot. The configured
 canonical snapshot stays intact. Every selected proposal and definition context is
 independently checked against the exact input module.
+
+See the distribution’s `docs/storage-bulk-incremental.md` for the checked chunk/index
+and Boolean maintenance producers, bulk collection laws, overlapping proof admission,
+optional search-hint cache and incremental discovery index. Optimisation evidence
+remains untrusted; source-bound proof replay and measured selection are separate.

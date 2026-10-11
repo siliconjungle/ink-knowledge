@@ -3,8 +3,8 @@
 Recognises fixed-key remove/replace histories; unsupported changes use refresh.
 The core knows no query/update pattern and rechecks all future-state obligations.
 """
-from action_replacement import var,call,cons,convert,trans
-from cache_maintenance import variables
+from producers.action_replacement import var,call,cons,convert,trans
+from producers.cache_maintenance import variables
 
 def choice(c,t,f):return {'If':dict(condition=c,on_true=t,on_false=f)}
 def binary(n,a,b):return {'Binary':dict(op=n,left=a,right=b)}
@@ -43,14 +43,14 @@ def replace(t,a,z):
     if isinstance(t,dict):return {k:replace(x,a,z) for k,x in t.items()}
     return t
 
-def normal(t,objects,depth=0):
+def normal(t,objects,depth=0,opaque=()):
     """Authoring computation only. Every proposed reduction is checked by Convert."""
     if depth>96:raise ValueError('point delta producer depth budget')
-    recur=lambda t:normal(t,objects,depth+1)
+    recur=lambda t:normal(t,objects,depth+1,opaque)
     if not isinstance(t,dict):return t
     if 'Call' in t:
         x=t['Call'];args=[recur(a) for a in x['arguments']];decl=objects[x['function']]['payload']['declaration']
-        if 'AbstractFunction' in decl:return call(x['function'],args)
+        if x['function'] in opaque or 'AbstractFunction' in decl:return call(x['function'],args)
         f=decl['Function']
         if f['recursive'] is not None and 'Construct' not in args[f['recursive']]:return call(x['function'],args)
         body=f['body']

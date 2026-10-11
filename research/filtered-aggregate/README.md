@@ -1,5 +1,7 @@
 # Filtered unsigned aggregate alternatives
 
+Current active requests were re-authored for executable-core V8 and universally checked; see `../representation-republication.json` and `producers/research_representations.py --compiler PATH --distribution INK_ROOT`. Historical snapshot counts and timings below describe their original publications and do not transfer to the refreshed requests.
+
 Frozen database requests for `examples/filtered-aggregate.ink`: direct source execution,
 query refresh, and individually maintained filtered u64 sum/count. The source syntax
 is unchanged; count is expressed as a sum of one per active row because stateful
