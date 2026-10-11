@@ -96,7 +96,8 @@ class Store:
         self._members=None
         self._explicit_snapshot=snapshot is not None
     @classmethod
-    def publish(cls, root, objects, names=None):
+    def publish(cls, root, objects, names=None, *, leaf_size=64):
+        if type(leaf_size) is not int or not 1<=leaf_size<=64:raise ValueError('snapshot leaf size')
         root=Path(root);data=root/'store';ids=[]
         for obj in objects:
             validate_entry(obj);i=identity(obj);immutable(data/'objects'/f'{i}.json',obj);ids.append(i)
@@ -104,8 +105,8 @@ class Store:
         for i in ids:
             if not set(read(data/'objects'/f'{i}.json')['dependencies']) <= known: raise ValueError('dependency absent from snapshot')
         nodes=[]
-        for at in range(0,max(1,len(ids)),64):
-            node=dict(schema=1,entries=ids[at:at+64]);i=identity(node);immutable(data/'trees'/f'{i}.json',node);nodes.append(i)
+        for at in range(0,max(1,len(ids)),leaf_size):
+            node=dict(schema=1,entries=ids[at:at+leaf_size]);i=identity(node);immutable(data/'trees'/f'{i}.json',node);nodes.append(i)
         while len(nodes)>1:
             next_nodes=[]
             for at in range(0,len(nodes),2):

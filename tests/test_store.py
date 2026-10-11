@@ -10,6 +10,24 @@ class StoreTests(unittest.TestCase):
         self.b=entry('theorem','test-v1',dict(body='b'),[identity(self.a)],conditions=[{'from':1,'to':1}])
         self.store=Store.publish(self.root,[self.a,self.b],{'a':identity(self.a)})
     def tearDown(self):self.temp.cleanup()
+    def test_compact_leaf_packing_keeps_exact_authenticated_pins(self):
+        objects=[entry('definition','test-v1',dict(body=i)) for i in range(71)]
+        for size in [1,2,8,64]:
+            store=Store.publish(self.root/str(size),objects,leaf_size=size)
+            expected={identity(x) for x in objects}
+            self.assertEqual(set(store.members()),expected)
+            self.assertTrue(all(len(w['entries'])<=size for w in store.members().values()))
+            store.rebuild();view=Store(store.root).bundle(sorted(expected))
+            self.assertEqual(set(view['objects']),expected)
+            for i,w in view['membership'].items():
+                node=identity(dict(schema=1,entries=w['entries']))
+                self.assertIn(i,w['entries'])
+                for step in w['path']:
+                    left,right=(step['sibling'],node) if step['left'] else (node,step['sibling'])
+                    node=identity(dict(schema=1,left=left,right=right))
+                self.assertEqual(node,view['snapshot']['root'])
+        for size in [0,65,True]:
+            with self.assertRaises(ValueError):Store.publish(self.root/'bad',objects,leaf_size=size)
     def test_canonical_identity_is_key_order_independent_and_rejects_floats(self):
         self.assertEqual(identity({'b':2,'a':1}),identity({'a':1,'b':2}))
         self.assertEqual(canonical({'a':True}),b'{"a":true}')
