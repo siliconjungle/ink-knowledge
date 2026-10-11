@@ -51,3 +51,9 @@ fn join<K,A,B>(left:List<Entry<K,A>>,right:List<Entry<K,B>>)->List<Joined<K,A,B>
     }}
     return output.freeze();
 }
+
+// Disjoint scoped owners are general execution machinery. This reusable
+// partition algorithm stays in knowledge and retains input order.
+fn partition_map<T>(xs:List<T>,at:u32,left:fn(T)->T,right:fn(T)->T)->List<T>{
+ return buffer(xs).split_at(at,fn(a)=>fn(b)=>a.map(left).append(b.map(right))).freeze();
+}
