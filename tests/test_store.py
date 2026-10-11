@@ -10,6 +10,15 @@ class StoreTests(unittest.TestCase):
         self.b=entry('theorem','test-v1',dict(body='b'),[identity(self.a)],conditions=[{'from':1,'to':1}])
         self.store=Store.publish(self.root,[self.a,self.b],{'a':identity(self.a)})
     def tearDown(self):self.temp.cleanup()
+    def test_candidate_packages_roundtrip_above_the_individual_proof_entry_limit(self):
+        with patch('ink_knowledge.store.MAX_ENTRY_BYTES',1024), patch('ink_knowledge.store.MAX_VIEW_BYTES',4096):
+            candidate=entry('implementation','ink-implementation-candidate-v1',dict(request={'package':'x'*1200}))
+            key=identity(candidate)
+            store=Store.publish(self.root/'large-candidate',[candidate],{'candidate':key})
+            self.assertEqual(Store(store.root).object(key),candidate)
+            with self.assertRaisesRegex(ValueError,'knowledge object byte limit'):
+                entry('definition','test-v1',dict(body='x'*1200))
+
     def test_compact_leaf_packing_keeps_exact_authenticated_pins(self):
         objects=[entry('definition','test-v1',dict(body=i)) for i in range(71)]
         for size in [1,2,8,64]:

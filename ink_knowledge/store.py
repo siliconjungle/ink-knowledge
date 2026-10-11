@@ -84,9 +84,9 @@ def immutable(path, value):
         with path.open('xb') as f: f.write(data)
 
 def read(path):
-    with path.open('rb') as f: raw=f.read(MAX_ENTRY_BYTES+2)
+    with path.open('rb') as f: raw=f.read(MAX_VIEW_BYTES+2)
     if raw.endswith(b'\n'):raw=raw[:-1]
-    if len(raw)>MAX_ENTRY_BYTES: raise ValueError('knowledge object byte limit')
+    if len(raw)>MAX_VIEW_BYTES: raise ValueError('knowledge object byte limit')
     value=json.loads(raw)
     canonical(value)
     return value
