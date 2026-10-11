@@ -8,6 +8,7 @@ from pathlib import Path
 
 MAX_VIEW_ENTRIES = 4096
 MAX_VIEW_BYTES = 64_000_000
+MAX_ENTRY_BYTES = 16_000_000
 SNAPSHOT = 'ink-knowledge-snapshot-v1'
 KINDS = {'definition', 'theorem', 'rewrite', 'implementation', 'representation', 'maintenance', 'bridge'}
 
@@ -73,7 +74,7 @@ def validate_entry(v):
     dependency_limit=512 if v['semantics']=='ink-source-representation-v1' else 128
     if not isinstance(v['dependencies'],list) or len(v['dependencies'])>dependency_limit or v['dependencies'] != sorted(set(v['dependencies'])): raise ValueError('dependencies must be unique and sorted')
     for i in v['dependencies']: hash_id(i)
-    canonical(v)
+    if len(canonical(v)) > (MAX_VIEW_BYTES if v['semantics']=='ink-implementation-candidate-v1' else MAX_ENTRY_BYTES): raise ValueError("knowledge object byte limit")
 
 def immutable(path, value):
     data=canonical(value)+b'\n';path.parent.mkdir(parents=True,exist_ok=True)
@@ -107,6 +108,28 @@ class Store:
         ids=sorted(set(ids)); known=set(ids)
         for i in ids:
             if not set(read(data/'objects'/f'{i}.json')['dependencies']) <= known: raise ValueError('dependency absent from snapshot')
+        return cls._publish_ids(root,ids,names,leaf_size)
+    def extend(self, objects, names=None):
+        """Append to a current publication without reopening old proof bodies.
+
+        Old content references retain their authenticated snapshot membership.
+        Objects still authenticate on retrieval and all proofs still replay on
+        admission. This operation never creates a checked executable context.
+        """
+        if self._explicit_snapshot:raise ValueError('extend requires current publication')
+        known=set(self.members());added=[]
+        for obj in objects:
+            validate_entry(obj);i=identity(obj)
+            immutable(self.data/'objects'/f'{i}.json',obj)
+            known.add(i);added.append(obj)
+        for obj in added:
+            if not set(obj['dependencies'])<=known:raise ValueError('dependency absent from snapshot')
+        if Store(self.root).snapshot_id!=self.snapshot_id:raise ValueError('publication changed during extension')
+        if names is None:names=read(self.data/'names.json')
+        return self._publish_ids(self.root,known,names,64)
+    @classmethod
+    def _publish_ids(cls, root, ids, names, leaf_size):
+        root=Path(root);data=root/'store';ids=sorted(set(ids))
         # Stable hash-prefix buckets prevent an insertion shifting every later
         # leaf. Topology grows only at powers of two; an oversized bucket splits
         # locally. Nodes and membership witnesses keep the existing contract.
@@ -209,17 +232,23 @@ class Store:
             proof_db=db
             if db is not None and not db.execute('SELECT 1 FROM snapshots WHERE id=?',(self.snapshot_id,)).fetchone():
                 self.members();proof_db=None
+            object_bytes=0
             def visit(i,depth):
+                nonlocal object_bytes
                 if i in objects:return
                 if depth>64 or i in active or len(objects)+len(active)>=MAX_VIEW_ENTRIES:raise ValueError('active dependency closure limit')
                 hash_id(i);active.add(i)
                 membership[i]=self._indexed_witness(i,proof_db,verified) if proof_db is not None else self.witness(i)
                 obj=self._read_object(i)
+                object_bytes+=len(canonical(obj))
+                if object_bytes>MAX_VIEW_BYTES:raise ValueError('active dependency byte limit')
                 for d in obj['dependencies']:visit(d,depth+1)
                 active.remove(i);objects[i]=obj
             for i in roots:visit(i,0)
-        return dict(schema=1,snapshot=self.snapshot,roots=roots,objects=dict(sorted(objects.items())),
+        result=dict(schema=1,snapshot=self.snapshot,roots=roots,objects=dict(sorted(objects.items())),
                     membership={i:membership[i] for i in sorted(objects)})
+        if len(canonical(result))>MAX_VIEW_BYTES:raise ValueError('active dependency byte limit')
+        return result
     def rebuild(self):
         target=self.root/'index.sqlite'; fd,tmp=tempfile.mkstemp(prefix='.ink-index-',dir=self.root);os.close(fd)
         try:

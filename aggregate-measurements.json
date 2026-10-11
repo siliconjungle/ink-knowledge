@@ -1,0 +1,32 @@
+{
+  "schema": 1,
+  "snapshot": "2f70175afa1ed0b13fe82f1aa98e716816aeb64a5c7e77f21463a5695c951c70",
+  "target": {
+    "hardware": "Apple M2 arm64",
+    "driver": "macOS 26.5.2 shared desktop",
+    "toolchain": "rustc 1.96.0 (ac68faa20 2026-05-25); release thin LTO, 1 codegen unit",
+    "backend": "rust",
+    "bridge": "standalone JSON reply, acknowledged outbox"
+  },
+  "candidates": {
+    "indexed-sum": {
+      "request_sha256": "26b3d8bbad3bc8885013bae6694050d9a66562e82ed1c71d287d30c05117d08e",
+      "measurement": "a1e54dace5bff48aaef303df9849da2280e1fdc4f363edab3c595e72d53176e9",
+      "representation": "6d20bb3acc8dc92fe3561fedb8db28a1fde4adf55301b5fa679245e266b005b0",
+      "source": "b79d2303fd0e80416ef884f1ebdfb57d7a27c1a1167786e7f6e0ce15e65f665e"
+    },
+    "indexed-count": {
+      "request_sha256": "9d0498c382418139e8f9b6142e7b25a6846a8056ee56f1cfed6adba79a330300",
+      "measurement": "2981544e1a378eca580fd94b0f8901ab26ee7bf89df5b01a01da92982b89ae00",
+      "representation": "bdc3ec10b2e5f4b65c791fbf5934e15751f6a608eb7dc6a49623691d286649ff",
+      "source": "b79d2303fd0e80416ef884f1ebdfb57d7a27c1a1167786e7f6e0ce15e65f665e"
+    }
+  },
+  "compiler_sha256": "d52a7c80ac2dc711811381cad5901f8c1ff19a24c5d0f4705277161303da1a65",
+  "candidate_ids": {
+    "ordinary-source": "a9308c17abccdc80f6f4682ef33e298462b1ea16ae42b4e78b6df908bc8ceb47",
+    "indexed-sum": "1ffc547ac751d8e95e1be771db3035a16cd8d6aecff01fcb864f3ba390533d63",
+    "indexed-count": "ef8d3c0c3340fd9709b6bd5d6412811629d54b07e6753ba3c8a03e7065397195"
+  },
+  "scope": "measured whole batches; exact query/read mix and row/call counts only; portable migration and unmeasured memory require independent evidence"
+}
