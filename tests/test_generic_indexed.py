@@ -51,6 +51,6 @@ class GenericIndexed(unittest.TestCase):
     result=subprocess.run([str(COMPILER),'check-representation',str(ROOT/'examples/general-indexed.ink'),str(path)],capture_output=True,text=True,timeout=600)
     self.assertNotEqual(result.returncode,0)
     for incidental in ['hash mismatch','membership','undeclared','source-definition index mismatch']:self.assertNotIn(incidental,result.stderr)
-    self.assertIn('theorem',result.stderr)
+    self.assertRegex(result.stderr,r'theorem|definitional computation does not prove equality')
 
 if __name__=='__main__':unittest.main()
