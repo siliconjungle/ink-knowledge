@@ -16,7 +16,7 @@ REP='ink-source-representation-v1'
 MIG='ink-representation-migration-v1'
 def refs(x):
     if isinstance(x,str):return {x} if len(x)==64 and all(c in '0123456789abcdef' for c in x) else set()
-    if isinstance(x,dict):return set().union(*(refs(v) for v in x.values())) if x else set()
+    if isinstance(x,dict):return set().union(*(refs(v) for k,v in x.items()if k not in ("certificate",))) if x else set()
     if isinstance(x,list):return set().union(*(refs(v) for v in x)) if x else set()
     return set()
 def match(x,branches):return {'Match':dict(scrutinee=x,branches=[dict(bindings=ns,body=t) for ns,t in branches])}
@@ -29,8 +29,8 @@ def unchanged_query(model,action):
             and args[1]=={'Bool':False} and args[2]==var('version')
             and args[3]==cons(model['state'],0,[var(n) for n in action['case']['bindings']])
             and args[4]==cons(model['events'],0,[]))
-def generate(model,directory,replacement=None,cache_query=None,retain_queries=True,preserve_cache=False,compact_queries=False,delta_query=False):
-    if delta_query and (not cache_query or not preserve_cache):raise ValueError("--delta-query requires --cache-query and --preserve-cache")
+def generate(model,directory,replacement=None,cache_query=None,retain_queries=True,preserve_cache=False,compact_queries=False,delta_query=False,aggregate_query=False):
+    if (delta_query or aggregate_query) and (not cache_query or not preserve_cache):raise ValueError("delta tactics require --cache-query and --preserve-cache")
     if preserve_cache and not cache_query:raise ValueError("--preserve-cache requires --cache-query")
     if compact_queries and not retain_queries:raise ValueError("--compact-queries conflicts with --rebuild-queries")
     objects=dict(model['objects']);L={'Data':model['state']}
@@ -42,8 +42,22 @@ def generate(model,directory,replacement=None,cache_query=None,retain_queries=Tr
     else:selected=model
     def add(decl,extra=()):
         payload={'declaration':decl};body=next(iter(decl.values()))
-        e=entry('theorem' if 'Theorem' in decl else 'definition',MATH,payload,refs(payload)|set(extra),parameters=dict(body.get('params',[])),result=body.get('result'))
+        e=entry('theorem' if 'Theorem' in decl else 'definition',MATH,payload,refs(payload)|set(extra),parameters=dict(body.get('params',[])),result=body.get('result'),conditions=body.get('conditions',[]))
         i=identity(e);objects[i]=e;return i
+    def factor_cases(proof,params,conditions=()):
+        # External lemma factoring keeps each independently checked proof bounded.
+        if 'BoolSplit' in proof:
+            x=proof['BoolSplit'];branches={}
+            for key,flag in [('on_false',False),('on_true',True)]:
+                premise={'from':x['condition'],'to':{'Bool':flag}}
+                branches[key]=factor_cases(x[key],params,(*conditions,premise))
+            body={'BoolSplit':{**x,**branches}}
+            theorem=add({'Theorem':dict(params=params,conditions=list(conditions),**{k:x[k]for k in ['from','to']},proof=body)},[i for i,obj in model['objects'].items()if 'Datatype'in obj['payload'].get('declaration',{})])
+            return {'Use':dict(theorem=theorem,arguments=[var(n)for n,_ in params],premises=[{'Hypothesis':i}for i in range(len(conditions))])}
+        if 'Trans'in proof:return {'Trans':[factor_cases(p,params,conditions)for p in proof['Trans']]}
+        if 'Sym'in proof:return {'Sym':factor_cases(proof['Sym'],params,conditions)}
+        if 'Substitute'in proof:return {'Substitute':{**proof['Substitute'],'equality':factor_cases(proof['Substitute']['equality'],params,conditions)}}
+        return proof
     def fun(params,result,body,extra=()):return add({'Function':dict(params=params,result=result,body=body,recursive=None)},extra)
     requests=[];plans=[];ids=[]
     # Two genuinely different tuple layouts, chosen entirely by this database
@@ -75,8 +89,9 @@ def generate(model,directory,replacement=None,cache_query=None,retain_queries=Tr
         eq={'Hypothesis':0}
         snapshot=trans(convert(call(decode,[var('physical')]),call(decode,[relation(var('physical'),var('logical'))[0]])),subst(eq,call(decode,[var('replacement')])),convert(call(decode,[relation(var('physical'),var('logical'))[1]]),lhs),{'Use':dict(theorem=roundtrip,arguments=[var('logical')],premises=[])})
         delta=None
-        if cache and delta_query:
-            from point_delta import setup
+        if cache and (delta_query or aggregate_query):
+            if aggregate_query: from aggregate_delta import setup
+            else: from point_delta import setup
             delta=setup(model,cache,add,objects)
         actions={}
         for name,a in model['actions'].items():
@@ -118,7 +133,7 @@ def generate(model,directory,replacement=None,cache_query=None,retain_queries=Tr
             elif retain or maintain:
                 retained=call(cache_value,[var('initial')]) if maintain else var('initial')
                 if use_delta:
-                    retained=match(var('initial'),[(pnames,cons(delta_pair,0,[var('cached_reply'),predicted]))])
+                    retained=match(var('initial'),[(pnames,cons(delta_pair,0,[var('cached_reply'),substitute_names(predicted,dict(zip(sa['case']['bindings'],names)))]))])
                 execute=fun(params,result,cons(pair,0,[retained,call(sa['function'],[call(decode,[var('initial')])]+args)]))
             else:
                 execute=fun(params,result,call(sa['function'],[call(decode,[var('initial')])]+args))
@@ -176,7 +191,7 @@ def generate(model,directory,replacement=None,cache_query=None,retain_queries=Tr
             if maintain:
                 bound=cons(model['state'],0,[var(n) for n in names])
                 normal=substitute_names(sa['case']['normal'],dict(zip(sa['case']['bindings'],names)))
-                delta_carried=cons(delta_pair,0,[call(cache_value,[call(encode,[bound])]),substitute_names(predicted,{'cached_reply':'delta_cache'})]) if use_delta else None
+                delta_carried=cons(delta_pair,0,[call(cache_value,[call(encode,[bound])]),substitute_names(predicted,{'cached_reply':'delta_cache',**dict(zip(sa['case']['bindings'],names))})]) if use_delta else None
                 if use_delta:
                     from point_delta import sub
                     delta_carried=sub(delta_carried,{'delta_cache':cache_body})
@@ -200,7 +215,7 @@ def generate(model,directory,replacement=None,cache_query=None,retain_queries=Tr
                 update_right=call(encode,[post(same)])
                 branch_proof=trans(
                     convert(call(nextf,[call(execute,[call(encode,[bound])]+args)]),before_update(normal)),
-                    cases(normal,before_update,after_update,leaf_proof=leaf_proof),
+                    factor_cases(cases(normal,before_update,after_update,leaf_proof=leaf_proof),[[n,t]for n,t in zip(names,fields)]+rest),
                     convert(after_update(normal),call(encode,[post(call(sa['function'],[bound]+args))])),
                 )
                 induction={'Induction':dict(variable='logical',**{'from':update_left,'to':update_right},
@@ -247,9 +262,9 @@ def substitute_names(x,mapping):
     if isinstance(x,str):return mapping.get(x,x)
     return x
 def main():
-    p=argparse.ArgumentParser(description=__doc__);p.add_argument('model',type=Path);p.add_argument('-o','--output',type=Path,required=True);p.add_argument('--replacement',type=Path);p.add_argument('--selected-model',type=Path);p.add_argument('--cache-query');p.add_argument('--preserve-cache',action='store_true',help='propose checked cache reuse on aborts and changes to unrelated tables');p.add_argument('--compact-queries',action='store_true',help='propose query transitions without carrying a second copy of table roots');p.add_argument('--delta-query',action='store_true',help='propose proved fixed-key remove/replace cache deltas, retaining refresh fallback');p.add_argument('--rebuild-queries',action='store_true',help='comparison candidate: refresh physical state even after ordinary queries')
+    p=argparse.ArgumentParser(description=__doc__);p.add_argument('model',type=Path);p.add_argument('-o','--output',type=Path,required=True);p.add_argument('--replacement',type=Path);p.add_argument('--selected-model',type=Path);p.add_argument('--cache-query');p.add_argument('--preserve-cache',action='store_true',help='propose checked cache reuse on aborts and changes to unrelated tables');p.add_argument('--compact-queries',action='store_true',help='propose query transitions without carrying a second copy of table roots');p.add_argument('--aggregate-query',action='store_true',help='propose universal word aggregate update proofs');p.add_argument('--delta-query',action='store_true',help='propose proved fixed-key remove/replace cache deltas, retaining refresh fallback');p.add_argument('--rebuild-queries',action='store_true',help='comparison candidate: refresh physical state even after ordinary queries')
     a=p.parse_args();a.output.parent.mkdir(parents=True,exist_ok=True)
     replacement=read(a.replacement) if a.replacement else None
     if replacement:replacement['selected_model']=read(a.selected_model)
-    result=generate(read(a.model),a.output.parent/'database',replacement,a.cache_query,not a.rebuild_queries,a.preserve_cache,a.compact_queries,a.delta_query);a.output.write_text(json.dumps(result,indent=2)+'\n')
+    result=generate(read(a.model),a.output.parent/'database',replacement,a.cache_query,not a.rebuild_queries,a.preserve_cache,a.compact_queries,a.delta_query,a.aggregate_query);a.output.write_text(json.dumps(result,indent=2)+'\n')
 if __name__=='__main__':main()

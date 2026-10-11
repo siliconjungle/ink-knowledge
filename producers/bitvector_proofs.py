@@ -25,23 +25,54 @@ def source(term):
     raise ValueError(kind)
 
 
+class HintBuilder:
+    """Untrusted watched-literal RUP search. Rust replays every returned hint."""
+    def __init__(self, clauses):
+        self.clauses=[];self.positions=[];self.watches={};self.units=[];self.empty=[]
+        for clause in clauses:self.add(clause)
+    def add(self, clause):
+        index=len(self.clauses);self.clauses.append(list(clause))
+        if not clause:self.empty.append(index);self.positions.append([]);return
+        if len(clause)==1:self.units.append(index);self.positions.append([0]);return
+        self.positions.append([0,1])
+        for lit in clause[:2]:self.watches.setdefault(lit,[]).append(index)
+    def hints(self, clause):
+        values={};queue=[];hints=[];reasons={}
+        def state(lit):return None if abs(lit)not in values else values[abs(lit)]==(lit>0)
+        def assign(lit,reason=None):values[abs(lit)]=lit>0;reasons[abs(lit)]=reason;queue.append(lit)
+        def finish(conflict):
+            needed={conflict};pending=[conflict]
+            while pending:
+                index=pending.pop()
+                for lit in self.clauses[index]:
+                    reason=reasons.get(abs(lit))
+                    if reason is not None and reason not in needed:
+                        needed.add(reason);pending.append(reason)
+            return [i for i in hints if i in needed]+[conflict]
+        for lit in clause:
+            if state(-lit)is False:return []
+            if state(-lit)is None:assign(-lit)
+        if self.empty:return [self.empty[0]]
+        for index in self.units:
+            lit=self.clauses[index][0]
+            if state(lit)is False:return finish(index)
+            if state(lit)is None:hints.append(index);assign(lit,index)
+        head=0
+        while head<len(queue):
+            false=-queue[head];head+=1;watched=self.watches.setdefault(false,[]);position=0
+            while position<len(watched):
+                index=watched[position];candidate=self.clauses[index];ps=self.positions[index]
+                slot=0 if candidate[ps[0]]==false else 1;other=candidate[ps[1-slot]]
+                if state(other)is True:position+=1;continue
+                replacement=next((i for i,lit in enumerate(candidate)if i not in ps and state(lit)is not False),None)
+                if replacement is not None:
+                    ps[slot]=replacement;watched[position]=watched[-1];watched.pop();self.watches.setdefault(candidate[replacement],[]).append(index);continue
+                if state(other)is False:return finish(index)
+                hints.append(index);assign(other,index);position+=1
+        raise ValueError('Solver step is not RUP; no unchecked RAT steps accepted')
+
 def hints_for(clause, clauses):
-    """Find a unit-propagation chain; it is checked independently in Rust."""
-    values = {}; hints = []
-    for lit in clause:
-        v, value = abs(lit), lit < 0
-        if v in values and values[v] != value: return []
-        values[v] = value
-    while True:
-        progress = False
-        for index, candidate in enumerate(clauses):
-            if any(abs(lit) in values and values[abs(lit)] == (lit > 0) for lit in candidate): continue
-            unknown = [lit for lit in candidate if abs(lit) not in values]
-            if len(unknown) > 1: continue
-            hints.append(index)
-            if not unknown: return hints
-            lit = unknown[0]; values[abs(lit)] = lit > 0; progress = True
-        if not progress: raise ValueError('Solver step is not RUP; no unchecked RAT steps accepted')
+    return HintBuilder(clauses).hints(clause)
 
 
 def certificate(problem, seconds=60, conflicts=100_000):
@@ -57,17 +88,26 @@ def certificate(problem, seconds=60, conflicts=100_000):
         if result is None: raise ValueError('Proof search exhausted its time or conflict budget')
         if result: raise ValueError('Proposed equality is false; solver found a counterexample')
         trace = solver.get_proof()
-    clauses = [list(c) for c in problem['clauses']]; steps = []
+    clauses = [list(c) for c in problem['clauses']]; steps = []; builder=HintBuilder(clauses)
     for line in trace:
         if line.startswith('d '): continue  # Retaining earlier proved clauses is sound.
         numbers = [int(n) for n in line.split()]
         if not numbers or numbers[-1] != 0: raise ValueError('Malformed solver proof')
         clause = sorted(set(numbers[:-1]))
-        hints = hints_for(clause, clauses)
-        steps.append(dict(clause=clause, hints=hints)); clauses.append(clause)
+        hints = builder.hints(clause)
+        steps.append(dict(clause=clause, hints=hints)); clauses.append(clause);builder.add(clause)
         if not clause: break
     if not steps or steps[-1]['clause']:
-        steps.append(dict(clause=[], hints=hints_for([], clauses)))
+        steps.append(dict(clause=[], hints=builder.hints([])))
+    # Keep the dependency closure of the final contradiction. Every retained
+    # clause still carries its complete RUP justification, with remapped ids.
+    original=len(problem['clauses']); needed={len(steps)-1}; pending=list(needed)
+    while pending:
+        for hint in steps[pending.pop()]['hints']:
+            if hint>=original and hint-original not in needed:
+                needed.add(hint-original);pending.append(hint-original)
+    order=sorted(needed);remap={old:original+i for i,old in enumerate(order)}
+    steps=[dict(clause=steps[i]['clause'],hints=[h if h<original else remap[h-original] for h in steps[i]['hints']])for i in order]
     return dict(problem_sha256=problem['sha256'], steps=steps)
 
 
