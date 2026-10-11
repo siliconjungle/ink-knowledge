@@ -1,0 +1,13 @@
+import unittest
+from producers.point_delta import sub,normal,free_variables
+class Hygiene(unittest.TestCase):
+ def test_substitution_respects_shadowing_and_cannot_capture(self):
+  term={'Match':{'scrutinee':{'Var':'input'},'branches':[{'bindings':['x'],'body':{'Binary':{'op':'+','left':{'Var':'x'},'right':{'Var':'outer'}}}}]}}
+  result=sub(term,{'x':{'U64':7},'outer':{'Var':'x'}})
+  self.assertEqual(free_variables(result),{'input','x'})
+  branch=result['Match']['branches'][0];self.assertNotEqual(branch['bindings'],['x']);self.assertEqual(branch['body']['Binary']['left'],{'Var':branch['bindings'][0]});self.assertEqual(branch['body']['Binary']['right'],{'Var':'x'})
+ def test_unused_match_names_have_an_idempotent_common_normal_form(self):
+  term=lambda name:{'Match':{'scrutinee':{'Var':'input'},'branches':[{'bindings':[name],'body':{'Bool':True}}]}}
+  a=normal(term('ignored_a'),{});b=normal(term('ignored_b'),{})
+  self.assertEqual(a,b);self.assertEqual(normal(a,{}),a)
+if __name__=='__main__':unittest.main()

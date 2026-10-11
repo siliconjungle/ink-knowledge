@@ -5,3 +5,7 @@ __pycache__/
 /.ink-index-*
 *.egg-info/
 /dist/
+
+/research/**/index.sqlite
+
+/research/composable-state/main-integration/*-authoring/

@@ -1,5 +1,7 @@
 # Checked keep execution across targets
 
+Current active requests were re-authored for executable-core V8 and universally checked; see `../representation-republication.json` and `producers/research_representations.py --compiler PATH --distribution INK_ROOT`. Historical snapshot counts and timings below describe their original publications and do not transfer to the refreshed requests.
+
 `app.ink` uses a fixed-key `Option<u64>` keep. The frozen request pair contains
 the ordinary physical layout and a maintained cache, plus a checked migration.
 All definitions, membership witnesses and universal equations are self-contained;
@@ -28,3 +30,7 @@ structural work-skipping evidence, not an end-to-end speedup or a proof of backe
 machine code. Variable-key puts may refresh. These fixtures supply no incremental Int
 aggregate candidate. Baseline JavaScript still recomputes keeps;
 the explicit checked representation host executes these maintained definitions.
+
+The frozen fixtures bind the current executable-core V8 identity. Regenerate both
+representation requests and the migration together after any source-semantics
+revision; editing request hashes alone does not rebind their universal proofs.

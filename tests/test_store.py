@@ -21,6 +21,24 @@ class StoreTests(unittest.TestCase):
         self.assertEqual(set(prior.bundle([identity(self.b)])['objects']),{identity(self.a),identity(self.b)})
         self.assertNotIn(identity(c),prior.query(kind='definition'))
 
+    def test_compact_leaf_packing_keeps_exact_authenticated_pins(self):
+        objects=[entry('definition','test-v1',dict(body=i)) for i in range(71)]
+        for size in [1,2,8,64]:
+            store=Store.publish(self.root/str(size),objects,leaf_size=size)
+            expected={identity(x) for x in objects}
+            self.assertEqual(set(store.members()),expected)
+            self.assertTrue(all(len(w['entries'])<=size for w in store.members().values()))
+            store.rebuild();view=Store(store.root).bundle(sorted(expected))
+            self.assertEqual(set(view['objects']),expected)
+            for i,w in view['membership'].items():
+                node=identity(dict(schema=1,entries=w['entries']))
+                self.assertIn(i,w['entries'])
+                for step in w['path']:
+                    left,right=(step['sibling'],node) if step['left'] else (node,step['sibling'])
+                    node=identity(dict(schema=1,left=left,right=right))
+                self.assertEqual(node,view['snapshot']['root'])
+        for size in [0,65,True]:
+            with self.assertRaises(ValueError):Store.publish(self.root/'bad',objects,leaf_size=size)
     def test_canonical_identity_is_key_order_independent_and_rejects_floats(self):
         self.assertEqual(identity({'b':2,'a':1}),identity({'a':1,'b':2}))
         self.assertEqual(canonical({'a':True}),b'{"a":true}')
@@ -98,8 +116,8 @@ class StoreTests(unittest.TestCase):
         # A failed read transaction must not retain a lock on the disposable index.
         with closing(sqlite3.connect(self.root/'index.sqlite',timeout=0)) as db,db:
             db.execute('DELETE FROM names')
-        leaves=[entry('definition','test-v1',dict(body=['leaf',i])) for i in range(1024)]
-        parents=[entry('definition','test-v1',dict(body=['parent',i]),[identity(x) for x in leaves[i:i+128]]) for i in range(0,1024,128)]
+        leaves=[entry('definition','test-v1',dict(body=['leaf',i])) for i in range(4096)]
+        parents=[entry('definition','test-v1',dict(body=['parent',i]),[identity(x) for x in leaves[i:i+128]]) for i in range(0,4096,128)]
         root=entry('definition','test-v1',dict(body='root'),[identity(x) for x in parents])
         store=Store.publish(self.root,[*leaves,*parents,root]);store.rebuild()
         with self.assertRaisesRegex(ValueError,'dependency closure limit'):

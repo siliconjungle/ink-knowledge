@@ -43,3 +43,11 @@ and price entry and recorded as a diagnostic dependency. This carries acquisitio
 limitations, poor heldout outcomes and environmental contention alongside prices;
 it cannot supply a theorem or application condition. Context source mutation is
 rejected. Frozen model JSON, predictions and evaluation remain unchanged.
+
+`indexed_aggregate.py` authors ordered range-indexed sequence trees with cached
+filtered u64 sum/count, checked rotations and full-action representation proofs.
+`--publish-root` requires an exact source replay before catalog publication and
+retains a compact immutable view pin. `state_laws.py` publishes parametric field
+frame/dependency laws and grouped edits preserving intermediate and final rows.
+`representation_bridge.py --via-logical` uses each target relation's checked
+initialisation theorem, supporting multi-relation decode/encode migrations.

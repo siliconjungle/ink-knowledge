@@ -3,7 +3,7 @@
 The source projection and the core checker, not this analysis, establish meaning.
 No metadata is used as a proof premise.
 """
-from action_replacement import var, convert, trans
+from producers.action_replacement import var, convert, trans
 
 
 def variables(term):
