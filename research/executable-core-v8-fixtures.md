@@ -1,17 +1,7 @@
-# Replaying representation request identities
+# Current executable-core fixture replay
 
-A revision of executable-core semantics can change the complete module identity
-while leaving an application's projected mathematical definitions unchanged.
-The remaining whole-state request envelope in cache-maintenance now binds the
-executable-core V8 identity after the following complete checks.
+Ordinary action blocks retain their original executable scope and return structure. The surface continuation pass applies to mutable assignments; unchanged legacy programs retain their original source and typed-action identities. Their old frozen evidence remains subject to complete source and universal-equation checking.
 
-Before proposing the envelope, emit the current action model and require an
-identical source-definition index and byte-for-byte identical canonical projected
-definitions. Then run the independent compiler's complete `check-representation`
-admission. This request's mathematical objects, representation ID, snapshot pin
-and membership witnesses are unchanged. Changed projected definitions require
-new proof authoring instead; a hash edit alone supplies no authority.
+`representation-republication.json` records the current compiler bytes and authenticated publication for 21 freshly authored representation packages and 13 checked migration bridges. `producers/research_representations.py --compiler PATH --distribution INK_ROOT` re-authors these examples through external producers and the ordinary checker. The historical whole-state experiment also passes current universal checking with its original binding.
 
-Replay associated migrations against both current source-bound endpoints with
-`check-migration`. The other historical fixtures use the current main branch's
-fully re-authored requests, canonical objects and witnesses.
+Immutable objects, prior snapshots and measurement records remain preserved. Current requests do not inherit historical compiler/target timing evidence. No algorithm selector or implementation-name recognition is added to the compiler.
