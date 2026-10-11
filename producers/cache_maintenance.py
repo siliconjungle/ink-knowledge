@@ -58,7 +58,7 @@ def cases(normal, left, right, hypotheses=0, leaf_proof=None, leaf_facts=None, f
     """
     if 'If' not in normal:
         if leaf_facts:return leaf_facts(normal,facts)
-        return leaf_proof(normal) if leaf_proof else convert(left(normal), right(normal))
+        return leaf_proof(normal, facts) if leaf_proof else convert(left(normal), right(normal))
     decision = normal['If']
     hole = {'If': {**decision, 'condition': var('replacement')}}
     proof = {'Hypothesis': hypotheses}

@@ -307,7 +307,8 @@ def generate(model,directory,replacement=None,cache_query=None,retain_queries=Tr
                         rhs_cache=sub(cache['case']['normal']['Construct']['arguments'][0],dict(zip(cache['case']['bindings'],roots)))
                         aphys=cons(Pid,0,[roots[i] for i in order]+[cached]);zphys=cons(Pid,0,[roots[i] for i in order]+[rhs_cache])
                         bodyproof={'Construct':dict(datatype=Pid,constructor=0,arguments=[{'Refl':roots[i]} for i in order]+[{'Sym':cache_eq}])}
-                        start=delta['start'](before_update(obs),aphys,facts)if 'start'in delta else convert(before_update(obs),aphys)
+                        from point_delta import equality as branch_equality,normal as branch_normal
+                        start=delta['start'](before_update(obs),aphys,facts)if 'start'in delta else (convert(before_update(obs),aphys)if branch_normal(before_update(obs),objects)==branch_normal(aphys,objects)else branch_equality(before_update(obs),aphys,objects,facts=facts))
                         return trans(start,bodyproof,convert(zphys,after_update(obs)))
                 after_update=lambda obs:call(encode,[post(obs)])
                 update_left=call(nextf,[call(execute,[call(encode,[var('logical')])]+args)])

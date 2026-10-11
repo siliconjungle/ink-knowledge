@@ -1,0 +1,1 @@
+{"schema":1,"scope":"unmeasured structural search hypothesis; units are relative scores","operation_costs":{"estimate:loop_iterations":1,"estimate:scalar":1,"estimate:collection":40,"estimate:repeat_iterations":16,"estimate:repeat_step":2,"method:at_or":1,"call:count":1,"nat.word":0,"apply":0}}

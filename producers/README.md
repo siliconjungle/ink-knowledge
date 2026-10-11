@@ -36,3 +36,10 @@ the observation index retains its existing rounded integer timing format and
 unknown peak memory. The publisher must retain ordinary snapshot-bound candidate
 checking. Full contract and offline acquisition exclusions are documented in
 `planner/docs-physical-features.md` in the distribution checkout.
+
+Physical import optionally accepts `--context CONTEXT.json`. The general bound
+publication context is embedded, with its exact content hash, in every measurement
+and price entry and recorded as a diagnostic dependency. This carries acquisition
+limitations, poor heldout outcomes and environmental contention alongside prices;
+it cannot supply a theorem or application condition. Context source mutation is
+rejected. Frozen model JSON, predictions and evaluation remain unchanged.
