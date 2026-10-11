@@ -10,6 +10,7 @@ class Candidates(unittest.TestCase):
             dependency = entry('definition','test-data',{'value':3})
             dependency_id = identity(dependency)
             existing = Store.publish(root,[dependency],{'existing':dependency_id})
+            existing.rebuild()
             package = identity_selection('1'*64)
             package['knowledge'] = existing.bundle([dependency_id])
             store, ids = publish_candidates(root,[package])
