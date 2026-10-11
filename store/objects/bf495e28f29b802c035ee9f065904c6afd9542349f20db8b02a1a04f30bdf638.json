@@ -1,0 +1,1 @@
+{"dependencies":["fcc6bad03b0255cc7ec71401412072ec8e3ca4b9b50def6b57eb923d7cace929"],"interface":{"conditions":[],"effects":[],"operations":[],"parameters":{},"result":null},"kind":"definition","payload":{"declaration":{"Datatype":{"constructors":[{"fields":[],"name":"Nil"},{"fields":["U64","SelfType"],"name":"Cons"}]}}},"schema":1,"semantics":"first-order-inductive-equality-v1"}

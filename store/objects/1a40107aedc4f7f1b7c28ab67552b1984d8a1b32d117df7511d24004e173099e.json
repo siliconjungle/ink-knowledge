@@ -1,0 +1,1 @@
+{"dependencies":[],"interface":{"conditions":[],"effects":[],"operations":[],"parameters":{"summary_value":"U64"},"result":"U64"},"kind":"definition","payload":{"declaration":{"Function":{"body":{"U64":0},"params":[["summary_value","U64"]],"recursive":null,"result":"U64"}}},"schema":1,"semantics":"first-order-inductive-equality-v1"}

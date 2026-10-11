@@ -237,3 +237,21 @@ See the distribution’s `docs/storage-bulk-incremental.md` for the checked chun
 and Boolean maintenance producers, bulk collection laws, overlapping proof admission,
 optional search-hint cache and incremental discovery index. Optimisation evidence
 remains untrusted; source-bound proof replay and measured selection are separate.
+
+## Typed indexed and grouped producers
+
+`producers.generic_indexed` derives indexed root products from checked row
+constructors and complete action projections. `generic_aggregates` proves typed
+U64/Boolean query decompositions without a field-name whitelist; other queries
+keep exact evaluation. `grouped_indexed` supplies shared traversals and ordinary
+logical/metadata laws for ordered replace/remove pairs. `type_transport` derives
+state-carrier codecs and their round trips. Whole-action proofs preserve replies,
+errors, events, versions, rollback and future behavior across multiple tables.
+The distribution's `docs/general-indexed-batching.md` states the current source
+correspondence limits and gives conformance/selection reproduction.
+
+Proof views allow 4096 objects and 64 MB. The source-representation protocol may
+list 512 direct dependencies; other entries retain the 128 dependency bound.
+Scalar proof templates in `producers/data/word-ring.json.gz` are ordinary checked
+certificates, so cold proposal generation does not require a SAT installation.
+Stored names, templates and proposal discovery never grant proof authority.

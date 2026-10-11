@@ -20,9 +20,9 @@ def replace(t,a,z):
     if isinstance(t,list):return [replace(v,a,z) for v in t]
     return t
 
-def derive(a,z,objects,hypotheses=(),budget=64,leaf=None,rules=()):
+def derive(a,z,objects,hypotheses=(),budget=64,leaf=None,rules=(),opaque=()):
     if budget<=0:raise ValueError('proof authoring budget')
-    n=lambda x:normal(x,objects)
+    n=lambda x:normal(x,objects,opaque=opaque)
     aa,zz=n(a),n(z)
     if aa==zz:return convert(a,z)
     for i,(x,y) in enumerate(hypotheses):
@@ -31,15 +31,15 @@ def derive(a,z,objects,hypotheses=(),budget=64,leaf=None,rules=()):
         if changed!=aa:
             p={'Substitute':dict(variable='hole',context=changed,equality={'Hypothesis':i})}
             next=replace(aa,x,y)
-            return trans(convert(a,aa),p,derive(next,z,objects,hypotheses,budget-1,leaf,rules))
+            return trans(convert(a,aa),p,derive(next,z,objects,hypotheses,budget-1,leaf,rules,opaque))
     for x,y,p in rules:
         x,y=n(x),n(y)
         for current,on_left in [(aa,True),(zz,False)]:
             updated=replace(current,x,y)
             if updated!=current:
                 lifted={'Substitute':dict(variable='rule_hole',context=replace(current,x,var('rule_hole')),equality=p)}
-                if on_left:return trans(convert(a,aa),lifted,derive(updated,z,objects,hypotheses,budget-1,leaf,rules))
-                return trans(derive(a,updated,objects,hypotheses,budget-1,leaf,rules),{'Sym':lifted},convert(zz,z))
+                if on_left:return trans(convert(a,aa),lifted,derive(updated,z,objects,hypotheses,budget-1,leaf,rules,opaque))
+                return trans(derive(a,updated,objects,hypotheses,budget-1,leaf,rules,opaque),{'Sym':lifted},convert(zz,z))
     def condition(t):
         if isinstance(t,dict):
             if 'If'in t:return t['If']['condition']
@@ -62,7 +62,7 @@ def derive(a,z,objects,hypotheses=(),budget=64,leaf=None,rules=()):
         first={'Substitute':dict(variable='decision',context=left,equality={'Hypothesis':len(hypotheses)})}
         last={'Sym':{'Substitute':dict(variable='decision',context=right,equality={'Hypothesis':len(hypotheses)})}}
         chosen_a=replace(aa,guard,{'Bool':b});chosen_z=replace(zz,guard,{'Bool':b})
-        branches[key]=trans(convert(a,aa),first,derive(chosen_a,chosen_z,objects,(*hypotheses,fact),budget-1,leaf,rules),last,convert(zz,z))
+        branches[key]=trans(convert(a,aa),first,derive(chosen_a,chosen_z,objects,(*hypotheses,fact),budget-1,leaf,rules,opaque),last,convert(zz,z))
     return {'BoolSplit':dict(condition=guard,**{'from':a,'to':z},**branches)}
 
 def library():
