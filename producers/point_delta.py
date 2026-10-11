@@ -43,6 +43,12 @@ def replace(t,a,z):
     if isinstance(t,dict):return {k:replace(x,a,z) for k,x in t.items()}
     return t
 
+def binding_names(t):
+    if isinstance(t,list):return set().union(*(binding_names(x)for x in t))if t else set()
+    if not isinstance(t,dict):return set()
+    here=set().union(*(set(b['bindings'])for b in t['Match']['branches']))if 'Match'in t else set()
+    return here|set().union(*(binding_names(x)for x in t.values()))if t else here
+
 def normal(t,objects,depth=0,opaque=(),*,blocked=(),eager=()):
     """Authoring computation only. Every proposed reduction is checked by Convert."""
     if depth>96:raise ValueError('point delta producer depth budget')
@@ -74,7 +80,7 @@ def normal(t,objects,depth=0,opaque=(),*,blocked=(),eager=()):
             c=scrutinee['Construct'];b=x['branches'][c['constructor']];return recur(sub(b['body'],dict(zip(b['bindings'],c['arguments']))))
         branches=[]
         for b in x['branches']:
-            bindings=list(b['bindings']);used=free_variables(b['body']);occupied=set(used)
+            bindings=list(b['bindings']);used=free_variables(b['body']);occupied=variables(b['body'])|binding_names(b['body'])
             for i,name in enumerate(bindings):
                 if name in used:continue
                 serial=0
