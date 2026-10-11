@@ -30,3 +30,7 @@ structural work-skipping evidence, not an end-to-end speedup or a proof of backe
 machine code. Variable-key puts may refresh. These fixtures supply no incremental Int
 aggregate candidate. Baseline JavaScript still recomputes keeps;
 the explicit checked representation host executes these maintained definitions.
+
+The frozen fixtures bind the current executable-core V8 identity. Regenerate both
+representation requests and the migration together after any source-semantics
+revision; editing request hashes alone does not rebind their universal proofs.
