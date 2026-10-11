@@ -174,7 +174,7 @@ def definitions(model):
             else:ps.append((ns,derive(aa,zz,objects,leaf=arithmetic)))
         induction(label+'_repair_matches_rows',[['tree',T]],a,z,ps)
     # Scalar implications are ordinary bounded SAT/RUP theorems, not index rules.
-    from bitvector_proofs import certificate
+    from producers.bitvector_proofs import certificate
     def scalar(name,params,a,z,conditions=()):
         goal=dict(params=params,conditions=list(conditions),**{'from':a,'to':z});key=hashlib.sha256(canonical(goal)).hexdigest();cache=Path(__file__).resolve().parents[1]/'build/index-word-laws';cache.mkdir(parents=True,exist_ok=True);cached=cache/(key+'.json')
         if cached.exists():proof=json.loads(cached.read_text())

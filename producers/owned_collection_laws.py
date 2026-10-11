@@ -4,7 +4,7 @@ import argparse,json,sys
 from pathlib import Path
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 from ink_knowledge import Store,canonical,identity,semantic_entry
-from semantic_laws import value,arrow,term,var,bound,lam,word,op,law
+from producers.semantic_laws import value,arrow,term,var,bound,lam,word,op,law
 
 def examples():
     result={};boolean=value('Bool');true=term(boolean,{'Bool':True})

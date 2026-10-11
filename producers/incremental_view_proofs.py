@@ -23,9 +23,13 @@ definitions to the program, as the exact-maintenance bridge does for sums.
 """
 import argparse, hashlib, json, shutil, subprocess
 from pathlib import Path
-from inductive_proofs import SEMANTICS, var, call, construct, refl
-from integer_proofs import match, induction, congruence, use, sym, trans
-from workspace import KNOWLEDGE_ROOT, compiler_path
+if __package__ in (None, ""):
+    import sys
+    from pathlib import Path
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from producers.inductive_proofs import SEMANTICS, var, call, construct, refl
+from producers.integer_proofs import match, induction, congruence, use, sym, trans
+from producers.workspace import KNOWLEDGE_ROOT, compiler_path
 
 
 def main():

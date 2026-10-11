@@ -2,9 +2,13 @@
 """Untrusted producer of saved/apply/restore expressions and their exact proofs."""
 import argparse, hashlib, json, subprocess
 from pathlib import Path
-from integer_proofs import congruence, use, sym, trans
-from inductive_proofs import var, call, construct, refl
-from workspace import CORE_ROOT as ROOT, KNOWLEDGE_ROOT, compiler_path
+if __package__ in (None, ""):
+    import sys
+    from pathlib import Path
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from producers.integer_proofs import congruence, use, sym, trans
+from producers.inductive_proofs import var, call, construct, refl
+from producers.workspace import CORE_ROOT as ROOT, KNOWLEDGE_ROOT, compiler_path
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('directory',type=Path)

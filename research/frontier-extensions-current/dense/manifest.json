@@ -1,0 +1,19 @@
+{
+  "schema": 1,
+  "case": "dense",
+  "source_sha256": "b09aa4ef2983ec7e3e3822a38a3f8d69652557f385450e7f7a24cd2843610448",
+  "source_identity": "0a00a7f05f066348ce50108a3038b8cd3c7188d614361199893b6fa07bb1e309",
+  "representations": [
+    "5f2cb17c0cc749233cf48deacfa384edeee3210652390e1e4ab009d29f44c2b5",
+    "85cf3c87005c1e673a8e62483f53adc899d167ed989e5e322e02cb949f77a2b1"
+  ],
+  "files": {
+    "model.json": "8e47393fc349c8080eb2021f6a4ffc709ada6154df3ab311813725a070474182",
+    "0.json": "50833e6c94907ef7d4b01e244ecf8197cbfc0582a4761b25e023d52e3aa34630",
+    "1.json": "fbae7d60fb6a5f607f08cc5440e9d1ce19306693598a046003afa0221d719718",
+    "forward.json": "e9155f796e895747c3424642e790bf7d8d55deb2770d2f49ebba10b0598288f5",
+    "reverse.json": "2a836dad13e5b7e4d9ec1032e4d66786b16010b27fc36ac00b7a625471d2546b"
+  },
+  "compression": "gzip, mtime zero; hashes bind decompressed exact bytes",
+  "scope": "Every archived request and both migration directions were checked. Archive identities establish integrity only; replay must run the existing checker."
+}

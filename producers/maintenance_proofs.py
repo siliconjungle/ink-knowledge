@@ -6,10 +6,14 @@ three proposed update expressions. No built-in polynomial authority is used.
 """
 import argparse, json, subprocess
 from pathlib import Path
-from integer_proofs import use, trans
-from inductive_proofs import call, construct, var
+if __package__ in (None, ""):
+    import sys
+    from pathlib import Path
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from producers.integer_proofs import use, trans
+from producers.inductive_proofs import call, construct, var
 
-from workspace import CORE_ROOT as ROOT, KNOWLEDGE_ROOT, compiler_path
+from producers.workspace import CORE_ROOT as ROOT, KNOWLEDGE_ROOT, compiler_path
 ROLES = ('Natural', 'Integer', 'successor', 'predecessor', 'negation',
          'repeat_successor', 'repeat_predecessor', 'addition', 'subtraction',
          'IntegerList', 'sum_integers', 'append')

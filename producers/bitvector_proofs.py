@@ -10,6 +10,10 @@ import subprocess
 import time
 import threading
 from pathlib import Path
+if __package__ in (None, ""):
+    import sys
+    from pathlib import Path
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from producers.inductive_proofs import SEMANTICS, var, binary
 
 from producers.workspace import CORE_ROOT as ROOT, KNOWLEDGE_ROOT, compiler_path
@@ -148,7 +152,7 @@ def main():
         known = {e[0] for e in examples}
         if set(args.case) - known: parser.error('unknown example name')
         examples = [e for e in examples if e[0] in args.case]
-    from collection_proofs import render
+    from producers.collection_proofs import render
     for name, params, left, right in examples:
         conditions = [dict(**{'from':x,'to':y})] if name == 'given_equal' else []
         goal = dict(params=params,conditions=conditions,**{'from':left,'to':right})

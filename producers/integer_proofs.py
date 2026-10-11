@@ -7,9 +7,13 @@ This is a mathematical model; source/transaction correspondence is separate.
 """
 import argparse, hashlib, json, subprocess
 from pathlib import Path
-from inductive_proofs import SEMANTICS, var, call, construct, refl
+if __package__ in (None, ""):
+    import sys
+    from pathlib import Path
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from producers.inductive_proofs import SEMANTICS, var, call, construct, refl
 
-from workspace import CORE_ROOT as ROOT, KNOWLEDGE_ROOT, compiler_path
+from producers.workspace import CORE_ROOT as ROOT, KNOWLEDGE_ROOT, compiler_path
 def match(term,*branches):return {'Match':dict(scrutinee=term,branches=[dict(bindings=names,body=body) for names,body in branches])}
 def induction(variable,left,right,*cases):return {'Induction':dict(variable=variable,**{'from':left,'to':right},cases=[dict(bindings=names,proof=proof) for names,proof in cases])}
 def congruence(function,*proofs):return {'Call':dict(function=function,arguments=list(proofs))}

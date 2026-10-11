@@ -2,6 +2,10 @@
 from pathlib import Path
 import json
 from ink_knowledge import Store, canonical, semantic_entry, identity
+if __package__ in (None, ""):
+    import sys
+    from pathlib import Path
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from producers.semantic_laws import value,arrow,term,var,bound,lam,op,law
 
 

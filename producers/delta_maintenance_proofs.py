@@ -2,10 +2,14 @@
 """Extend exact maintenance with a checked delta-first candidate, without a core change."""
 import argparse, hashlib, json, subprocess
 from pathlib import Path
-from integer_proofs import induction, congruence, use, sym, trans
-from inductive_proofs import var, call, construct, refl
+if __package__ in (None, ""):
+    import sys
+    from pathlib import Path
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from producers.integer_proofs import induction, congruence, use, sym, trans
+from producers.inductive_proofs import var, call, construct, refl
 
-from workspace import CORE_ROOT as ROOT, KNOWLEDGE_ROOT, compiler_path
+from producers.workspace import CORE_ROOT as ROOT, KNOWLEDGE_ROOT, compiler_path
 def main():
     parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('directory',type=Path)
     parser.add_argument('--compiler',type=Path,default=compiler_path('target/release/ink'));args=parser.parse_args()

@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
 """Checked-data candidates for arbitrary idempotent callback iteration."""
+if __package__ in (None, ""):
+    import sys
+    from pathlib import Path
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from producers.semantic_laws import arrow,bound,lam,law,op,value,var
 from ink_knowledge import Store,canonical,identity,semantic_entry
 

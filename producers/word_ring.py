@@ -5,9 +5,9 @@ using general associativity, commutativity, additive inverses and ground values.
 """
 import hashlib,json,subprocess,tempfile
 from pathlib import Path
-from action_replacement import var,convert,trans
-from point_delta import binary
-from bitvector_proofs import certificate
+from producers.action_replacement import var,convert,trans
+from producers.point_delta import binary
+from producers.bitvector_proofs import certificate
 
 def free(t):
  if 'Var'in t:return {t['Var']}

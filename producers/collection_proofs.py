@@ -2,7 +2,11 @@
 """Untrusted collection proposal producer. The compiler independently models/checks every definition and equality."""
 import argparse, hashlib, json
 from pathlib import Path
-from inductive_proofs import var, call, construct, binary, refl, SEMANTICS
+if __package__ in (None, ""):
+    import sys
+    from pathlib import Path
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from producers.inductive_proofs import var, call, construct, binary, refl, SEMANTICS
 
 def num(n): return {'Num': n}
 def source_var(n): return {'Var': n}

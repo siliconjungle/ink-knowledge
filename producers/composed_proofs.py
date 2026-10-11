@@ -4,7 +4,11 @@ import argparse
 import hashlib
 import json
 from pathlib import Path
-from boolean_proofs import SEMANTICS, prove
+if __package__ in (None, ""):
+    import sys
+    from pathlib import Path
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from producers.boolean_proofs import SEMANTICS, prove
 
 def var(name): return {'Var':name}
 def binary(op,a,b): return {'Binary':[op,a,b]}

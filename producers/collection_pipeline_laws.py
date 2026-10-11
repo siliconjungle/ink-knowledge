@@ -6,7 +6,7 @@ import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from ink_knowledge import Store, canonical, identity, semantic_entry
-from semantic_laws import value, arrow, term, var, word, op, lam, bound, law
+from producers.semantic_laws import value, arrow, term, var, word, op, lam, bound, law
 
 TYPES = ('U32', 'U64', 'I32', 'F32', 'Bool')
 
