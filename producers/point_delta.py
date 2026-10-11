@@ -23,6 +23,14 @@ def replace(t,a,z):
     if isinstance(t,dict):return {k:replace(x,a,z) for k,x in t.items()}
     return t
 
+def free_variables(t):
+    if isinstance(t,list):return set().union(*(free_variables(x)for x in t)) if t else set()
+    if not isinstance(t,dict):return set()
+    if set(t)=={'Var'}:return {t['Var']}
+    if 'Match'in t:
+        x=t['Match'];return free_variables(x['scrutinee'])|set().union(*(free_variables(b['body'])-set(b['bindings'])for b in x['branches']))
+    return set().union(*(free_variables(x)for x in t.values())) if t else set()
+
 def normal(t,objects,depth=0):
     """Authoring computation only. Every proposed reduction is checked by Convert."""
     if depth>96:raise ValueError('point delta producer depth budget')
@@ -58,17 +66,17 @@ def normal(t,objects,depth=0):
     return t
 
 def lift(eq,context):return {'Substitute':dict(variable='delta_hole',context=context,equality=eq)}
-def equality(a,z,objects,hyp=None,facts=()):
+def equality(a,z,objects,hyp=None,facts=(),rewrite=replace):
     def simplify(t):
         current=normal(t,objects);proof=convert(t,current)
         for _ in range(16):
             changed=False
             for left,right,index in facts:
-                rewritten=replace(current,left,right)
+                rewritten=rewrite(current,left,right)
                 if rewritten!=current:
-                    context=replace(current,left,var('delta_hole'))
+                    context=rewrite(current,left,var('delta_hole'))
                     following=normal(rewritten,objects)
-                    proof=trans(proof,lift({'Hypothesis':index},context),convert(rewritten,following))
+                    proof=trans(proof,lift(index if isinstance(index,dict) else {'Hypothesis':index},context),convert(rewritten,following))
                     current=following;changed=True
             if not changed:return current,proof
         raise ValueError('point delta tactic rewrite budget')
@@ -76,13 +84,16 @@ def equality(a,z,objects,hyp=None,facts=()):
     if na==nz:return trans(pa,convert(na,nz),{'Sym':pz})
     if hyp:
         ha,hz,index=hyp;ha,hz=normal(ha,objects),normal(hz,objects)
-        context=replace(na,ha,var('delta_hole'));rewritten=replace(na,ha,hz)
-        if normal(rewritten,objects)==nz:return trans(pa,lift({'Hypothesis':index},context),convert(rewritten,nz),{'Sym':pz})
+        context=rewrite(na,ha,var('delta_hole'));rewritten=rewrite(na,ha,hz)
+        if normal(rewritten,objects)==nz:return trans(pa,lift(index if isinstance(index,dict) else {'Hypothesis':index},context),convert(rewritten,nz),{'Sym':pz})
     raise ValueError('point delta proof tactic cannot establish this equation: '+str((na,nz)))
 
 def setup(model,cache,add,objects):
     reply=cache['case']['normal']['Construct']['arguments'][0]
-    if 'Call' not in reply:raise ValueError('--delta-query needs a fixed-key get query')
+    if 'Match' in reply:
+        from point_delta_mapped import setup as mapped_setup
+        return mapped_setup(model,cache,add,objects,False)
+    if 'Call' not in reply:raise ValueError('--delta-query needs a fixed-key get or mapped get query')
     f=reply['Call'];tables=[t for t in model['tables'] if t['get']==f['function']]
     if len(tables)!=1 or len(f['arguments'])!=2 or 'U64' not in f['arguments'][1]:raise ValueError('--delta-query needs a fixed-u64-key table get')
     table=tables[0];root=f['arguments'][0];q=f['arguments'][1]
@@ -121,7 +132,7 @@ def setup(model,cache,add,objects):
         if not roots or any(r!=roots[0] for r in roots):return None
         try:predicted=recipe(roots[0],var('cached_reply'),sa['case']['bindings'])
         except (ValueError,KeyError):return None
-        if variables(predicted)-{'cached_reply',*[n for n,_ in sa['params'][2:]]}:return None
+        if free_variables(predicted)-{'cached_reply',*[n for n,_ in sa['params'][2:]]}:return None
         return predicted
     def query_equality(root,bindings):
         """get(updated roots) = candidate cache; exact universal update laws."""
@@ -131,4 +142,4 @@ def setup(model,cache,add,objects):
         if name=='remove':return use
         context=match(var('delta_hole'),[([],none),(['delta_old'],some(args[2]))])
         return trans(use,lift(query_equality(args[0],bindings),context))
-    return dict(action=action,recipe=recipe,equality=query_equality,index=index,get=get,q=q,option=option)
+    return dict(action=action,recipe=recipe,equality=query_equality,index=index,get=get,q=q,option=option,updates=updates,table=table,some=some)
