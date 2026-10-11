@@ -1,0 +1,12 @@
+{
+  "schema": 1,
+  "source": "b79d2303fd0e80416ef884f1ebdfb57d7a27c1a1167786e7f6e0ce15e65f665e",
+  "previous_snapshot": "de5d0dd524871ef7fe9157a6bd64b5c913eb7cf3e7cb96399e27064ce852d0b8",
+  "snapshot": "2f70175afa1ed0b13fe82f1aa98e716816aeb64a5c7e77f21463a5695c951c70",
+  "candidates": {
+    "ordinary-source": "a9308c17abccdc80f6f4682ef33e298462b1ea16ae42b4e78b6df908bc8ceb47",
+    "indexed-sum": "1ffc547ac751d8e95e1be771db3035a16cd8d6aecff01fcb864f3ba390533d63",
+    "indexed-count": "ef8d3c0c3340fd9709b6bd5d6412811629d54b07e6753ba3c8a03e7065397195"
+  },
+  "scope": "shared content-addressed proof closures; every selected package requires ordinary complete checker replay"
+}

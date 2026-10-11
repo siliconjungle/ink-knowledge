@@ -4,6 +4,7 @@ The package's existing proof protocol determines how it is checked. Names and
 membership do not establish equality, applicability, or profitability.
 """
 from pathlib import Path
+from copy import deepcopy
 from .store import Store, entry, identity, hash_id, read
 
 SEMANTICS = 'ink-implementation-candidate-v1'
@@ -17,17 +18,22 @@ def identity_selection(source):
                               root=identity(dict(schema=1, entries=[]))),
                 roots=[], objects={}, membership={}))
 
-def candidate_entry(package):
-    return entry('implementation', SEMANTICS, dict(package=package),
-                 package['knowledge']['roots'])
+def candidate_entry(package, *, shared_knowledge=False):
+    roots=package['knowledge']['roots']
+    if shared_knowledge:
+        package=deepcopy(package)
+        del package['knowledge']
+        package['knowledge_ref']=dict(schema=1,roots=list(roots))
+    return entry('implementation', SEMANTICS, dict(package=package), roots)
 
-def publish_candidates(root, packages):
+def publish_candidates(root, packages, *, shared_knowledge=False):
     """Extend a publication without dropping existing entries or names."""
     root = Path(root)
-    objects = {}; names = {}
+    objects = {}; names = {}; previous=None
     if (root/'store/snapshot.json').exists():
         previous = Store(root)
-        objects.update((i, previous.object(i)) for i in previous.members())
+        if not shared_knowledge:
+            objects.update((i, previous.object(i)) for i in previous.members())
         names = read(root/'store/names.json')
     candidates = []
     for package in packages:
@@ -35,8 +41,8 @@ def publish_candidates(root, packages):
             if identity(obj) != i:
                 raise ValueError('package dependency content mismatch')
             objects[i] = obj
-        obj = candidate_entry(package); i = identity(obj)
+        obj = candidate_entry(package, shared_knowledge=shared_knowledge); i = identity(obj)
         objects[i] = obj; candidates.append(i)
-    store = Store.publish(root, objects.values(), names)
-    store.rebuild()
+    store = previous.extend(objects.values(), names) if previous is not None and shared_knowledge else Store.publish(root, objects.values(), names)
+    store.refresh_index()
     return store, candidates
