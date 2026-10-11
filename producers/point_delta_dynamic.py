@@ -8,7 +8,7 @@ import json, os, subprocess, tempfile
 from pathlib import Path
 from producers.action_replacement import var, call, cons, convert, trans
 from producers.cache_maintenance import leaves, variables
-from producers.point_delta import setup as fixed_setup, binary, choice, match, sub, normal, equality, lift, replace
+from producers.point_delta import legacy_setup as fixed_setup, binary, choice, match, sub, normal, equality, lift, replace
 
 def setup(model, cache, add, objects):
     if 'Match' in cache['case']['normal']['Construct']['arguments'][0]:
