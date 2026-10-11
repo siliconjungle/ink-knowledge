@@ -25,6 +25,6 @@ JavaScript and both Wasm emitters, comparing exact results/checkpoints after
 overwrite, removal and abort. It also checks that the cached query body and
 overwrite/removal next-state closures do not call encode or table get. This is
 structural work-skipping evidence, not an end-to-end speedup or a proof of backend
-machine code. Variable-key puts may refresh; arbitrary Int aggregate keeps remain
-outside production logical projection. Baseline JavaScript still recomputes keeps;
+machine code. Variable-key puts may refresh. These fixtures supply no incremental Int
+aggregate candidate. Baseline JavaScript still recomputes keeps;
 the explicit checked representation host executes these maintained definitions.
