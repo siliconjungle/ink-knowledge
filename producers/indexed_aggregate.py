@@ -16,7 +16,7 @@ from producers.point_delta import binary,choice,sub,normal
 from producers.state_laws import derive,replace
 from producers.aggregate_delta import setup
 
-def definitions(model):
+def definitions(model, *, table_index=0, aggregate_factory=None, layout_only=False):
     objects=dict(model['objects']);names={}
     def add(decl,extra=(),name=None):
         payload={'declaration':decl};body=next(iter(decl.values()))
@@ -93,23 +93,30 @@ def definitions(model):
     def law(name,params,a,z,p,conditions=()):return add({'Theorem':dict(params=params,conditions=list(conditions),**{'from':a,'to':z},proof=factor_proof(p,params,list(conditions)) if name is None or name.startswith(('rotate_','balance_')) else p)},name=name)
     def induction(name,params,a,z,cases,conditions=()):
         return law(name,params,a,z,{'Induction':dict(variable=params[0][0],**{'from':a,'to':z},cases=[dict(bindings=bindings,proof=p) for bindings,p in cases])},conditions)
-    if len(model['tables'])!=1:raise ValueError('one-table indexed producer')
-    table=model['tables'][0];rows=table['datatype'];R={'Data':rows};row=objects[table['replace']]['payload']['declaration']['Function']['params'][2][1];nil=cons(rows,0,[])
-    aggregates=[setup(model,model['actions'][query],add,objects) for query in ['total_query','count_query']]
+    if not layout_only and len(model['tables'])!=1:raise ValueError('whole-action legacy producer requires one table')
+    table=model['tables'][table_index];rows=table['datatype'];R={'Data':rows};row=objects[table['replace']]['payload']['declaration']['Function']['params'][2][1];nil=cons(rows,0,[])
+    aggregates=aggregate_factory(model,table,add,objects) if aggregate_factory else [setup(model,model['actions'][query],add,objects) for query in ['total_query','count_query']]
+    sum_sort=aggregates[0].get('sort','U64'); count_sort=aggregates[1].get('sort','U64')
+    opaque=tuple(f for a in aggregates for f in a.get('opaque',[]))
+    from producers.state_laws import derive as base_derive
+    from producers.point_delta import normal as base_normal
+    def normal(t,objs):return base_normal(t,objs,opaque=opaque)
+    def derive(*args,**kwargs):return base_derive(*args,**kwargs,opaque=opaque)
+    combine=lambda label,a,z:aggregates[0 if label=='sum' else 1].get('combine',lambda x,y:binary('+',x,y))(a,z)
     for label,a in zip(['sum','count'],aggregates):
         names[label+'_contribution']=a['contribution'];names[label+'_fold']=a['fold'];names[label+'_fusion']=a['fusion'];names.update({label+'_'+k+'_delta':v for k,v in a['updates'].items()})
     append=fun('append',[['left',R],['right',R]],R,match(var('left'),[([],var('right')),(['key','row','tail'],cons(rows,1,[var('key'),var('row'),{'SelfCall':[var('tail'),var('right')]}]))]),0)
     cat=lambda a,b:call(append,[a,b])
-    tree=add({'Datatype':dict(constructors=[dict(name='Empty',fields=[]),dict(name='Leaf',fields=['U64',row]),dict(name='Branch',fields=['SelfType','SelfType','U64','U64','U64','U64','U64'])])},name='tree');T={'Data':tree};empty=cons(tree,0,[]);leaf=lambda k,v:cons(tree,1,[k,v]);node=lambda l,r,lo,hi,s,c,h:cons(tree,2,[l,r,lo,hi,s,c,h]);bindings=['left','right','lo','hi','sum','count','height']
+    tree=add({'Datatype':dict(constructors=[dict(name='Empty',fields=[]),dict(name='Leaf',fields=['U64',row]),dict(name='Branch',fields=['SelfType','SelfType','U64','U64',sum_sort,count_sort,'U64'])])},name='tree');T={'Data':tree};empty=cons(tree,0,[]);leaf=lambda k,v:cons(tree,1,[k,v]);node=lambda l,r,lo,hi,s,c,h:cons(tree,2,[l,r,lo,hi,s,c,h]);bindings=['left','right','lo','hi','sum','count','height']
     fields={}
     for name,leaf_value,node_value,empty_value in [
         ('low',var('key'),var('lo'),(1<<64)-1),('high',var('key'),var('hi'),0),
-        ('sum',call(aggregates[0]['contribution'],[var('row')]),var('sum'),0),
+        ('sum',call(aggregates[0]['contribution'],[var('key'),var('row')] if aggregates[0].get('contribution_keys') else [var('row')]),var('sum'),0),
         ('count',call(aggregates[1]['contribution'],[var('row')]),var('count'),0),('height',{'U64':1},var('height'),0)]:
         field_bindings=['field_'+name+'_'+n for n in bindings];leaf_bindings=['field_'+name+'_key','field_'+name+'_row']
-        fields[name]=fun(name,[['tree',T]],'U64',match(var('tree'),[([],{'U64':empty_value}),(leaf_bindings,sub(leaf_value,{'key':var(leaf_bindings[0]),'row':var(leaf_bindings[1])})),(field_bindings,sub(node_value,dict(zip(bindings,map(var,field_bindings)))))]))
+        fields[name]=fun(name,[['tree',T]],sum_sort if name=='sum' else count_sort if name=='count' else 'U64',match(var('tree'),[([],aggregates[0].get('empty',{'U64':empty_value}) if name=='sum' else {'U64':empty_value}),(leaf_bindings,sub(leaf_value,{'key':var(leaf_bindings[0]),'row':var(leaf_bindings[1])})),(field_bindings,sub(node_value,dict(zip(bindings,map(var,field_bindings)))))]))
     field=lambda n,t:call(fields[n],[t]);minimum=lambda a,b:choice(binary('<',a,b),a,b);maximum=lambda a,b:choice(binary('<',a,b),b,a)
-    smart=fun('branch',[['left',T],['right',T]],T,node(var('left'),var('right'),minimum(field('low',var('left')),field('low',var('right'))),maximum(field('high',var('left')),field('high',var('right'))),binary('+',field('sum',var('left')),field('sum',var('right'))),binary('+',field('count',var('left')),field('count',var('right'))),binary('+',maximum(field('height',var('left')),field('height',var('right'))),{'U64':1})))
+    smart=fun('branch',[['left',T],['right',T]],T,node(var('left'),var('right'),minimum(field('low',var('left')),field('low',var('right'))),maximum(field('high',var('left')),field('high',var('right'))),combine('sum',field('sum',var('left')),field('sum',var('right'))),combine('count',field('count',var('left')),field('count',var('right'))),binary('+',maximum(field('height',var('left')),field('height',var('right'))),{'U64':1})))
     branch=lambda l,r:call(smart,[l,r])
     repair=fun('repair',[['tree',T]],T,match(var('tree'),[([],empty),(['key','row'],leaf(var('key'),var('row'))),(bindings,branch({'SelfCall':[var('left')]},{'SelfCall':[var('right')]}))]),0)
     fix=lambda t:call(repair,[t])
@@ -159,10 +166,10 @@ def definitions(model):
         induction(label+'_preserves_rows',[['tree',T],*rest],a,z,[(ns,rewrite_derive(replace(a,var('tree'),t),replace(z,var('tree'),t),[(logical(update(var('left'))),op(logical(var('left')))),(logical(update(var('right'))),op(logical(var('right'))))] if len(ns)>2 else (),[(node_from,node_to,use(catlaw,[logical(var('left')),logical(var('right')),*args]))] if len(ns)>2 else ())) for ns,t in treecases])
     for label,aggregate in zip(['sum','count'],aggregates):
         total=lambda r:call(aggregate['fold'],[r]);arithmetic=aggregate['prove_arithmetic']
-        a,z=total(cat(var('left'),var('right'))),binary('+',total(var('left')),total(var('right')))
+        a,z=total(cat(var('left'),var('right'))),combine(label,total(var('left')),total(var('right')))
         catlaw=induction(label+'_append',[['left',R],['right',R]],a,z,[([],derive(replace(a,var('left'),nil),replace(z,var('left'),nil),objects,leaf=arithmetic)),(['key','row','tail'],derive(replace(a,var('left'),boundrows),replace(z,var('left'),boundrows),objects,[(replace(a,var('left'),var('tail')),replace(z,var('left'),var('tail')))],leaf=arithmetic))])
         a,z=field(label,fix(var('tree'))),total(logical(var('tree')))
-        node_from=total(cat(logical(var('left')),logical(var('right'))));node_to=binary('+',total(logical(var('left'))),total(logical(var('right'))))
+        node_from=total(cat(logical(var('left')),logical(var('right'))));node_to=combine(label,total(logical(var('left'))),total(logical(var('right'))))
         ps=[]
         for ns,t in treecases:
             aa,zz=replace(a,var('tree'),t),replace(z,var('tree'),t)
@@ -432,7 +439,7 @@ def definitions(model):
             else:double,p_double=single,p_single
             guard=binary('<',field('height',aa if label=='left' else cc),field('height',middle))
             x,y=replace(goal,bb,t),replace(end,bb,t);p=trans(convert(x,fix(choice(guard,double,single))),valid_choice(guard,double,single,p_double,p_single),convert(choice(guard,double,single),y))
-            sorts=[] if not ns else ['U64',row] if len(ns)==2 else [T,T,*(['U64']*5)]
+            sorts=[] if not ns else ['U64',row] if len(ns)==2 else [T,T,'U64','U64',sum_sort,count_sort,'U64']
             params=[*zip(ns,sorts),['a',T],['c',T]];conds=[{'from':fix(aa),'to':aa},{'from':fix(cc),'to':cc}]
             lemma=law(None,params,x,y,p,conds);ps.append((ns,use(lemma,[var(n) for n,_ in params],[pa,pc])))
         rotation_valid[label]=induction('rotate_'+label+'_preserves_metadata',[['b',T],['a',T],['c',T]],goal,end,ps,[{'from':fix(aa),'to':aa},{'from':fix(cc),'to':cc}])
@@ -448,7 +455,7 @@ def definitions(model):
             else:double,p_double=single,p_single
             guard=heavy(ll,rr) if label=='left' else heavy(rr,ll);x,y=replace(goal,which,t),replace(end,which,t)
             p=trans(convert(x,fix(choice(guard,double,single))),valid_choice(guard,double,single,p_double,p_single),convert(choice(guard,double,single),y))
-            sorts=[] if not ns else ['U64',row] if len(ns)==2 else [T,T,*(['U64']*5)]
+            sorts=[] if not ns else ['U64',row] if len(ns)==2 else [T,T,'U64','U64',sum_sort,count_sort,'U64']
             params=[*zip(ns,sorts),[('right' if label=='left' else 'left'),T]];lemma=law(None,params,x,y,p);ps.append((ns,use(lemma,[var(n) for n,_ in params])))
         side_valid[label]=induction('balance_'+label+'_preserves_metadata',[[which['Var'],T],[('right' if label=='left' else 'left'),T]],goal,end,ps)
     l,r=map(var,['left','right']);fl,fr=fix(l),fix(r);one,two=call(balance_l,[fl,fr]),call(balance_r,[fl,fr]);guard=heavy(fl,fr)
@@ -467,7 +474,7 @@ def definitions(model):
                 l,r=fix(var('left')),fix(var('right'));il,ir=fast_insert(l),fast_insert(r);guard=binary('<',target,field('high',l));one,two=balanced(il,r),balanced(l,ir)
                 p1=use(balance_valid,[il,r],[{'Hypothesis':0},use(names['repair_idempotent'],[var('right')])]);p2=use(balance_valid,[l,ir],[use(names['repair_idempotent'],[var('left')]),{'Hypothesis':1}])
             p=trans(convert(aa,fix(choice(guard,one,two))),use(repair_choice,[guard,one,two]),lifted(p1,choice(guard,var('prune_hole'),fix(two))),lifted(p2,choice(guard,one,var('prune_hole'))),convert(choice(guard,one,two),zz))
-        sorts=[] if not ns else ['U64',row] if len(ns)==2 else [T,T,*(['U64']*5)]
+        sorts=[] if not ns else ['U64',row] if len(ns)==2 else [T,T,'U64','U64',sum_sort,count_sort,'U64']
         params=[*zip(ns,sorts),['target','U64'],['new',row]]
         conditions=[{'from':fix(fast_insert(fix(var(n)))),'to':fast_insert(fix(var(n)))} for n in ['left','right']] if len(ns)>2 else []
         lemma=law(None,params,aa,zz,p,conditions)
@@ -508,8 +515,11 @@ def definitions(model):
     induction('encode_preserves_rows',[['rows',R]],a,z,[([],convert(logical(enc(nil)),nil)),(['encode_key','encode_value','encode_tail'],trans(convert(replace(a,var('rows'),b),logical(pn)),p))])
     # A checked flattening identity does not yet grant range pruning authority.
     # Those obligations are produced separately from metadata validity.
-    from producers.indexed_representation import proposal
-    proposal(model,objects,names,add,fun,law)
+    if layout_only:
+        names['_aggregates']=aggregates
+    else:
+        from producers.indexed_representation import proposal
+        proposal(model,objects,names,add,fun,law)
     return objects,names
 
 def publish_checked(staged,root,compiler,source,report):

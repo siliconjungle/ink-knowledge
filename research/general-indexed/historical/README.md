@@ -1,0 +1,1 @@
+Frozen initial scalar-String projection and proof publication. These source identities predate the integrated UTF-8/ID correspondence; use the parent directory for current reproduction. Historical objects remain in the canonical catalogue.
