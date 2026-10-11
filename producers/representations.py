@@ -29,12 +29,12 @@ def unchanged_query(model,action):
             and args[1]=={'Bool':False} and args[2]==var('version')
             and args[3]==cons(model['state'],0,[var(n) for n in action['case']['bindings']])
             and args[4]==cons(model['events'],0,[]))
-def generate(model,directory,replacement=None,cache_query=None,retain_queries=True,preserve_cache=False,compact_queries=False,delta_query=False,aggregate_query=False,dynamic_delta=False,columnar=False,packed_booleans=False,column_points=False,column_mutations=False,ordered_queries=(), indexed=False, fused_queries=(), dense_slots=0):
+def generate(model,directory,replacement=None,cache_query=None,retain_queries=True,preserve_cache=False,compact_queries=False,delta_query=False,aggregate_query=False,dynamic_delta=False,columnar=False,packed_booleans=False,column_points=False,column_mutations=False,ordered_queries=(), indexed=False, fused_queries=(), dense_slots=0, membership_query=False):
     if fused_queries:
         if replacement:raise ValueError('supply fused queries or a selected action proposal, not both')
         from aggregate_fusion import replacement as fuse
         replacement=fuse(model,fused_queries)
-    if (delta_query or aggregate_query or dynamic_delta) and (not cache_query or not preserve_cache):raise ValueError("delta tactics require --cache-query and --preserve-cache")
+    if (delta_query or aggregate_query or dynamic_delta or membership_query) and (not cache_query or not preserve_cache):raise ValueError("delta tactics require --cache-query and --preserve-cache")
     if preserve_cache and not cache_query:raise ValueError("--preserve-cache requires --cache-query")
     if compact_queries and not retain_queries:raise ValueError("--compact-queries conflicts with --rebuild-queries")
     if indexed and dense_slots:raise ValueError('choose bucket or dense prefix index')
@@ -122,8 +122,9 @@ def generate(model,directory,replacement=None,cache_query=None,retain_queries=Tr
         eq={'Hypothesis':0}
         snapshot=trans(convert(call(decode,[var('physical')]),call(decode,[relation(var('physical'),var('logical'))[0]])),subst(eq,call(decode,[var('replacement')])),convert(call(decode,[relation(var('physical'),var('logical'))[1]]),lhs),{'Use':dict(theorem=roundtrip,arguments=[var('logical')],premises=[])})
         delta=None
-        if cache and (delta_query or aggregate_query or dynamic_delta):
-            if dynamic_delta: from point_delta_dynamic import setup
+        if cache and (delta_query or aggregate_query or dynamic_delta or membership_query):
+            if membership_query: from membership_cache import setup
+            elif dynamic_delta: from point_delta_dynamic import setup
             elif aggregate_query: from aggregate_delta import setup
             else: from point_delta import setup
             delta=setup(model,cache,add,objects)
@@ -302,8 +303,8 @@ def generate(model,directory,replacement=None,cache_query=None,retain_queries=Tr
                         if x['constructor']!=0 or args[1]!={'Bool':True}:return convert(before_update(obs),after_update(obs))
                         roots=args[3]['Construct']['arguments']
                         from point_delta import sub
-                        cache_eq=delta['equality'](roots[delta['index']],names)
-                        cached=delta['recipe'](roots[delta['index']],cache_body,names)
+                        cache_eq=delta['equality'](roots if delta.get('roots') else roots[delta['index']],names)
+                        cached=delta['recipe'](roots if delta.get('roots') else roots[delta['index']],cache_body,names)
                         rhs_cache=sub(cache['case']['normal']['Construct']['arguments'][0],dict(zip(cache['case']['bindings'],roots)))
                         aphys=cons(Pid,0,[roots[i] for i in order]+[cached]);zphys=cons(Pid,0,[roots[i] for i in order]+[rhs_cache])
                         bodyproof={'Construct':dict(datatype=Pid,constructor=0,arguments=[{'Refl':roots[i]} for i in order]+[{'Sym':cache_eq}])}
@@ -367,6 +368,7 @@ def main():
     p.add_argument('--columnar',action='store_true',help='propose ordinary key/record-field columns with universal round-trip proofs')
     p.add_argument('--packed-booleans',action='store_true',help='pack record Bool fields into a proved u64 bit column; implies --columnar')
     p.add_argument('--column-points',action='store_true',help='prove direct point reads over columns; implies --columnar')
+    p.add_argument('--membership-query',action='store_true',help='prove key-only cache retention across payload replacements; refresh membership changes')
     p.add_argument('--dense-slots',type=int,default=0,help='prove prepared slots for keys 0..N-1, exact point fallback elsewhere')
     p.add_argument('--fuse-query',action='append',default=[],help='prove whole-query aggregate pipeline fusion')
     p.add_argument('--column-index',action='store_true',help='propose a universally checked two-bucket column point index')
@@ -375,5 +377,5 @@ def main():
     a=p.parse_args();a.output.parent.mkdir(parents=True,exist_ok=True)
     replacement=read(a.replacement) if a.replacement else None
     if replacement:replacement['selected_model']=read(a.selected_model)
-    result=generate(read(a.model),a.output.parent/'database',replacement,a.cache_query,not a.rebuild_queries,a.preserve_cache,a.compact_queries,a.delta_query,a.aggregate_query,a.dynamic_delta,a.columnar,a.packed_booleans,a.column_points,a.column_mutations,a.ordered_query,a.column_index,a.fuse_query,a.dense_slots);a.output.write_text(json.dumps(result,indent=2)+'\n')
+    result=generate(read(a.model),a.output.parent/'database',replacement,a.cache_query,not a.rebuild_queries,a.preserve_cache,a.compact_queries,a.delta_query,a.aggregate_query,a.dynamic_delta,a.columnar,a.packed_booleans,a.column_points,a.column_mutations,a.ordered_query,a.column_index,a.fuse_query,a.dense_slots,a.membership_query);a.output.write_text(json.dumps(result,indent=2)+'\n')
 if __name__=='__main__':main()

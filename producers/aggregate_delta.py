@@ -102,11 +102,13 @@ def setup(model,cache,add,objects,specialized=False):
         foldlaw=add({'Theorem':dict(params=params,conditions=[],**{'from':lhs(rows),'to':rhs(rows)},proof={'Induction':dict(variable='aggregate_rows',**{'from':lhs(rows),'to':rhs(rows)},cases=[dict(bindings=[],proof=equality(lhs(nil),rhs(nil))),dict(bindings=['aggregate_key','aggregate_value','aggregate_tail'],proof=equality(lhs(bound),rhs(bound),[(lhs(tail),rhs(tail),0)]))])})})
         use_fusion=lambda r:{'Use':dict(theorem=fusion,arguments=[r],premises=[])}
         updates[name]=add({'Theorem':dict(params=params,conditions=[],**{'from':q(op(rows)),'to':binary('+',q(rows),delta(rows))},proof=trans(use_fusion(op(rows)),{'Use':dict(theorem=foldlaw,arguments=[rows,target]+([new]if name!='remove'else[]),premises=[])},{'Binary':dict(op='+',left={'Sym':use_fusion(rows)},right={'Refl':delta(rows)})}))})
+    from bulk_aggregate import extend
+    functions,row_argument=extend(model,table,q,contribution,delta_functions,updates,add,objects,arithmetic)
     def recipe(root,old,bindings):
         if root==var(bindings[0]):return old
-        x=root.get('Call',{});args=x.get('arguments',[]);name=next((n for n in updates if table[n]==x.get('function')),None)
+        x=root.get('Call',{});args=x.get('arguments',[]);name=next((n for n in updates if functions[n]==x.get('function')),None)
         if name is None:raise ValueError('unsupported aggregate update')
-        prior=recipe(args[0],old,bindings)
+        prior=recipe(args[row_argument[name]],old,bindings)
         delta=contrib(args[2])if name=='insert'else call(delta_functions[name],args)
         return binary('+',prior,delta)
     def action(sa):
@@ -116,8 +118,8 @@ def setup(model,cache,add,objects,specialized=False):
         except(ValueError,KeyError):return None
     def query_equality(root,bindings):
         if root==var(bindings[0]):return {'Refl':q(root)}
-        x=root['Call'];args=x['arguments'];name=next(n for n in updates if table[n]==x['function'])
+        x=root['Call'];args=x['arguments'];name=next(n for n in updates if functions[n]==x['function'])
         use={'Use':dict(theorem=updates[name],arguments=args,premises=[])}
         delta=contrib(args[2])if name=='insert'else call(delta_functions[name],args)
-        return trans(use,lift(query_equality(args[0],bindings),binary('+',var('delta_hole'),delta)))
+        return trans(use,lift(query_equality(args[row_argument[name]],bindings),binary('+',var('delta_hole'),delta)))
     return dict(action=action,recipe=recipe,equality=query_equality,index=0,fused=total(var(binding)),fusion=lambda root:{'Use':dict(theorem=fusion,arguments=[root],premises=[])})
