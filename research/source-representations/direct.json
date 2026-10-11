@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "semantics": "ink-source-representation-v1",
-  "input_core_sha256": "aa663c3e779dc8fe68202bd770fd8602ee9710ffd7152c271c724ad10b2cd6ee",
+  "input_core_sha256": "c17b00c23cedd02dca5bd9d468144027ea547cf114321d0a34c20a8338e1415b",
   "knowledge": {
     "schema": 1,
     "snapshot": {
