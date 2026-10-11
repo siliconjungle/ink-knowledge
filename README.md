@@ -218,7 +218,7 @@ snapshot selection and repository-owned contributions are unchanged.
 
 Universal early-exit choices live in `producers/fold_until_laws.py`. Induction,
 case proofs and ordinary universal-law composition establish applicability;
-accumulator-dependent replacement trees fail closed. Owned map/indexed-map/scan
+accumulator-dependent replacement trees fail closed. Owned map/indexed-map/scan/filter
 choices live in `producers/owned_transform_laws.py` and select explicit buffer
 operations understood literally by every target.
 
