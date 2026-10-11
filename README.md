@@ -166,3 +166,5 @@ premise is demanded of source callers. Observed ordered outputs retain sorting.
 `producers/filtered_sort_laws.py` and `store/filtered-sort-view.json` reproduce
 them. The full rewrite view now carries 268 executable roots and 27 proof-only
 insertion dependencies. No compiler, core, planner or backend change is needed.
+
+The batch33 independent-list scan projection extension removes a scan whose values are unused by a zip callback, preserving the shorter-list extent. Six U32/I32/U64 endpoint laws, twelve supports, four source-bound certificates and four shared Normalize transports add 26 checked objects (22 fresh, four shared old transports). `producers/web_pipeline33_laws.py`, `producers/publish_web_pipeline33.py` and `tests/test_web_pipeline33_laws.py` reproduce and admit the extension. The canonical catalogue now has 2,485 entries. The 840 separately recorded empirical benchmark groups bring observations to 22,580; they are performance evidence, not mathematical certificates. No production compiler or runtime changes are required.
