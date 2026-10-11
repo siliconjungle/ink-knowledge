@@ -105,8 +105,8 @@ class StoreTests(unittest.TestCase):
         # A failed read transaction must not retain a lock on the disposable index.
         with closing(sqlite3.connect(self.root/'index.sqlite',timeout=0)) as db,db:
             db.execute('DELETE FROM names')
-        leaves=[entry('definition','test-v1',dict(body=['leaf',i])) for i in range(1024)]
-        parents=[entry('definition','test-v1',dict(body=['parent',i]),[identity(x) for x in leaves[i:i+128]]) for i in range(0,1024,128)]
+        leaves=[entry('definition','test-v1',dict(body=['leaf',i])) for i in range(4096)]
+        parents=[entry('definition','test-v1',dict(body=['parent',i]),[identity(x) for x in leaves[i:i+128]]) for i in range(0,4096,128)]
         root=entry('definition','test-v1',dict(body='root'),[identity(x) for x in parents])
         store=Store.publish(self.root,[*leaves,*parents,root]);store.rebuild()
         with self.assertRaisesRegex(ValueError,'dependency closure limit'):

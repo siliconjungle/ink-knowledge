@@ -17,7 +17,7 @@ MIG='ink-representation-migration-v1'
 def refs(x):
     if isinstance(x,str):return {x} if len(x)==64 and all(c in '0123456789abcdef' for c in x) else set()
     if isinstance(x,dict):return set().union(*(refs(v) for k,v in x.items()if k not in ("certificate",))) if x else set()
-    if isinstance(x,list):return set().union(*(refs(v) for v in x)) if x else set()
+    if isinstance(x,(list,tuple)):return set().union(*(refs(v) for v in x)) if x else set()
     return set()
 def match(x,branches):return {'Match':dict(scrutinee=x,branches=[dict(bindings=ns,body=t) for ns,t in branches])}
 def subst(proof,context):return {'Substitute':dict(variable='replacement',context=context,equality=proof)}

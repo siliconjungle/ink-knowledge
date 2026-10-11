@@ -1,0 +1,67 @@
+[
+  {
+    "action": "joined",
+    "table": 0,
+    "sort": "U64"
+  },
+  {
+    "action": "labelled",
+    "table": 0,
+    "sort": "U64"
+  },
+  {
+    "action": "weighted_query",
+    "table": 0,
+    "sort": "U64"
+  },
+  {
+    "action": "any_mark",
+    "table": 1,
+    "sort": "Bool"
+  },
+  {
+    "action": "joined",
+    "table": 1,
+    "sort": "U64"
+  },
+  {
+    "action": "edits",
+    "grouped": [
+      "replace",
+      "replace"
+    ],
+    "table": "654c1aa63e274ed39245615a100323474bb961c9344e06b6527d922d5b44f7dd"
+  },
+  {
+    "action": "erase",
+    "grouped": [
+      "remove",
+      "remove"
+    ],
+    "table": "1b8898a59f7e34e8c57da7217a459a8fa5a94080b276d29b457491bfe878860a"
+  },
+  {
+    "action": "erase",
+    "grouped": [
+      "remove",
+      "remove"
+    ],
+    "table": "654c1aa63e274ed39245615a100323474bb961c9344e06b6527d922d5b44f7dd"
+  },
+  {
+    "action": "remove_replace",
+    "grouped": [
+      "remove",
+      "replace"
+    ],
+    "table": "654c1aa63e274ed39245615a100323474bb961c9344e06b6527d922d5b44f7dd"
+  },
+  {
+    "action": "replace_remove",
+    "grouped": [
+      "replace",
+      "remove"
+    ],
+    "table": "654c1aa63e274ed39245615a100323474bb961c9344e06b6527d922d5b44f7dd"
+  }
+]

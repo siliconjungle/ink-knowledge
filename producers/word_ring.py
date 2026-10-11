@@ -3,11 +3,18 @@
 The kernel does no polynomial normalization. This producer writes a derivation
 using general associativity, commutativity, additive inverses and ground values.
 """
-import hashlib,json,subprocess,tempfile
+import gzip,hashlib,json,subprocess,tempfile
 from pathlib import Path
-from action_replacement import var,convert,trans
-from point_delta import binary
-from bitvector_proofs import certificate
+from producers.action_replacement import var,convert,trans
+from producers.point_delta import binary
+from producers.bitvector_proofs import certificate
+
+FROZEN=None
+def frozen():
+ global FROZEN
+ if FROZEN is None:
+  with gzip.open(Path(__file__).parent/'data/word-ring.json.gz','rt') as f:FROZEN=json.load(f)
+ return FROZEN
 
 def free(t):
  if 'Var'in t:return {t['Var']}
@@ -42,7 +49,8 @@ class Tactic:
     'zero_multiply':(binary('*',zero,a),zero),
    };left,right=laws[name];params=[[n,'U64']for n in sorted(free(left)|free(right))];goal=dict(params=params,conditions=[],**{'from':left,'to':right})
    cache=Path(__file__).resolve().parents[1]/'build/word-laws';cache.mkdir(parents=True,exist_ok=True);key=hashlib.sha256(json.dumps(goal,sort_keys=True).encode()).hexdigest();file=cache/(key+'.json')
-   if file.exists():proof=json.loads(file.read_text())
+   if key in frozen():proof=frozen()[key]
+   elif file.exists():proof=json.loads(file.read_text())
    else:
     print('author scalar axiom',name,flush=True)
     with tempfile.TemporaryDirectory(prefix='ink-scalar-law-')as directory:

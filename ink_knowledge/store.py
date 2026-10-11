@@ -68,7 +68,8 @@ def validate_entry(v):
     for key in ['operations','effects']:
         a=v['interface'][key]
         if not isinstance(a,list) or any(not isinstance(x,str) for x in a) or a != sorted(set(a)): raise ValueError('invalid interface index')
-    if not isinstance(v['dependencies'],list) or len(v['dependencies'])>128 or v['dependencies'] != sorted(set(v['dependencies'])): raise ValueError('dependencies must be unique and sorted')
+    dependency_limit=512 if v['semantics']=='ink-source-representation-v1' else 128
+    if not isinstance(v['dependencies'],list) or len(v['dependencies'])>dependency_limit or v['dependencies'] != sorted(set(v['dependencies'])): raise ValueError('dependencies must be unique and sorted')
     for i in v['dependencies']: hash_id(i)
     canonical(v)
 
@@ -80,8 +81,8 @@ def immutable(path, value):
         with path.open('xb') as f: f.write(data)
 
 def read(path):
-    with path.open('rb') as f: raw=f.read(16_000_001)
-    if len(raw)>16_000_000: raise ValueError('knowledge object byte limit')
+    with path.open('rb') as f: raw=f.read(64_000_001)
+    if len(raw)>64_000_000: raise ValueError('knowledge object byte limit')
     value=json.loads(raw)
     canonical(value)
     return value
@@ -208,7 +209,7 @@ class Store:
                 self.members();proof_db=None
             def visit(i,depth):
                 if i in objects:return
-                if depth>64 or i in active or len(objects)+len(active)>=1024:raise ValueError('active dependency closure limit')
+                if depth>64 or i in active or len(objects)+len(active)>=4096:raise ValueError('active dependency closure limit')
                 hash_id(i);active.add(i)
                 membership[i]=self._indexed_witness(i,proof_db,verified) if proof_db is not None else self.witness(i)
                 obj=self._read_object(i)
