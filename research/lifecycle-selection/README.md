@@ -20,8 +20,10 @@ which implementations can enter selection; low cost never grants correctness.
 
 The distribution's mandatory `point_delta` suite runs the independent Lean
 checker when `INK_TEST_LEAN` is supplied and requires it in complete parity mode.
-The standalone replay path binds exact source, compiler bytes and emission lane,
-rechecks any physical representation, then emits ordinary standalone code.
+The external planner compares database candidate IDs uniformly; an ordinary
+implementation is an empty checked-selection package. Its replay tool binds exact
+source, compiler bytes, emission lane and pinned database package, then invokes
+the existing proof checker and emitter. No algorithm choice is added to core.
 
 `Undo.lean` models indexed table writes and their inverse journal. It proves
 that reverse replay restores the original mapping for arbitrary histories,
