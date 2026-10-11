@@ -79,9 +79,9 @@ python3 -m unittest discover -s tests -v
 
 `producers/` holds untrusted authoring/import tools. `research/` quarantines historical experiment formats, fixtures and Lean work; production discovery does not scan it or depend on experiment directory names. Research tools can still reproduce their original mathematical experiments. These formats are not compatibility aliases for the canonical API.
 
-The merged main snapshot contains 2459 canonical entries and 4206 discovery names.
-It combines the independently developed main catalogue with the 1994-entry web
-performance catalogue, preserving both sets of immutable proofs, observations
+The merged main snapshot contains 2845 canonical entries and 4517 discovery names.
+It combines the independently developed main catalogue with the web
+performance catalogue and the owned-collection/point-query additions, preserving both sets of immutable proofs, observations
 and historical snapshots. SQLite remains a rebuilt disposable index. Frozen web
 benchmark timings describe their recorded compiler and catalogue revisions; they
 do not measure this merged engine.
