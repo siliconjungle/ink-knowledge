@@ -17,6 +17,40 @@ from producers.tree_proofs import Tactic
 def projection(term,datatype):
     return match(term,[(['compact_reply','compact_commit','compact_version','compact_rows','compact_events'],cons(datatype,0,[var(n)for n in ['compact_reply','compact_commit','compact_version','compact_events']])),(['compact_host','compact_version','compact_rows'],cons(datatype,1,[var('compact_host'),var('compact_version')]))])
 
+def hygienic_body(term,parameters):
+    """Preserve lexical bindings when observers are inlined across components."""
+    occupied=set(parameters)
+    def reserve(value):
+        if isinstance(value,dict):
+            if 'Var'in value:occupied.add(value['Var'])
+            for child in value.values():reserve(child)
+        elif isinstance(value,list):
+            for child in value:reserve(child)
+        elif isinstance(value,str):occupied.add(value)
+    reserve(term)
+    serial=0
+    def walk(value,scope):
+        nonlocal serial
+        if isinstance(value,list):return [walk(v,scope)for v in value]
+        if not isinstance(value,dict):return value
+        if 'Var'in value:return var(scope.get(value['Var'],value['Var']))
+        if 'Match'in value:
+            node=value['Match'];branches=[]
+            for branch in node['branches']:
+                local=dict(scope);bindings=[]
+                for name in branch['bindings']:
+                    fresh=name
+                    if fresh in local.values():
+                        while True:
+                            fresh=name[:40]+'_compact_'+str(serial);serial+=1
+                            if fresh not in occupied:break
+                        occupied.add(fresh)
+                    local[name]=fresh;bindings.append(fresh)
+                branches.append(dict(bindings=bindings,body=walk(branch['body'],local)))
+            return {'Match':dict(scrutinee=walk(node['scrutinee'],scope),branches=branches)}
+        return {k:walk(v,scope)for k,v in value.items()}
+    return walk(term,{name:name for name in parameters})
+
 def attach(request,directory):
     request=copy.deepcopy(request);objects=request['knowledge']['objects'];old=request['representation'];plan=objects[old]['payload'];carriers=[i for i,o in objects.items()if 'Datatype'in o.get('payload',{}).get('declaration',{})]
     def add(declaration):
@@ -49,6 +83,7 @@ def attach(request,directory):
         dtype=add({'Datatype':{'constructors':[dict(name=c['name'],fields=[c['fields'][i]for i in ([0,1,2,4]if tag==0 else[0,1])])for tag,c in enumerate(constructors)]}})
         result=var('execution_result');original=call(action['observe'],[result]);params=[['execution_result',action['result']]]
         body=projected_body(sub(observation['body'],{observation['params'][0][0]:result}),dtype)
+        body=hygienic_body(body,[name for name,_ in params])
         observe=add({'Function':dict(params=params,result={'Data':dtype},recursive=None,body=body)})
         tactic=Tactic(objects,add)
         lemma=tactic.theorem('compact-'+name,params,call(observe,[result]),projection(original,dtype))
