@@ -4,7 +4,7 @@ Recognises fixed-key remove/replace histories; unsupported changes use refresh.
 The core knows no query/update pattern and rechecks all future-state obligations.
 """
 from action_replacement import var,call,cons,convert,trans
-from cache_maintenance import leaves,variables
+from cache_maintenance import variables
 
 def choice(c,t,f):return {'If':dict(condition=c,on_true=t,on_false=f)}
 def binary(n,a,b):return {'Binary':dict(op=n,left=a,right=b)}
@@ -59,6 +59,7 @@ def normal(t,objects,depth=0):
 
 def lift(eq,context):return {'Substitute':dict(variable='delta_hole',context=context,equality=eq)}
 def equality(a,z,objects,hyp=None,facts=()):
+    facts=tuple((normal(left,objects),normal(right,objects),index) for left,right,index in facts)
     def simplify(t):
         current=normal(t,objects);proof=convert(t,current)
         for _ in range(16):
@@ -114,14 +115,20 @@ def setup(model,cache,add,objects):
             prior=recipe(args[0],old,bindings);return match(prior,[([],none),(['delta_old'],some(args[2]))])
         raise ValueError('unsupported point delta operation')
     def action(sa):
-        roots=[]
-        for o in leaves(sa['case']['normal']):
-            if o['constructor']==0 and o['arguments'][1]=={'Bool':True}:
-                roots.append(o['arguments'][3]['Construct']['arguments'][index])
-        if not roots or any(r!=roots[0] for r in roots):return None
-        try:predicted=recipe(roots[0],var('cached_reply'),sa['case']['bindings'])
+        old=var('cached_reply')
+        initial=var(sa['case']['bindings'][index])
+        def predict(term):
+            if 'If' in term:
+                branch=term['If'];yes=predict(branch['on_true']);no=predict(branch['on_false'])
+                if yes==no:return yes
+                condition=replace(branch['condition'],getof(initial),old)
+                return choice(condition,yes,no)
+            o=term['Construct']
+            if o['constructor']!=0 or o['arguments'][1]!={'Bool':True}:return old
+            return recipe(o['arguments'][3]['Construct']['arguments'][index],old,sa['case']['bindings'])
+        try:predicted=predict(sa['case']['normal'])
         except (ValueError,KeyError):return None
-        if variables(predicted)-{'cached_reply',*[n for n,_ in sa['params'][2:]]}:return None
+        if variables(predicted)-{'cached_reply',*[n for n,_ in sa['params'][1:]]}:return None
         return predicted
     def query_equality(root,bindings):
         """get(updated roots) = candidate cache; exact universal update laws."""
