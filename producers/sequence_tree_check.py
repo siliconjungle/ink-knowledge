@@ -2,8 +2,9 @@
 """Independent finite checks of proposed tree algorithms; never proof authority."""
 import random
 import sys
-from sequence_tree_fixture import generate
 from pathlib import Path
+sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
+from producers.sequence_tree_fixture import generate
 import tempfile
 import json
 

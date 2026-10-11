@@ -88,6 +88,10 @@ def define(table, row_sort, option, add, contribution=None):
     fn('decorate', [['tree',T]], T,match(t,[([],empty),(['head','row'],t),(names,node({'SelfCall':[left]},{'SelfCall':[right]}))]),0)
     fn('copy_shape', [['tree',T]], T,match(t,[([],empty),(['head','row'],leaf(var('head'),var('row'))),
         (names,branch(left,right,var('minimum'),var('maximum'),var('height'),var('measure')))]))
+    fn('relay_shape', [['left',T],['right',T],['minimum','U64'],['maximum','U64'],['height','U64'],['measure','U64']], T,
+       branch(left,right,var('minimum'),var('maximum'),var('height'),var('measure')))
+    fn('copy_shape_via_helper', [['tree',T]], T,match(t,[([],empty),(['head','row'],leaf(var('head'),var('row'))),
+       (names,call(ids['relay_shape'],[left,right,var('minimum'),var('maximum'),var('height'),var('measure')]))]))
     # Independent invariant components keep each mathematical obligation small.
     # Height guides balancing but is not a premise of source equivalence.
     validations=[]
@@ -110,6 +114,7 @@ def define(table, row_sort, option, add, contribution=None):
         elif op=='replace':body=construct(head,choice(binary('==',key,head),value,row),rec);base=nil
         else:body=choice(binary('==',key,head),rec,construct(head,row,rec));base=nil
         fn('rows_'+op,args,L,match(rw,[([],base),(['head','row','tail'],body)]),0)
+    fn('rows_even',[['rows',L]],L,match(rw,[([],nil),(['head','row','tail'],choice(binary('==',binary('&',head,U(1)),U(0)),cons(table,1,[head,row,{'SelfCall':[tail]}]),{'SelfCall':[tail]}))]),0)
     fn('has_key',[['rows',L],['key','U64']],'Bool',match(rw,[([],{'Bool':False}),(['head','row','tail'],binary('||',binary('==',key,head),{'SelfCall':[tail,key]}))]),0)
     fn('has_greater',[['rows',L],['key','U64']],'Bool',match(rw,[([],{'Bool':False}),(['head','row','tail'],binary('||',binary('<',key,head),{'SelfCall':[tail,key]}))]),0)
     return ids

@@ -50,3 +50,28 @@ class IncrementalStore(unittest.TestCase):
                 if identity(obj).startswith('0'):skew.append(obj)
             store=Store.publish(tmp,skew);self.assertEqual(len(store.members()),129)
             self.assertTrue(all(len(w['entries'])<=64 for w in store.members().values()))
+
+class AppendPublication(unittest.TestCase):
+    def test_extension_reuses_old_references_but_still_authenticates_retrieval(self):
+        from unittest.mock import patch
+        from ink_knowledge.store import entry,identity
+        with tempfile.TemporaryDirectory()as temporary:
+            root=Path(temporary)
+            first=entry('definition','test-v1',{'body':1});a=identity(first)
+            old=Store.publish(root,[first],{'first':a});pin=old.snapshot_id
+            second=entry('definition','test-v1',{'body':2},[a]);b=identity(second)
+            with patch.object(Store,'object',side_effect=AssertionError('reopened old proof body')):
+                new=old.extend([second],{'first':a,'second':b})
+            self.assertEqual(set(new.bundle([b])['objects']),{a,b})
+            self.assertEqual(set(Store(root,root/'store/snapshots'/(pin+'.json')).members()),{a})
+            (root/'store/objects'/(a+'.json')).write_text(json.dumps({**first,'payload':{'body':99}}))
+            with self.assertRaises(ValueError):new.bundle([b])
+    def test_failed_extensions_do_not_publish_a_new_pointer(self):
+        from ink_knowledge.store import entry,identity
+        with tempfile.TemporaryDirectory()as temporary:
+            root=Path(temporary);first=entry('definition','test-v1',{'body':1});store=Store.publish(root,[first]);pin=store.snapshot_id
+            missing=entry('definition','test-v1',{'body':2},['1'*64])
+            with self.assertRaises(ValueError):store.extend([missing])
+            self.assertEqual(Store(root).snapshot_id,pin)
+            frozen=Store(root,root/'store/snapshots'/(pin+'.json'))
+            with self.assertRaises(ValueError):frozen.extend([])
