@@ -16,3 +16,7 @@ backend revisions.
 The set and join algorithms deliberately expose a baseline for comparison; no
 speedup claim is established by their presence in this repository. The external
 finite-list producer separately supplies locally checked work-skipping laws.
+
+`value-laws.ink` is external theorem authoring source. Use `ink emit-laws` or
+`producers/source_laws.py`; application compilation rejects its rewrite declarations.
+Exact-integer laws use the general bounded ring checker, with no trusted labels.

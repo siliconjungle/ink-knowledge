@@ -23,6 +23,7 @@ def examples():
             prefix = f'literal-list/{kind.lower()}-{size}'
             result[prefix + '-length'] = law(params, op(value('U32'), 'call:length', literal), word('U32', size))
             result[prefix + '-count'] = law(params, op(value('U64'), 'call:count', literal), word('U64', size))
+            result[prefix + '-exact-count'] = law(params, op(value('Int'), 'call:count', literal), word('Int', size))
             fallback = var(element, 'fallback')
             reads = dict(params, fallback=element)
             result[prefix + '-outside'] = law(reads, op(element, 'method:at_or', literal, word('U32', size), fallback), fallback)
