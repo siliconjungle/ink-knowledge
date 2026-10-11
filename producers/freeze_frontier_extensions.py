@@ -23,7 +23,7 @@ def candidates(kind,model,path):
     raise ValueError(kind)
 
 def main():
-    p=argparse.ArgumentParser(description=__doc__);p.add_argument('--workspace',type=Path,required=True);p.add_argument('--output-root',type=Path,default=KNOWLEDGE/'research/frontier-extensions');p.add_argument('--case',action='append',choices=['mutations','fields','shared','ordered','grouped','fused','index','dense','grid','heap']);a=p.parse_args()
+    p=argparse.ArgumentParser(description=__doc__);p.add_argument('--workspace',type=Path,required=True);p.add_argument('--output-root',type=Path,default=KNOWLEDGE/'research/frontier-extensions-current');p.add_argument('--case',action='append',choices=['mutations','fields','shared','ordered','grouped','fused','index','dense','grid','heap']);a=p.parse_args()
     compiler=Path(os.environ['INK_COMPILER']);workspace=a.workspace.resolve()
     sources={'grid':workspace/'examples/frontier-algorithm-cache.ink','heap':workspace/'examples/frontier-heap-cache.ink','mutations':workspace/'examples/frontier-packed-flags.ink','fields':workspace/'examples/frontier-field-sensitive.ink','shared':KNOWLEDGE/'research/product-caches/source.ink','ordered':workspace/'examples/frontier-ordered-results.ink','grouped':workspace/'examples/frontier-grouped-results.ink','fused':workspace/'examples/frontier-grouped-results.ink','index':KNOWLEDGE/'research/product-caches/source.ink','dense':KNOWLEDGE/'research/product-caches/source.ink'}
     for kind in a.case or sources:
