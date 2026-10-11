@@ -24,16 +24,16 @@ def candidate_entry(package, *, shared_knowledge=False):
         package=deepcopy(package)
         del package['knowledge']
         package['knowledge_ref']=dict(schema=1,roots=list(roots))
-    return entry('implementation', SEMANTICS, dict(package=package),
-                 roots)
+    return entry('implementation', SEMANTICS, dict(package=package), roots)
 
 def publish_candidates(root, packages, *, shared_knowledge=False):
     """Extend a publication without dropping existing entries or names."""
     root = Path(root)
-    objects = {}; names = {}
+    objects = {}; names = {}; previous=None
     if (root/'store/snapshot.json').exists():
         previous = Store(root)
-        objects.update((i, previous.object(i)) for i in previous.members())
+        if not shared_knowledge:
+            objects.update((i, previous.object(i)) for i in previous.members())
         names = read(root/'store/names.json')
     candidates = []
     for package in packages:
@@ -43,6 +43,6 @@ def publish_candidates(root, packages, *, shared_knowledge=False):
             objects[i] = obj
         obj = candidate_entry(package, shared_knowledge=shared_knowledge); i = identity(obj)
         objects[i] = obj; candidates.append(i)
-    store = Store.publish(root, objects.values(), names)
-    store.rebuild()
+    store = previous.extend(objects.values(), names) if previous is not None and shared_knowledge else Store.publish(root, objects.values(), names)
+    store.refresh_index()
     return store, candidates

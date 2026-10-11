@@ -43,14 +43,15 @@ def replace(t,a,z):
     if isinstance(t,dict):return {k:replace(x,a,z) for k,x in t.items()}
     return t
 
-def normal(t,objects,depth=0,opaque=()):
+def normal(t,objects,depth=0,opaque=(),*,blocked=(),eager=()):
     """Authoring computation only. Every proposed reduction is checked by Convert."""
     if depth>96:raise ValueError('point delta producer depth budget')
-    recur=lambda t:normal(t,objects,depth+1,opaque)
+    recur=lambda t:normal(t,objects,depth+1,opaque,blocked=blocked,eager=eager)
     if not isinstance(t,dict):return t
     if 'Call' in t:
         x=t['Call'];args=[recur(a) for a in x['arguments']];decl=objects[x['function']]['payload']['declaration']
         if x['function'] in opaque or 'AbstractFunction' in decl:return call(x['function'],args)
+        if x['function'] in blocked and not (x['function']in eager and any('Construct'in a for a in args)):return call(x['function'],args)
         f=decl['Function']
         if f['recursive'] is not None and 'Construct' not in args[f['recursive']]:return call(x['function'],args)
         body=f['body']
@@ -87,6 +88,9 @@ def normal(t,objects,depth=0,opaque=()):
         x=t['Binary'];a,z=recur(x['left']),recur(x['right'])
         if 'U64' in a and 'U64' in z:
             av,zv=a['U64'],z['U64'];op=x['op'];return {'Bool':{'==':av==zv,'!=':av!=zv,'<':av<zv,'<=':av<=zv,'>':av>zv,'>=':av>=zv}[op]} if op in ['==','!=','<','<=','>','>='] else {'U64':{'+':av+zv,'-':av-zv,'*':av*zv,'&':av&zv}[op]%(1<<64)}
+        if 'Bool'in a and 'Bool'in z:
+            av,zv=a['Bool'],z['Bool'];op=x['op']
+            return {'Bool':{'&&':av and zv,'||':av or zv,'==':av==zv,'!=':av!=zv}[op]}
         return binary(x['op'],a,z)
     return t
 
