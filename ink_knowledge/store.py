@@ -74,7 +74,7 @@ def validate_entry(v):
     dependency_limit=512 if v['semantics']=='ink-source-representation-v1' else 128
     if not isinstance(v['dependencies'],list) or len(v['dependencies'])>dependency_limit or v['dependencies'] != sorted(set(v['dependencies'])): raise ValueError('dependencies must be unique and sorted')
     for i in v['dependencies']: hash_id(i)
-    if len(canonical(v)) > MAX_ENTRY_BYTES: raise ValueError("knowledge object byte limit")
+    if len(canonical(v)) > (MAX_VIEW_BYTES if v['semantics']=='ink-implementation-candidate-v1' else MAX_ENTRY_BYTES): raise ValueError("knowledge object byte limit")
 
 def immutable(path, value):
     data=canonical(value)+b'\n';path.parent.mkdir(parents=True,exist_ok=True)
