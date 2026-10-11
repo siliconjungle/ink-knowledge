@@ -29,7 +29,8 @@ def unchanged_query(model,action):
             and args[1]=={'Bool':False} and args[2]==var('version')
             and args[3]==cons(model['state'],0,[var(n) for n in action['case']['bindings']])
             and args[4]==cons(model['events'],0,[]))
-def generate(model,directory,replacement=None,cache_query=None,retain_queries=True,preserve_cache=False,compact_queries=False):
+def generate(model,directory,replacement=None,cache_query=None,retain_queries=True,preserve_cache=False,compact_queries=False,delta_query=False):
+    if delta_query and (not cache_query or not preserve_cache):raise ValueError("--delta-query requires --cache-query and --preserve-cache")
     if preserve_cache and not cache_query:raise ValueError("--preserve-cache requires --cache-query")
     if compact_queries and not retain_queries:raise ValueError("--compact-queries conflicts with --rebuild-queries")
     objects=dict(model['objects']);L={'Data':model['state']}
@@ -73,20 +74,29 @@ def generate(model,directory,replacement=None,cache_query=None,retain_queries=Tr
         # decode, then the generic round-trip theorem.
         eq={'Hypothesis':0}
         snapshot=trans(convert(call(decode,[var('physical')]),call(decode,[relation(var('physical'),var('logical'))[0]])),subst(eq,call(decode,[var('replacement')])),convert(call(decode,[relation(var('physical'),var('logical'))[1]]),lhs),{'Use':dict(theorem=roundtrip,arguments=[var('logical')],premises=[])})
+        delta=None
+        if cache and delta_query:
+            from point_delta import setup
+            delta=setup(model,cache,add,objects)
         actions={}
         for name,a in model['actions'].items():
             sa=selected['actions'][name];rest=a['params'][1:];params=[['initial',P]]+rest
             args=[var(n) for n,_ in rest]
             post=lambda o:match(o,[(['post_reply','post_committed','post_version','post_rows','post_events'],var('post_rows')),(['post_host','post_version','post_rows'],var('post_rows'))])
             result=a['result']
+            predicted=delta['action'](sa) if delta else None
+            use_delta=predicted is not None
             cached_read=bool(cache and name==cache_query)
             query=unchanged_query(model,a)
             retain=retain_queries and query and not (compact_queries and (not cache or cached_read))
             maintain=bool(cache and not cached_read and
                           ((preserve_cache and not retain) or (compact_queries and query)))
+            if use_delta:
+                delta_pair=add({'Datatype':dict(constructors=[dict(name='CacheDelta',fields=[cache_sort,cache_sort])])})
+                delta_sort={'Data':delta_pair}
             carrier_needed=retain or maintain or (cached_read and not compact_queries)
             if carrier_needed:
-                carrier=[cache_sort,a['result']] if maintain else [P,a['result']]
+                carrier=[delta_sort if use_delta else cache_sort,a['result']] if maintain else [P,a['result']]
                 pair=add({'Datatype':dict(constructors=[dict(name='CacheTransition' if maintain else 'RetainedQuery',fields=carrier)])});result={'Data':pair}
             if cached_read:
                 obsid=a['result']['Data'];normal=cache['case']['normal']['Construct']['arguments']
@@ -107,6 +117,8 @@ def generate(model,directory,replacement=None,cache_query=None,retain_queries=Tr
                     ]),[model['state']])
             elif retain or maintain:
                 retained=call(cache_value,[var('initial')]) if maintain else var('initial')
+                if use_delta:
+                    retained=match(var('initial'),[(pnames,cons(delta_pair,0,[var('cached_reply'),predicted]))])
                 execute=fun(params,result,cons(pair,0,[retained,call(sa['function'],[call(decode,[var('initial')])]+args)]))
             else:
                 execute=fun(params,result,call(sa['function'],[call(decode,[var('initial')])]+args))
@@ -121,7 +133,10 @@ def generate(model,directory,replacement=None,cache_query=None,retain_queries=Tr
                     newnames=['new_root_'+str(i) for i in range(len(fields))]
                     retained_cache=cons(Pid,0,[var(newnames[i]) for i in order]+[var('cached_reply')])
                     carried=match(var('post_rows'),[(newnames,retained_cache)])
-                    if reuse:
+                    if use_delta:
+                        predicted_cache=cons(Pid,0,[var(newnames[i]) for i in order]+[var('predicted_reply')])
+                        refreshed=match(var('post_rows'),[(newnames,predicted_cache)])
+                    elif reuse:
                         refreshed=carried
                     else:
                         refreshed=call(encode,[var('post_rows')])
@@ -134,8 +149,11 @@ def generate(model,directory,replacement=None,cache_query=None,retain_queries=Tr
                         (['post_reply','post_committed','post_version','post_rows','post_events'],commit),
                         (['post_host','post_version','post_rows'],carried),
                     ]
-                    update=fun([['cached_reply',cache_sort],['observed',a['result']]],P,
-                               match(var('observed'),observation_cases),
+                    update_body=match(var('observed'),observation_cases)
+                    if use_delta:
+                        update_body=match(var('delta_pair'),[(['cached_reply','predicted_reply'],update_body)])
+                    update=fun([[('delta_pair' if use_delta else 'cached_reply'),(delta_sort if use_delta else cache_sort)],['observed',a['result']]],P,
+                               update_body,
                                [model['state']])
                     nextf=fun([['observation',result]],P,match(var('observation'),[(['retained','reply_value'],call(update,[var('retained'),var('reply_value')]))]))
                 else:nextf=fun([['observation',result]],P,match(var('observation'),[(['retained','reply_value'],var('retained'))]))
@@ -158,13 +176,30 @@ def generate(model,directory,replacement=None,cache_query=None,retain_queries=Tr
             if maintain:
                 bound=cons(model['state'],0,[var(n) for n in names])
                 normal=substitute_names(sa['case']['normal'],dict(zip(sa['case']['bindings'],names)))
-                before_update=lambda obs:call(update,[call(cache_value,[call(encode,[bound])]),obs])
+                delta_carried=cons(delta_pair,0,[call(cache_value,[call(encode,[bound])]),substitute_names(predicted,{'cached_reply':'delta_cache'})]) if use_delta else None
+                if use_delta:
+                    from point_delta import sub
+                    delta_carried=sub(delta_carried,{'delta_cache':cache_body})
+                before_update=lambda obs:call(update,[delta_carried if use_delta else call(cache_value,[call(encode,[bound])]),obs])
+                leaf_proof=None
+                if use_delta:
+                    def leaf_proof(obs):
+                        x=obs['Construct'];args=x['arguments']
+                        if x['constructor']!=0 or args[1]!={'Bool':True}:return convert(before_update(obs),after_update(obs))
+                        roots=args[3]['Construct']['arguments']
+                        from point_delta import sub
+                        cache_eq=delta['equality'](roots[delta['index']],names)
+                        cached=delta['recipe'](roots[delta['index']],cache_body,names)
+                        rhs_cache=sub(cache['case']['normal']['Construct']['arguments'][0],dict(zip(cache['case']['bindings'],roots)))
+                        aphys=cons(Pid,0,[roots[i] for i in order]+[cached]);zphys=cons(Pid,0,[roots[i] for i in order]+[rhs_cache])
+                        bodyproof={'Construct':dict(datatype=Pid,constructor=0,arguments=[{'Refl':roots[i]} for i in order]+[{'Sym':cache_eq}])}
+                        return trans(convert(before_update(obs),aphys),bodyproof,convert(zphys,after_update(obs)))
                 after_update=lambda obs:call(encode,[post(obs)])
                 update_left=call(nextf,[call(execute,[call(encode,[var('logical')])]+args)])
                 update_right=call(encode,[post(same)])
                 branch_proof=trans(
                     convert(call(nextf,[call(execute,[call(encode,[bound])]+args)]),before_update(normal)),
-                    cases(normal,before_update,after_update),
+                    cases(normal,before_update,after_update,leaf_proof=leaf_proof),
                     convert(after_update(normal),call(encode,[post(call(sa['function'],[bound]+args))])),
                 )
                 induction={'Induction':dict(variable='logical',**{'from':update_left,'to':update_right},
@@ -211,9 +246,9 @@ def substitute_names(x,mapping):
     if isinstance(x,str):return mapping.get(x,x)
     return x
 def main():
-    p=argparse.ArgumentParser(description=__doc__);p.add_argument('model',type=Path);p.add_argument('-o','--output',type=Path,required=True);p.add_argument('--replacement',type=Path);p.add_argument('--selected-model',type=Path);p.add_argument('--cache-query');p.add_argument('--preserve-cache',action='store_true',help='propose checked cache reuse on aborts and changes to unrelated tables');p.add_argument('--compact-queries',action='store_true',help='propose query transitions without carrying a second copy of table roots');p.add_argument('--rebuild-queries',action='store_true',help='comparison candidate: refresh physical state even after ordinary queries')
+    p=argparse.ArgumentParser(description=__doc__);p.add_argument('model',type=Path);p.add_argument('-o','--output',type=Path,required=True);p.add_argument('--replacement',type=Path);p.add_argument('--selected-model',type=Path);p.add_argument('--cache-query');p.add_argument('--preserve-cache',action='store_true',help='propose checked cache reuse on aborts and changes to unrelated tables');p.add_argument('--compact-queries',action='store_true',help='propose query transitions without carrying a second copy of table roots');p.add_argument('--delta-query',action='store_true',help='propose proved fixed-key remove/replace cache deltas, retaining refresh fallback');p.add_argument('--rebuild-queries',action='store_true',help='comparison candidate: refresh physical state even after ordinary queries')
     a=p.parse_args();a.output.parent.mkdir(parents=True,exist_ok=True)
     replacement=read(a.replacement) if a.replacement else None
     if replacement:replacement['selected_model']=read(a.selected_model)
-    result=generate(read(a.model),a.output.parent/'database',replacement,a.cache_query,not a.rebuild_queries,a.preserve_cache,a.compact_queries);a.output.write_text(json.dumps(result,indent=2)+'\n')
+    result=generate(read(a.model),a.output.parent/'database',replacement,a.cache_query,not a.rebuild_queries,a.preserve_cache,a.compact_queries,a.delta_query);a.output.write_text(json.dumps(result,indent=2)+'\n')
 if __name__=='__main__':main()

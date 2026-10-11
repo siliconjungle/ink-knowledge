@@ -79,9 +79,9 @@ python3 -m unittest discover -s tests -v
 
 `producers/` holds untrusted authoring/import tools. `research/` quarantines historical experiment formats, fixtures and Lean work; production discovery does not scan it or depend on experiment directory names. Research tools can still reproduce their original mathematical experiments. These formats are not compatibility aliases for the canonical API.
 
-The merged main snapshot contains 2459 canonical entries and 4206 discovery names.
-It combines the independently developed main catalogue with the 1994-entry web
-performance catalogue, preserving both sets of immutable proofs, observations
+The merged main snapshot contains 2845 canonical entries and 4517 discovery names.
+It combines the independently developed main catalogue with the web
+performance catalogue and the owned-collection/point-query additions, preserving both sets of immutable proofs, observations
 and historical snapshots. SQLite remains a rebuilt disposable index. Frozen web
 benchmark timings describe their recorded compiler and catalogue revisions; they
 do not measure this merged engine.
@@ -125,7 +125,8 @@ observations, successive filter fusion, identity filtering, zero-bound iteration
 immediate stopping and stopping proved by an actual application condition. Each
 family covers u32/u64/i32/f32/Bool values. `producers/local_collection_laws.py`
 reproduces the entries and the bounded `store/local-collection-view.json`; the
-full `build_store.py` reproduces the canonical snapshot. These require Ink's
+`build_store.py` reproduces its base authoring snapshot; later producers preserve
+and extend the checked-in snapshot. These require Ink's
 buffer-observation/stopping-loop correspondence (core commit 77a47a6), and are
 checked locally. They do not prove owned mutation, map updates, heap correctness,
 A* correctness, physical emission or a universal speedup.
@@ -178,3 +179,39 @@ Batch36 adds four content-bound U32 source deployment certificates for plain, ne
 Batch37 adds six U32/I32/U64 independent-list indexed-map demand-erasure endpoints, twelve Nat-offset/beta induction supports and four helper-bound U32 source certificates. Both zip orientations preserve min-length extent and selected value order while removing arbitrary pure total unobserved indexed callbacks. Generalized supports cover Nat index state and wrapping U32 callback indices. `producers/web_pipeline37_laws.py` and `tests/test_web_pipeline37_laws.py` pin the original 2,512-entry snapshot; a full forward/reverse alpha endpoint audit finds no duplicates, without claiming nonderivability from prior laws. The unchanged publisher admits a closed 22-object extension with no old dependencies. Canonical totals become 2,534 entries, 4,281 names and 25,940 separate empirical observations after 840 new groups. Benchmarks consume every vector word; physical GPU dispatch/transfer contracts remain unchanged, five prior cells regress and all strong controls are retained. Correctness and measured profitability remain separate; no runtime/cost policy is installed.
 
 Batch38 adds six U32/I32/U64 same-origin padded observed indexed-zip fusion endpoints, six Nat-beta supports and four content-bound U32 source certificates. Both indexed mapper values and the ordered pair helper remain observed; output extent is length(xs), and arbitrary padding must be appended after the exact shared input prefix. The induction generalizes over arbitrary Nat offsets with wrapping U32 callback indices. `producers/web_pipeline38_laws.py` and `tests/test_web_pipeline38_laws.py` pin the original 2,534-entry snapshot. A full consistent-alpha forward/reverse endpoint audit finds no duplicates for the twelve new generic objects, without claiming nonderivability from older laws. The unchanged publisher admits sixteen fresh objects, no shared-old objects or old mathematical dependencies. Canonical totals become 2,550 entries, 4,297 names and 26,780 empirical observation files after 840 new groups; old objects, names and observation bytes are preserved. GPU requests execute four graph stages before and one legacy shader after selection, while upload grows by twenty bytes and readback is unchanged. All twenty classified prior CPU regressions, uncertainty and strong controls remain recorded; correctness and measured profitability stay distinct. No core, runtime, target routing or cost policy changes are installed.
+
+## Owned collections and incremental point queries
+
+`producers/owned_collection_laws.py --output-store .` adds 215 ordinary laws
+for existing Buffer/Map operations and owned stopping loops, preserving older
+canonical objects, name targets and snapshots. `store/owned-collection-view.json`
+is a transport fixture. Primitive meaning belongs to the core; these entries are
+not trusted merely because this producer generated them.
+
+`producers/point_delta.py` proposes fixed-key remove/replace maintenance through
+`representations.py --cache-query zero --preserve-cache --delta-query`; unsupported
+updates use refresh. Frozen requests and proved forward/reverse migrations live
+in `research/point-delta`. `representation_bridge.py --via-logical` proposes
+decode/encode bridges; the default proposes state reuse for identical relations.
+Every request and bridge still needs mathematical admission.
+
+`producers/lifecycle_observations.py` imports measured native phases with exact
+request-file SHA256 identities and exact bridge-file hashes for migration phases.
+Checking cost depends on closure/witness bytes, so a representation entry ID alone
+is insufficient for comparable measurements. Observations remain separate from
+proof snapshots. The current point-delta fixture loses to the simpler direct
+layout; no profitability claim follows from its preservation proofs.
+
+
+## Independent Boolean proof verdict
+
+`research/verified-kernel/BooleanKernel.lean` proves soundness of a separate
+Boolean equality calculus in Lean 4.19.0, without added axioms, `sorry` or
+`native_decide`. Its standard axiom dependencies are `propext` and `Quot.sound`.
+`producers/boolean_verdict.py` translates a bounded subset of historical Boolean
+equality objects into certificates; the translator is not verified. The Ink CLI
+`check-boolean-verdict` checks the exact input with its Rust checker and then
+runs Lean. This optional additional verdict does not verify the entire Ink checker,
+source correspondence or backends and grants no new optimisation authority.
+Unsupported proof constructors/domains fail explicitly; existing production
+snapshot selection and repository-owned contributions are unchanged.
