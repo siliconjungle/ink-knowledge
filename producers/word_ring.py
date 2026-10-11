@@ -7,7 +7,6 @@ import hashlib,json,subprocess,tempfile
 from pathlib import Path
 from action_replacement import var,convert,trans
 from point_delta import binary
-from bitvector_proofs import certificate
 
 def free(t):
  if 'Var'in t:return {t['Var']}
@@ -21,7 +20,7 @@ def term(items):
  for x in reversed(items[:-1]):out=binary('+',x,out)
  return out
 class Tactic:
- def __init__(self,add,compiler):self.add=add;self.compiler=compiler;self.laws={};self.memo={}
+ def __init__(self,add,compiler,cache=None):self.add=add;self.compiler=compiler;self.laws={};self.memo={};self.cache=Path(cache)if cache else Path(__file__).resolve().parents[1]/'build/word-laws'
  def lemma(self,a,z,p):
   params=[[n,'U64']for n in sorted(free(a)|free(z))]
   i=self.add({'Theorem':dict(params=params,conditions=[],**{'from':a,'to':z},proof=p)})
@@ -41,13 +40,14 @@ class Tactic:
     'multiply_zero':(binary('*',a,zero),zero),
     'zero_multiply':(binary('*',zero,a),zero),
    };left,right=laws[name];params=[[n,'U64']for n in sorted(free(left)|free(right))];goal=dict(params=params,conditions=[],**{'from':left,'to':right})
-   cache=Path(__file__).resolve().parents[1]/'build/word-laws';cache.mkdir(parents=True,exist_ok=True);key=hashlib.sha256(json.dumps(goal,sort_keys=True).encode()).hexdigest();file=cache/(key+'.json')
+   cache=self.cache;cache.mkdir(parents=True,exist_ok=True);key=hashlib.sha256(json.dumps(goal,sort_keys=True).encode()).hexdigest();file=cache/(key+'.json')
    if file.exists():proof=json.loads(file.read_text())
    else:
-    print('author scalar axiom',name,flush=True)
+    print('author scalar certificate',name,flush=True)
     with tempfile.TemporaryDirectory(prefix='ink-scalar-law-')as directory:
      path=Path(directory)
      def cert(g):
+      from bitvector_proofs import certificate
       (path/'goal.json').write_text(json.dumps(g));result=subprocess.run([str(self.compiler),'bitvector-obligation',str(path/'goal.json'),'-o',str(path/'cnf.json')],capture_output=True,text=True)
       if result.returncode:raise ValueError(result.stderr)
       c=certificate(json.loads((path/'cnf.json').read_text()))

@@ -58,7 +58,8 @@ def generate(model,directory,replacement=None,cache_query=None,retain_queries=Tr
         if 'Sym'in proof:return {'Sym':factor_cases(proof['Sym'],params,conditions)}
         if 'Substitute'in proof:return {'Substitute':{**proof['Substitute'],'equality':factor_cases(proof['Substitute']['equality'],params,conditions)}}
         return proof
-    def fun(params,result,body,extra=()):return add({'Function':dict(params=params,result=result,body=body,recursive=None)},extra)
+    carriers=[i for i,obj in model['objects'].items()if 'Datatype'in obj['payload'].get('declaration',{})]
+    def fun(params,result,body,extra=()):return add({'Function':dict(params=params,result=result,body=body,recursive=None)},[*extra,*carriers])
     requests=[];plans=[];ids=[]
     # Two genuinely different tuple layouts, chosen entirely by this database
     # producer. Neither the core nor the native emitter recognises their shape.
@@ -100,12 +101,15 @@ def generate(model,directory,replacement=None,cache_query=None,retain_queries=Tr
             post=lambda o:match(o,[(['post_reply','post_committed','post_version','post_rows','post_events'],var('post_rows')),(['post_host','post_version','post_rows'],var('post_rows'))])
             result=a['result']
             predicted=delta['action'](sa) if delta else None
-            use_delta=predicted is not None
             cached_read=bool(cache and name==cache_query)
             query=unchanged_query(model,a)
             retain=retain_queries and query and not (compact_queries and (not cache or cached_read))
             maintain=bool(cache and not cached_read and
                           ((preserve_cache and not retain) or (compact_queries and query)))
+            # A retained query carries P, not a cache delta. The delta tactic
+            # can validly predict an unchanged cache for such a query, but that
+            # prediction does not change the query's physical carrier type.
+            use_delta=predicted is not None and maintain
             if use_delta:
                 delta_pair=add({'Datatype':dict(constructors=[dict(name='CacheDelta',fields=[cache_sort,cache_sort])])})
                 delta_sort={'Data':delta_pair}

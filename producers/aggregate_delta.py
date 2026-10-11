@@ -27,7 +27,7 @@ def setup(model,cache,add,objects):
     compiler=Path(os.environ.get('INK_COMPILER','target/debug/ink')).resolve()
     arithmetic_cache={}
     from word_ring import Tactic
-    ring=Tactic(add,compiler)
+    ring=Tactic(add,compiler,Path(__file__).resolve().parents[1]/'research/composable-state/word-certificates')
     def arithmetic(a,z):
         opaque=[]
         def abstract(t):

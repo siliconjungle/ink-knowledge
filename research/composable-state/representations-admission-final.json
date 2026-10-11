@@ -1,0 +1,142 @@
+{
+  "schema": 1,
+  "status": "checked",
+  "previous_snapshot": "0a86b08f1397f25520de8c4299661fa639eaf3d0693875df33739e05fba694dd",
+  "snapshot": "28348d28cdb30a6ab95e93000d07bcc0b688655f3a453444a743bd901943a93e",
+  "compiler_sha256": "606fc145c9f7d086bf09dbafa190ab76990388dd6bf7828e0f9d9fa506081b6d",
+  "added_entries": 469,
+  "candidates": [
+    {
+      "name": "point-index",
+      "source": "0443438bd88340e7752bf23c6f2be8a3b9f57d026af029ad0c0486437c0821e8",
+      "representation": "e161df186ccf0f4b7e8abfb1b2e02f10d7271d964f959f771a0d339b39c9fcc6",
+      "source_file_sha256": "ad1368205fb47db874be6c98260b3d4a2f5ce494f7fc8add0bdaec79afd1b085"
+    },
+    {
+      "name": "field-point",
+      "source": "e48f7487686955a3688cf6376a66f4af295d922b0bac24c8e29886e791f8e61e",
+      "representation": "366b98f80c91d2d4ec1648232a41c55c0649de051067bb6cafeaaefe36b6560a",
+      "source_file_sha256": "80bda26769cef2e1b6d2f96077b45b062da4e78fb7df6d2a13d82e2a9cd6b1c6"
+    },
+    {
+      "name": "index-two-aggregates",
+      "source": "575e77e937cd6c25e207af8987a7c375e45e936472ce7e2fe47f9fc024f168cd",
+      "representation": "2d5dde7364ca4076564fa00a5727fa7c1fa9e3606521b60dc6d3f8eaeebc52a1",
+      "source_file_sha256": "2906c4a21bbdf9c778aceda165230b767ec606ff089b9deabc30f09419daca62"
+    },
+    {
+      "name": "aggregate-direct",
+      "source": "575e77e937cd6c25e207af8987a7c375e45e936472ce7e2fe47f9fc024f168cd",
+      "representation": "bfa590c5d118ff62eaca9c72dc4f25779bcdc27fec93c26fa1aedbd6e839dd1a",
+      "source_file_sha256": "2906c4a21bbdf9c778aceda165230b767ec606ff089b9deabc30f09419daca62"
+    },
+    {
+      "name": "aggregate-total",
+      "source": "575e77e937cd6c25e207af8987a7c375e45e936472ce7e2fe47f9fc024f168cd",
+      "representation": "77a8845dec9858f91b0e3111dd9ff3938b0901e321be3230723cdc2361d511c6",
+      "source_file_sha256": "2906c4a21bbdf9c778aceda165230b767ec606ff089b9deabc30f09419daca62"
+    },
+    {
+      "name": "aggregate-count",
+      "source": "575e77e937cd6c25e207af8987a7c375e45e936472ce7e2fe47f9fc024f168cd",
+      "representation": "fe5c0017edb0c9040a6d18c342e37fd24d1935aaebe2215bb648b1ebbaf40578",
+      "source_file_sha256": "2906c4a21bbdf9c778aceda165230b767ec606ff089b9deabc30f09419daca62"
+    },
+    {
+      "name": "keep-point",
+      "source": "0443438bd88340e7752bf23c6f2be8a3b9f57d026af029ad0c0486437c0821e8",
+      "representation": "7fb14de8ef2959158a0a3eb5605d799495b5259c0779d58b49c29f2af61f3c22",
+      "source_file_sha256": "ad1368205fb47db874be6c98260b3d4a2f5ce494f7fc8add0bdaec79afd1b085"
+    },
+    {
+      "name": "point-delta/direct",
+      "source": "b6ac662106a52efc5577223bbbb0bcefa36b534ef8169a22fa786b7546fd9013",
+      "representation": "b32158b585b073ae72f8c60fc4c9e607a77cf0710fb67d4f069cb3e14c89608c",
+      "source_file_sha256": "4080fa10504c2e647a0185566aae16faec2dd66dc864e656bc456e3eaef15cce"
+    },
+    {
+      "name": "point-delta/refresh",
+      "source": "b6ac662106a52efc5577223bbbb0bcefa36b534ef8169a22fa786b7546fd9013",
+      "representation": "a72366ed9f402b27d873ce2e466da8e1f47797f3c1db5b1e70715f497c44c36d",
+      "source_file_sha256": "4080fa10504c2e647a0185566aae16faec2dd66dc864e656bc456e3eaef15cce"
+    },
+    {
+      "name": "point-delta/delta",
+      "source": "b6ac662106a52efc5577223bbbb0bcefa36b534ef8169a22fa786b7546fd9013",
+      "representation": "a4932e924ac6620fa356e74918178bed687b48de8f53c44c83a6b23900d9fef4",
+      "source_file_sha256": "4080fa10504c2e647a0185566aae16faec2dd66dc864e656bc456e3eaef15cce"
+    },
+    {
+      "name": "source-representations/retained-direct",
+      "source": "c17b00c23cedd02dca5bd9d468144027ea547cf114321d0a34c20a8338e1415b",
+      "representation": "994b639010b7792d3df582d609ca4dfb6d13321c233e03fdb80bb6bb5e8e65a1",
+      "source_file_sha256": "acbbd89da316cf044271f23cc6fc5f0179f30cebdb59d1705c05cedd93bdcfa5"
+    },
+    {
+      "name": "source-representations/retained-query-cache",
+      "source": "c17b00c23cedd02dca5bd9d468144027ea547cf114321d0a34c20a8338e1415b",
+      "representation": "f2542a2c2cf26a6cb31d4d17f1bba01656aa49e5ebd2453befccd1509ea09e6b",
+      "source_file_sha256": "acbbd89da316cf044271f23cc6fc5f0179f30cebdb59d1705c05cedd93bdcfa5"
+    },
+    {
+      "name": "filtered-aggregate/direct",
+      "source": "729114ddfa53867fc418a0ff604989988d062ac2f78e4162b43dc583a6c0c68c",
+      "representation": "016a71b38cd488a996eb03b43467e400a00c7e6c6bddcce54bdcc9a32986de8b",
+      "source_file_sha256": "f774f738409c64715bde96f2a9af3f5a608187d0a1fddf5aa644da82f1a79b12"
+    },
+    {
+      "name": "filtered-aggregate/refresh",
+      "source": "729114ddfa53867fc418a0ff604989988d062ac2f78e4162b43dc583a6c0c68c",
+      "representation": "1f539242934372ac8b0951f452274d22b3ca202aec8a51352b7712bbe04eb630",
+      "source_file_sha256": "f774f738409c64715bde96f2a9af3f5a608187d0a1fddf5aa644da82f1a79b12"
+    },
+    {
+      "name": "filtered-aggregate/sum-delta",
+      "source": "729114ddfa53867fc418a0ff604989988d062ac2f78e4162b43dc583a6c0c68c",
+      "representation": "bf79a7f00e9ce79bab885ed1b52253fe4c2ffe2c3c83434676f48898a64db25b",
+      "source_file_sha256": "f774f738409c64715bde96f2a9af3f5a608187d0a1fddf5aa644da82f1a79b12"
+    },
+    {
+      "name": "filtered-aggregate/count-delta",
+      "source": "729114ddfa53867fc418a0ff604989988d062ac2f78e4162b43dc583a6c0c68c",
+      "representation": "0e3a493e42df442d62316759a33a4706fe600e5e00d3de7a6f0cc87982515fcf",
+      "source_file_sha256": "f774f738409c64715bde96f2a9af3f5a608187d0a1fddf5aa644da82f1a79b12"
+    },
+    {
+      "name": "compact-queries/previous",
+      "source": "9bb4bb0c821909456e0c7f2d16d5fe6d25d8529e75c142ff3d4820da3adb5109",
+      "representation": "91ebf6ff9ac00cf95de49d8ee406126291d4b226a686f0c32b8009faaa594386",
+      "source_file_sha256": "5748c43d00e5f08cdc2fe5a400a2e73365fdfd12a1e846de9c446abd9fd61627"
+    },
+    {
+      "name": "compact-queries/cached",
+      "source": "9bb4bb0c821909456e0c7f2d16d5fe6d25d8529e75c142ff3d4820da3adb5109",
+      "representation": "7038abbccaeca645e4976ff8ea059d38a7b3b967db9fbd2136ff690c7691ce27",
+      "source_file_sha256": "5748c43d00e5f08cdc2fe5a400a2e73365fdfd12a1e846de9c446abd9fd61627"
+    },
+    {
+      "name": "index-point-cache",
+      "source": "0443438bd88340e7752bf23c6f2be8a3b9f57d026af029ad0c0486437c0821e8",
+      "representation": "0043076089a04dbe28dcfd74ab21638b734ef6a7166395731f9c8f0631b8f278",
+      "source_file_sha256": "ad1368205fb47db874be6c98260b3d4a2f5ce494f7fc8add0bdaec79afd1b085"
+    },
+    {
+      "name": "index-total-cache",
+      "source": "575e77e937cd6c25e207af8987a7c375e45e936472ce7e2fe47f9fc024f168cd",
+      "representation": "81b1b0a82cb666f6ab7ed34a30d16453ad473e512285e73ac9539baf337853da",
+      "source_file_sha256": "2906c4a21bbdf9c778aceda165230b767ec606ff089b9deabc30f09419daca62"
+    }
+  ],
+  "mathematics": [
+    {
+      "name": "source-group",
+      "roots": [
+        "5661e49582de5c091382d75f9b358334c3097174e75964658cf1a86b3e53c318",
+        "b8c9682f525af5786fef9d5de68519c5f5780379fd78aff370e02c263963cc13",
+        "cf2ceba0479a2be906d4e9f8af7113cae7179ece3af5a2dcecb718e002bd7f64"
+      ],
+      "core_file_sha256": "f0da605833274c9f3b8ffbbdcc3a5f0eaf4cef28802deb7b46355ee0835bbe13"
+    }
+  ],
+  "scope": "Representation admission checks complete source observations and universal state relations. Mathematical roots are checked separately. Profitability requires comparable lifecycle evidence."
+}

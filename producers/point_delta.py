@@ -1,6 +1,6 @@
 """Untrusted incremental point-query proposals and ordinary induction proofs.
 
-Recognises fixed-key remove/replace histories; unsupported changes use refresh.
+Repairs fixed point projections across parameter-key histories; unsupported changes refresh.
 The core knows no query/update pattern and rechecks all future-state obligations.
 """
 from action_replacement import var,call,cons,convert,trans
@@ -13,9 +13,27 @@ def sub(t,m):
     if isinstance(t,list):return [sub(x,m) for x in t]
     if not isinstance(t,dict):return t
     if set(t)=={'Var'}:return m.get(t['Var'],t)
-    # Producer-generated binders are fresh; never substitute captured names.
+    # Capture avoidance is necessary even for producer-generated binders:
+    # normalising a helper can substitute a caller tail with the same name.
     if 'Match' in t:
-        x=t['Match'];return match(sub(x['scrutinee'],m),[(b['bindings'],sub(b['body'],{k:v for k,v in m.items() if k not in b['bindings']})) for b in x['branches']])
+        def names(x):
+            if isinstance(x,list):return set().union(*(names(v) for v in x))
+            if not isinstance(x,dict):return set()
+            found={x['Var']} if 'Var'in x else set()
+            if 'bindings'in x:found.update(x['bindings'])
+            return found|set().union(*(names(v)for v in x.values()))
+        x=t['Match'];branches=[];used=names(t)|names(list(m.values()))|set(m)
+        for b in x['branches']:
+            bindings=list(b['bindings']);body=b['body'];local={k:v for k,v in m.items()if k not in bindings}
+            captures=names(list(local.values()))
+            for index,name in enumerate(bindings):
+                if name not in captures:continue
+                serial=0
+                while f'delta_bound_{serial}'in used:serial+=1
+                fresh=f'delta_bound_{serial}';used.add(fresh)
+                body=sub(body,{name:var(fresh)});bindings[index]=fresh
+            branches.append((bindings,sub(body,local)))
+        return match(sub(x['scrutinee'],m),branches)
     return {k:sub(v,m) for k,v in t.items()}
 def replace(t,a,z):
     if t==a:return z
@@ -29,7 +47,9 @@ def normal(t,objects,depth=0):
     recur=lambda t:normal(t,objects,depth+1)
     if not isinstance(t,dict):return t
     if 'Call' in t:
-        x=t['Call'];args=[recur(a) for a in x['arguments']];f=objects[x['function']]['payload']['declaration']['Function']
+        x=t['Call'];args=[recur(a) for a in x['arguments']];declaration=objects[x['function']]['payload']['declaration']
+        if 'AbstractFunction'in declaration:return call(x['function'],args)
+        f=declaration['Function']
         if f['recursive'] is not None and 'Construct' not in args[f['recursive']]:return call(x['function'],args)
         body=f['body']
         def selfcalls(x):
@@ -53,7 +73,7 @@ def normal(t,objects,depth=0):
     if 'Binary' in t:
         x=t['Binary'];a,z=recur(x['left']),recur(x['right'])
         if 'U64' in a and 'U64' in z:
-            av,zv=a['U64'],z['U64'];op=x['op'];return {'Bool':{'==':av==zv,'!=':av!=zv,'<':av<zv,'<=':av<=zv,'>':av>zv,'>=':av>=zv}[op]} if op in ['==','!=','<','<=','>','>='] else {'U64':{'+':av+zv,'-':av-zv,'*':av*zv}[op]%(1<<64)}
+            av,zv=a['U64'],z['U64'];op=x['op'];return {'Bool':{'==':av==zv,'!=':av!=zv,'<':av<zv,'<=':av<=zv,'>':av>zv,'>=':av>=zv}[op]} if op in ['==','!=','<','<=','>','>='] else {'U64':{'+':av+zv,'-':av-zv,'*':av*zv,'&':av&zv}[op]%(1<<64)}
         return binary(x['op'],a,z)
     return t
 
@@ -69,73 +89,20 @@ def equality(a,z,objects,hyp=None,facts=()):
                 if rewritten!=current:
                     context=replace(current,left,var('delta_hole'))
                     following=normal(rewritten,objects)
-                    proof=trans(proof,lift({'Hypothesis':index},context),convert(rewritten,following))
+                    proof=trans(proof,lift(index if isinstance(index,dict) else {'Hypothesis':index},context),convert(rewritten,following))
                     current=following;changed=True
             if not changed:return current,proof
         raise ValueError('point delta tactic rewrite budget')
     na,pa=simplify(a);nz,pz=simplify(z)
-    if na==nz:return trans(pa,convert(na,nz),{'Sym':pz})
+    from action_replacement import alpha_normal
+    if alpha_normal(na)==alpha_normal(nz):return trans(pa,convert(na,nz),{'Sym':pz})
     if hyp:
-        ha,hz,index=hyp;ha,hz=normal(ha,objects),normal(hz,objects)
+        ha,hz,index=hyp;ha,ha_proof=simplify(ha);hz,hz_proof=simplify(hz)
+        inherited=trans({'Sym':ha_proof},index if isinstance(index,dict) else {'Hypothesis':index},hz_proof)
         context=replace(na,ha,var('delta_hole'));rewritten=replace(na,ha,hz)
-        if normal(rewritten,objects)==nz:return trans(pa,lift({'Hypothesis':index},context),convert(rewritten,nz),{'Sym':pz})
+        if normal(rewritten,objects)==nz:return trans(pa,lift(inherited,context),convert(rewritten,nz),{'Sym':pz})
     raise ValueError('point delta proof tactic cannot establish this equation: '+str((na,nz)))
 
 def setup(model,cache,add,objects):
-    reply=cache['case']['normal']['Construct']['arguments'][0]
-    if 'Call' not in reply:raise ValueError('--delta-query needs a fixed-key get query')
-    f=reply['Call'];tables=[t for t in model['tables'] if t['get']==f['function']]
-    if len(tables)!=1 or len(f['arguments'])!=2 or 'U64' not in f['arguments'][1]:raise ValueError('--delta-query needs a fixed-u64-key table get')
-    table=tables[0];root=f['arguments'][0];q=f['arguments'][1]
-    if 'Var' not in root or root['Var'] not in cache['case']['bindings']:raise ValueError('unsupported point-query root')
-    index=cache['case']['bindings'].index(root['Var']);d=table['datatype'];get=table['get'];option=objects[get]['payload']['declaration']['Function']['result']['Data']
-    none=cons(option,0,[]);some=lambda x:cons(option,1,[x]);getof=lambda r:call(get,[r,q]);params=[['rows',{'Data':d}]]
-    rows=var('rows');tail=var('delta_tail');head=var('delta_key');value=var('delta_value');new=var('delta_new')
-    bound=cons(d,1,[head,value,tail]);guard=binary('==',q,head)
-    updates={}
-    for name in ['remove','replace']:
-        change=lambda r:call(table[name],[r,q]+([new] if name=='replace' else []))
-        result=lambda r:none if name=='remove' else match(getof(r),[([],none),(['delta_old'],some(new))])
-        lhs=lambda r:getof(change(r));rhs=result
-        a,z=lhs(bound),rhs(bound);na,nz=normal(a,objects),normal(z,objects);branches={}
-        for flag in [False,True]:
-            context_a=replace(na,guard,var('delta_hole'));context_z=replace(nz,guard,var('delta_hole'))
-            ca=replace(na,guard,{'Bool':flag});cz=replace(nz,guard,{'Bool':flag})
-            branches['on_true' if flag else 'on_false']=trans(convert(a,na),lift({'Hypothesis':1},context_a),equality(ca,cz,objects,(lhs(tail),rhs(tail),0),[(guard,{'Bool':flag},1)]),{'Sym':lift({'Hypothesis':1},context_z)},convert(nz,z))
-        proof={'Induction':dict(variable='rows',**{'from':lhs(rows),'to':rhs(rows)},cases=[dict(bindings=[],proof=convert(lhs(cons(d,0,[])),rhs(cons(d,0,[])))),dict(bindings=['delta_key','delta_value','delta_tail'],proof={'BoolSplit':dict(condition=guard,**{'from':a,'to':z},**branches)})])}
-        decl={'Theorem':dict(params=params+([['delta_new',objects[table['replace']]['payload']['declaration']['Function']['params'][2][1]]] if name=='replace' else []),conditions=[],**{'from':lhs(rows),'to':rhs(rows)},proof=proof)}
-        updates[name]=add(decl,[d,option])
-    def recipe(t,old,bindings):
-        if t==var(bindings[index]):return old
-        c=t.get('Call',{});args=c.get('arguments',[])
-        if len(args)<2 or args[1]!=q:raise ValueError('unsupported update key')
-        if c['function']==table['remove']:
-            recipe(args[0],old,bindings);return none
-        if c['function']==table['replace']:
-            prior=recipe(args[0],old,bindings);return match(prior,[([],none),(['delta_old'],some(args[2]))])
-        raise ValueError('unsupported point delta operation')
-    def action(sa):
-        old=var('cached_reply')
-        initial=var(sa['case']['bindings'][index])
-        def predict(term):
-            if 'If' in term:
-                branch=term['If'];yes=predict(branch['on_true']);no=predict(branch['on_false'])
-                if yes==no:return yes
-                condition=replace(branch['condition'],getof(initial),old)
-                return choice(condition,yes,no)
-            o=term['Construct']
-            if o['constructor']!=0 or o['arguments'][1]!={'Bool':True}:return old
-            return recipe(o['arguments'][3]['Construct']['arguments'][index],old,sa['case']['bindings'])
-        try:predicted=predict(sa['case']['normal'])
-        except (ValueError,KeyError):return None
-        if variables(predicted)-{'cached_reply',*[n for n,_ in sa['params'][1:]]}:return None
-        return predicted
-    def query_equality(root,bindings):
-        """get(updated roots) = candidate cache; exact universal update laws."""
-        if root==var(bindings[index]):return {'Refl':getof(root)}
-        c=root['Call'];args=c['arguments'];name='remove' if c['function']==table['remove'] else 'replace'
-        use={'Use':dict(theorem=updates[name],arguments=[args[0]]+([args[2]] if name=='replace' else []),premises=[])}
-        if name=='remove':return use
-        context=match(var('delta_hole'),[([],none),(['delta_old'],some(args[2]))])
-        return trans(use,lift(query_equality(args[0],bindings),context))
-    return dict(action=action,recipe=recipe,equality=query_equality,index=index,get=get,q=q,option=option)
+    from producers.point_projection_delta import setup as projected_setup
+    return projected_setup(model,cache,add,objects)
