@@ -16,3 +16,16 @@ The active database retains this view's immutable snapshot and tree witnesses.
 A compact leaf packing changes authentication overhead only, without changing the
 membership schema or adding mathematical authority. The database producer never
 publishes a candidate as checked until the source-bound compiler replay succeeds.
+
+`direct.json` supplies the comparison representation. `implementations.json`
+records ordinary source, direct and indexed database-package IDs for the existing
+external implementation selector. Measurements and replay receipts live in the
+distribution's `reports/indexed-aggregate-durable/` directory. A compact pinned
+direct-to-indexed bridge is reconstructed from `migration-admission.json`'s
+`view_snapshot` and `migration` IDs using `Store.bundle([migration])`; wrap that
+bundle as `{root: migration, knowledge: bundle}` and use canonical JSON plus a
+trailing newline. Its byte hash must equal the admission receipt before replay.
+
+The representation requests bind executable-core V8 after universal replay of an
+identical action projection. `producers/rebind_representations.py` performs this
+external authoring step; projection equality does not replace kernel checking.
