@@ -3,8 +3,8 @@
 Recognises fixed-key remove/replace histories; unsupported changes use refresh.
 The core knows no query/update pattern and rechecks all future-state obligations.
 """
-from action_replacement import var,call,cons,convert,trans
-from cache_maintenance import variables
+from producers.action_replacement import var,call,cons,convert,trans
+from producers.cache_maintenance import variables
 
 def choice(c,t,f):return {'If':dict(condition=c,on_true=t,on_false=f)}
 def binary(n,a,b):return {'Binary':dict(op=n,left=a,right=b)}
@@ -13,9 +13,24 @@ def sub(t,m):
     if isinstance(t,list):return [sub(x,m) for x in t]
     if not isinstance(t,dict):return t
     if set(t)=={'Var'}:return m.get(t['Var'],t)
-    # Producer-generated binders are fresh; never substitute captured names.
     if 'Match' in t:
-        x=t['Match'];return match(sub(x['scrutinee'],m),[(b['bindings'],sub(b['body'],{k:v for k,v in m.items() if k not in b['bindings']})) for b in x['branches']])
+        x=t['Match'];branches=[]
+        # Authoring substitution must be simultaneous and capture-avoiding too.
+        # The kernel remains independent and checks the resulting equations.
+        inserted=set().union(*(variables(v) for v in m.values())) if m else set()
+        used=variables(t)|inserted|set(m)
+        for b in x['branches']:
+            names=list(b['bindings']);body=b['body'];renaming={}
+            for at,name in enumerate(names):
+                if name in inserted:
+                    number=0
+                    while 'sub_bound_'+str(number) in used:number+=1
+                    fresh='sub_bound_'+str(number);used.add(fresh)
+                    names[at]=fresh;renaming[name]=var(fresh)
+            if renaming:body=sub(body,renaming)
+            local={k:v for k,v in m.items() if k not in b['bindings']}
+            branches.append((names,sub(body,local)))
+        return match(sub(x['scrutinee'],m),branches)
     return {k:sub(v,m) for k,v in t.items()}
 def replace(t,a,z):
     if t==a:return z
@@ -23,13 +38,14 @@ def replace(t,a,z):
     if isinstance(t,dict):return {k:replace(x,a,z) for k,x in t.items()}
     return t
 
-def normal(t,objects,depth=0):
+def normal(t,objects,depth=0,opaque=()):
     """Authoring computation only. Every proposed reduction is checked by Convert."""
     if depth>96:raise ValueError('point delta producer depth budget')
-    recur=lambda t:normal(t,objects,depth+1)
+    recur=lambda t:normal(t,objects,depth+1,opaque)
     if not isinstance(t,dict):return t
     if 'Call' in t:
         x=t['Call'];args=[recur(a) for a in x['arguments']];f=objects[x['function']]['payload']['declaration']['Function']
+        if x['function'] in opaque:return call(x['function'],args)
         if f['recursive'] is not None and 'Construct' not in args[f['recursive']]:return call(x['function'],args)
         body=f['body']
         def selfcalls(x):
