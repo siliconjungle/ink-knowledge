@@ -6,7 +6,11 @@ separate. build_store.py imports the resulting immutable research objects.
 """
 import argparse,hashlib,json,subprocess,sys
 from pathlib import Path
-from action_replacement import general_law,MATH
+if __package__ in (None, ""):
+    import sys
+    from pathlib import Path
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from producers.action_replacement import general_law,MATH
 
 def build(directory,compiler):
     objects,roles=general_law();directory=Path(directory);(directory/'objects').mkdir(parents=True,exist_ok=True)

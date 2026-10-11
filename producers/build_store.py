@@ -7,13 +7,13 @@ from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT))
 from ink_knowledge import Store,entry,identity,semantic_entry,canonical
-from semantic_laws import examples
-from local_collection_laws import examples as local_examples
-from collection_pipeline_laws import examples as pipeline_examples
-from shared_sequence_laws import examples as shared_examples
-from sort_cardinality_laws import examples as sort_examples
-from filtered_sort_laws import examples as filtered_sort_examples
-from literal_collection_laws import examples as literal_examples
+from producers.semantic_laws import examples
+from producers.local_collection_laws import examples as local_examples
+from producers.collection_pipeline_laws import examples as pipeline_examples
+from producers.shared_sequence_laws import examples as shared_examples
+from producers.sort_cardinality_laws import examples as sort_examples
+from producers.filtered_sort_laws import examples as filtered_sort_examples
+from producers.literal_collection_laws import examples as literal_examples
 
 def build(output):
     source={};names={};objects={};translated={};active=set()

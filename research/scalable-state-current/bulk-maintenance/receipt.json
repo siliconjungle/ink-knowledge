@@ -1,0 +1,13 @@
+{
+  "status": "checked",
+  "source": "4ada3b2f2d1b0f3eeb0267257e79ddd042966cba2ea0e8a5bb5ccd8f7095bfb4",
+  "representation": "c7b0095fa99df12eb0bf2def73de1718cd385b909ce798523618e2b945acbfc4",
+  "trust": [
+    "fixed source semantics",
+    "general equality checker",
+    "literal backend",
+    "host and snapshot codecs"
+  ],
+  "checked_obligations": 14,
+  "request_sha256": "98ed47717bb3475f2cee78aacf90e2689ebee1bc7f07843f8288ab6b34801311"
+}

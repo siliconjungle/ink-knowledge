@@ -9,7 +9,11 @@ import hashlib
 import json
 import subprocess
 from pathlib import Path
-from inductive_proofs import SEMANTICS, binary, var
+if __package__ in (None, ""):
+    import sys
+    from pathlib import Path
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from producers.inductive_proofs import SEMANTICS, binary, var
 
 
 def main():

@@ -10,6 +10,10 @@ import json
 import subprocess
 from pathlib import Path
 from ink_knowledge import Store, canonical, identity, semantic_entry
+if __package__ in (None, ""):
+    import sys
+    from pathlib import Path
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from producers.definition_context28 import bind, capture
 
 

@@ -1,0 +1,19 @@
+{
+  "schema": 1,
+  "case": "grid",
+  "source_sha256": "29672a4d1b40577eb75a69f8bbe73f1be650c98ce8dc7ef01292890511bfb501",
+  "source_identity": "864e34d035b052b07baf75bd073d1eb3bff3e58f3f39e184a4348ea3bbb6f98e",
+  "representations": [
+    "e3701e6c31bfb71c5dea0382c23c50560dd9e858d56dfd9d093eeca2e1bd25ea",
+    "cd0b5e4ce3f3e2a31d742fc8bc988a149098f7e17ae422d0659ead8306356558"
+  ],
+  "files": {
+    "model.json": "78de0539b41e301492ba3cb18e30179bf348d301c623cf54fe366f68cc1585e8",
+    "0.json": "4e76297ec3f74b20e2195e8102fcb98185dd3de07dbdf5950e8ed73dd0d9f93f",
+    "1.json": "a194200af93787fd2ff5b3cebcc6ad5152da83459d12ed7a83f0a2343e89c767",
+    "forward.json": "59acb796d32ba0d53c2c6dd715e997166efb3fcba0499333978f1204d19aa584",
+    "reverse.json": "f75d1aac24d13f5ba851a9f0c07936d2139e194c34aedb6388973a7fda95efa3"
+  },
+  "compression": "gzip, mtime zero; hashes bind decompressed exact bytes",
+  "scope": "Every archived request and both migration directions were checked. Archive identities establish integrity only; replay must run the existing checker."
+}

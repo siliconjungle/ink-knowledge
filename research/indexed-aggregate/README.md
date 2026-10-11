@@ -29,3 +29,5 @@ trailing newline. Its byte hash must equal the admission receipt before replay.
 The representation requests bind executable-core V8 after universal replay of an
 identical action projection. `producers/rebind_representations.py` performs this
 external authoring step; projection equality does not replace kernel checking.
+
+The current source-compatible binding and database-package IDs are recorded in `research/current-source-replay.json` and `implementations.json`. Archived selection receipts and timings retain their original exact compiler/source/candidate pins and do not apply to the refreshed binding.

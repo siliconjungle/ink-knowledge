@@ -9,7 +9,10 @@ from producers.action_replacement import var,call,cons,convert,trans
 from producers.point_delta import normal,sub,replace,binary,choice,match,lift
 from producers.cache_maintenance import leaves,variables
 
-def setup(model,cache,add,objects):
+def setup(model,cache,add,objects,specialized=False):
+    if 'Construct' in cache['case']['normal']['Construct']['arguments'][0]:
+        from producers.grouped_aggregate import setup as grouped_setup
+        return grouped_setup(model,cache,add,objects,specialized=specialized)
     original_add=add
     carriers=[i for i,obj in model['objects'].items()if 'Datatype'in obj['payload'].get('declaration',{})]
     def add(declaration):return original_add(declaration,carriers if 'Theorem'in declaration else ())
@@ -20,13 +23,17 @@ def setup(model,cache,add,objects):
     def q(rows):return sub(query,{binding:rows})
     nil=cons(d,0,[]);rows=var('aggregate_rows');tail=var('aggregate_tail');key=var('aggregate_key');value=var('aggregate_value');target=var('aggregate_target');new=var('aggregate_new')
     bound=cons(d,1,[key,value,tail]);guard=binary('==',target,key)
-    contribution=add({'Function':dict(params=[['aggregate_value',row_sort]],result='U64',body=q(cons(d,1,[{'U64':0},value,nil])),recursive=None)})
+    singleton=q(cons(d,1,[{'U64':0},value,nil]))
+    if specialized:
+        from producers.singleton_contribution import specialize
+        singleton=specialize(singleton,objects,'aggregate_value')
+    contribution=add({'Function':dict(params=[['aggregate_value',row_sort]],result='U64',body=singleton,recursive=None)})
     contrib=lambda v:call(contribution,[v])
     fold=add({'Function':dict(params=[['aggregate_rows',{'Data':d}]],result='U64',body=match(rows,[([],{'U64':0}),(['aggregate_key','aggregate_value','aggregate_tail'],binary('+',contrib(value),{'SelfCall':[tail]}))]),recursive=0)})
     total=lambda r:call(fold,[r])
     compiler=Path(os.environ.get('INK_COMPILER','target/debug/ink')).resolve()
     arithmetic_cache={}
-    from word_ring import Tactic
+    from producers.word_ring import Tactic
     ring=Tactic(add,compiler)
     def arithmetic(a,z):
         opaque=[]
@@ -95,11 +102,13 @@ def setup(model,cache,add,objects):
         foldlaw=add({'Theorem':dict(params=params,conditions=[],**{'from':lhs(rows),'to':rhs(rows)},proof={'Induction':dict(variable='aggregate_rows',**{'from':lhs(rows),'to':rhs(rows)},cases=[dict(bindings=[],proof=equality(lhs(nil),rhs(nil))),dict(bindings=['aggregate_key','aggregate_value','aggregate_tail'],proof=equality(lhs(bound),rhs(bound),[(lhs(tail),rhs(tail),0)]))])})})
         use_fusion=lambda r:{'Use':dict(theorem=fusion,arguments=[r],premises=[])}
         updates[name]=add({'Theorem':dict(params=params,conditions=[],**{'from':q(op(rows)),'to':binary('+',q(rows),delta(rows))},proof=trans(use_fusion(op(rows)),{'Use':dict(theorem=foldlaw,arguments=[rows,target]+([new]if name!='remove'else[]),premises=[])},{'Binary':dict(op='+',left={'Sym':use_fusion(rows)},right={'Refl':delta(rows)})}))})
+    from producers.bulk_aggregate import extend
+    functions,row_argument=extend(model,table,q,contribution,delta_functions,updates,add,objects,arithmetic)
     def recipe(root,old,bindings):
         if root==var(bindings[0]):return old
-        x=root.get('Call',{});args=x.get('arguments',[]);name=next((n for n in updates if table[n]==x.get('function')),None)
+        x=root.get('Call',{});args=x.get('arguments',[]);name=next((n for n in updates if functions[n]==x.get('function')),None)
         if name is None:raise ValueError('unsupported aggregate update')
-        prior=recipe(args[0],old,bindings)
+        prior=recipe(args[row_argument[name]],old,bindings)
         delta=contrib(args[2])if name=='insert'else call(delta_functions[name],args)
         return binary('+',prior,delta)
     def action(sa):
@@ -109,8 +118,8 @@ def setup(model,cache,add,objects):
         except(ValueError,KeyError):return None
     def query_equality(root,bindings):
         if root==var(bindings[0]):return {'Refl':q(root)}
-        x=root['Call'];args=x['arguments'];name=next(n for n in updates if table[n]==x['function'])
+        x=root['Call'];args=x['arguments'];name=next(n for n in updates if functions[n]==x['function'])
         use={'Use':dict(theorem=updates[name],arguments=args,premises=[])}
         delta=contrib(args[2])if name=='insert'else call(delta_functions[name],args)
-        return trans(use,lift(query_equality(args[0],bindings),binary('+',var('delta_hole'),delta)))
-    return dict(action=action,recipe=recipe,equality=query_equality,index=0,contribution=contribution,fold=fold,fusion=fusion,updates=updates,delta_functions=delta_functions,prove_arithmetic=arithmetic)
+        return trans(use,lift(query_equality(args[row_argument[name]],bindings),binary('+',var('delta_hole'),delta)))
+    return dict(action=action,recipe=recipe,equality=query_equality,index=0,fused=total(var(binding)),fusion_proof=lambda root:{'Use':dict(theorem=fusion,arguments=[root],premises=[])},contribution=contribution,fold=fold,fusion=fusion,updates=updates,delta_functions=delta_functions,prove_arithmetic=arithmetic)

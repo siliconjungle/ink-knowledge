@@ -6,11 +6,15 @@ Vec allocation, promotion, or source action/effect execution.
 """
 import argparse, hashlib, json, subprocess
 from pathlib import Path
-from inductive_proofs import var, call, construct, refl, binary
-from integer_proofs import match, induction, congruence, use, sym, trans
-from table_transition_proofs import conditional, constructed, generalized, hypothesis, substitute
+if __package__ in (None, ""):
+    import sys
+    from pathlib import Path
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from producers.inductive_proofs import var, call, construct, refl, binary
+from producers.integer_proofs import match, induction, congruence, use, sym, trans
+from producers.table_transition_proofs import conditional, constructed, generalized, hypothesis, substitute
 
-from workspace import CORE_ROOT as ROOT, KNOWLEDGE_ROOT, compiler_path
+from producers.workspace import CORE_ROOT as ROOT, KNOWLEDGE_ROOT, compiler_path
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)

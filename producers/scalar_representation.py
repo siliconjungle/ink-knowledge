@@ -2,8 +2,12 @@
 """Untrusted scalar-storage fixtures for source modules without state roots."""
 import argparse,json
 from pathlib import Path
-from representations import refs,match,REP,MATH
-from action_replacement import var,call,cons,convert
+if __package__ in (None, ""):
+    import sys
+    from pathlib import Path
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from producers.representations import refs,match,REP,MATH
+from producers.action_replacement import var,call,cons,convert
 from ink_knowledge import Store,identity
 from ink_knowledge.store import entry,read
 

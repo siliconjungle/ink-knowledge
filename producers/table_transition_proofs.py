@@ -2,10 +2,14 @@
 """Untrusted producer: exact keyed-table/cache transitions and finite histories."""
 import argparse, hashlib, json, subprocess
 from pathlib import Path
-from inductive_proofs import var, call, construct, refl, binary
-from integer_proofs import match, induction, congruence, use, sym, trans
+if __package__ in (None, ""):
+    import sys
+    from pathlib import Path
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from producers.inductive_proofs import var, call, construct, refl, binary
+from producers.integer_proofs import match, induction, congruence, use, sym, trans
 
-from workspace import CORE_ROOT as ROOT, KNOWLEDGE_ROOT, compiler_path
+from producers.workspace import CORE_ROOT as ROOT, KNOWLEDGE_ROOT, compiler_path
 def conditional(b,t,f):return {'If':dict(condition=b,on_true=t,on_false=f)}
 def constructed(identity,index,*proofs):return {'Construct':dict(datatype=identity,constructor=index,arguments=list(proofs))}
 def generalized(variable,parameters,left,right,*cases):return {'GeneralizedInduction':dict(variable=variable,generalize=parameters,**{'from':left,'to':right},cases=[dict(bindings=names,proof=proof) for names,proof in cases])}

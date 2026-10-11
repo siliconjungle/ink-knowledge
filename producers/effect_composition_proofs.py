@@ -5,7 +5,11 @@ Definitions and equality proofs use the unchanged general first-order kernel.
 """
 import argparse,hashlib,json
 from pathlib import Path
-from inductive_proofs import SEMANTICS,var,call,construct
+if __package__ in (None, ""):
+    import sys
+    from pathlib import Path
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from producers.inductive_proofs import SEMANTICS,var,call,construct
 
 def build(directory):
     objects=directory/'objects';objects.mkdir(parents=True,exist_ok=True);names={}

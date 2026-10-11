@@ -91,18 +91,18 @@ def normal(t,objects,depth=0,opaque=()):
     return t
 
 def lift(eq,context):return {'Substitute':dict(variable='delta_hole',context=context,equality=eq)}
-def equality(a,z,objects,hyp=None,facts=()):
+def equality(a,z,objects,hyp=None,facts=(),rewrite=replace):
     facts=tuple((normal(left,objects),normal(right,objects),index) for left,right,index in facts)
     def simplify(t):
         current=normal(t,objects);proof=convert(t,current)
         for _ in range(16):
             changed=False
             for left,right,index in facts:
-                rewritten=replace(current,left,right)
+                rewritten=rewrite(current,left,right)
                 if rewritten!=current:
-                    context=replace(current,left,var('delta_hole'))
+                    context=rewrite(current,left,var('delta_hole'))
                     following=normal(rewritten,objects)
-                    proof=trans(proof,lift({'Hypothesis':index},context),convert(rewritten,following))
+                    proof=trans(proof,lift(index if isinstance(index,dict) else {'Hypothesis':index},context),convert(rewritten,following))
                     current=following;changed=True
             if not changed:return current,proof
         raise ValueError('point delta tactic rewrite budget')
@@ -110,13 +110,16 @@ def equality(a,z,objects,hyp=None,facts=()):
     if na==nz:return trans(pa,convert(na,nz),{'Sym':pz})
     if hyp:
         ha,hz,index=hyp;ha,hz=normal(ha,objects),normal(hz,objects)
-        context=replace(na,ha,var('delta_hole'));rewritten=replace(na,ha,hz)
-        if normal(rewritten,objects)==nz:return trans(pa,lift({'Hypothesis':index},context),convert(rewritten,nz),{'Sym':pz})
+        context=rewrite(na,ha,var('delta_hole'));rewritten=rewrite(na,ha,hz)
+        if normal(rewritten,objects)==nz:return trans(pa,lift(index if isinstance(index,dict) else {'Hypothesis':index},context),convert(rewritten,nz),{'Sym':pz})
     raise ValueError('point delta proof tactic cannot establish this equation: '+str((na,nz)))
 
 def setup(model,cache,add,objects):
     reply=cache['case']['normal']['Construct']['arguments'][0]
-    if 'Call' not in reply:raise ValueError('--delta-query needs a fixed-key get query')
+    if 'Match' in reply:
+        from producers.point_delta_mapped import setup as mapped_setup
+        return mapped_setup(model,cache,add,objects,False)
+    if 'Call' not in reply:raise ValueError('--delta-query needs a fixed-key get or mapped get query')
     f=reply['Call'];tables=[t for t in model['tables'] if t['get']==f['function']]
     if len(tables)!=1 or len(f['arguments'])!=2 or 'U64' not in f['arguments'][1]:raise ValueError('--delta-query needs a fixed-u64-key table get')
     table=tables[0];root=f['arguments'][0];q=f['arguments'][1]
@@ -161,7 +164,7 @@ def setup(model,cache,add,objects):
             return recipe(o['arguments'][3]['Construct']['arguments'][index],old,sa['case']['bindings'])
         try:predicted=predict(sa['case']['normal'])
         except (ValueError,KeyError):return None
-        if variables(predicted)-{'cached_reply',*[n for n,_ in sa['params'][1:]]}:return None
+        if free_variables(predicted)-{'cached_reply',*[n for n,_ in sa['params'][1:]]}:return None
         return predicted
     def query_equality(root,bindings):
         """get(updated roots) = candidate cache; exact universal update laws."""
@@ -171,4 +174,4 @@ def setup(model,cache,add,objects):
         if name=='remove':return use
         context=match(var('delta_hole'),[([],none),(['delta_old'],some(args[2]))])
         return trans(use,lift(query_equality(args[0],bindings),context))
-    return dict(action=action,recipe=recipe,equality=query_equality,index=index,get=get,q=q,option=option)
+    return dict(action=action,recipe=recipe,equality=query_equality,index=index,get=get,q=q,option=option,updates=updates,table=table,some=some)

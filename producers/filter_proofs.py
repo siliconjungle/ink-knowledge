@@ -2,8 +2,12 @@
 """Untrusted proof production for filtered pipelines, conditional folds and source calls."""
 import argparse,hashlib,json
 from pathlib import Path
-from inductive_proofs import var,call,construct,binary,refl,SEMANTICS
-from collection_proofs import num,source_var,source_bin,lam,mapping,source_call,free,render
+if __package__ in (None, ""):
+    import sys
+    from pathlib import Path
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from producers.inductive_proofs import var,call,construct,binary,refl,SEMANTICS
+from producers.collection_proofs import num,source_var,source_bin,lam,mapping,source_call,free,render
 MASK=(1<<64)-1
 def conditional(c,t,f):return {'If':dict(condition=c,on_true=t,on_false=f)}
 def trans(a,b):return {'Trans':[a,b]}
