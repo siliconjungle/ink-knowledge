@@ -1,5 +1,7 @@
 # Point-query implementation candidates
 
+Current active requests were re-authored for executable-core V8 and universally checked; see `../representation-republication.json` and `producers/research_representations.py --compiler PATH --distribution INK_ROOT`. Historical snapshot counts and timings below describe their original publications and do not transfer to the refreshed requests.
+
 This immutable experiment publication packages ordinary point-query emission
 and the existing maintained representation as database implementation entries.
 `publication.json` identifies the snapshot, supplied baseline, candidate and

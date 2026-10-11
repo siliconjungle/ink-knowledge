@@ -1,5 +1,7 @@
 # Checked keep execution across targets
 
+Current active requests were re-authored for executable-core V8 and universally checked; see `../representation-republication.json` and `producers/research_representations.py --compiler PATH --distribution INK_ROOT`. Historical snapshot counts and timings below describe their original publications and do not transfer to the refreshed requests.
+
 `app.ink` uses a fixed-key `Option<u64>` keep. The frozen request pair contains
 the ordinary physical layout and a maintained cache, plus a checked migration.
 All definitions, membership witnesses and universal equations are self-contained;
