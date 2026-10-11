@@ -96,7 +96,8 @@ class Store:
         self._members=None
         self._explicit_snapshot=snapshot is not None
     @classmethod
-    def publish(cls, root, objects, names=None):
+    def publish(cls, root, objects, names=None, *, leaf_size=64):
+        if type(leaf_size) is not int or not 1<=leaf_size<=64:raise ValueError('snapshot leaf size')
         root=Path(root);data=root/'store';ids=[]
         for obj in objects:
             validate_entry(obj);i=identity(obj);immutable(data/'objects'/f'{i}.json',obj);ids.append(i)
@@ -116,8 +117,15 @@ class Store:
             middle=len(items)//2
             return node(dict(schema=1,left=leaf(items[:middle]),right=leaf(items[middle:])))
         nodes=[leaf(items) for items in buckets]
-        while len(nodes)>1:
-            nodes=[node(dict(schema=1,left=nodes[at],right=nodes[at+1])) for at in range(0,len(nodes),2)]
+        if leaf_size != 64:
+            nodes=[]
+            for at in range(0,max(1,len(ids)),leaf_size):
+                value=dict(schema=1,entries=ids[at:at+leaf_size]);i=identity(value);immutable(data/'trees'/f'{i}.json',value);nodes.append(i)
+            while len(nodes)>1:
+                nodes=[node(dict(schema=1,left=nodes[at],right=nodes[min(at+1,len(nodes)-1)])) for at in range(0,len(nodes),2)]
+        else:
+            while len(nodes)>1:
+                nodes=[node(dict(schema=1,left=nodes[at],right=nodes[at+1])) for at in range(0,len(nodes),2)]
         snapshot=dict(schema=1,semantics=SNAPSHOT,root=nodes[0]);sid=identity(snapshot)
         immutable(data/'snapshots'/f'{sid}.json',snapshot)
         for name,value in [('names.json',names or {}),('snapshot.json',snapshot)]:
