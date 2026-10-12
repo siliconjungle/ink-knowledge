@@ -9,8 +9,111 @@ from ink_knowledge.store import Store, entry, semantic_entry, identity
 from producers.equational import Tactic
 from producers.action_replacement import var, cons, convert
 from producers.point_delta import sub, normal
+from producers.beta_specialization15 import beta_normalize
 
 MATH='first-order-inductive-equality-v1'
+
+def pure_proposals(goal):
+    """Ordinary proof terms, independent of proposition/algorithm names.
+
+    Enumerate conversion, scoped hypotheses, Boolean splitting and induction.
+    The compiler replays every proposal. Bounded failure grants no assumption.
+    """
+    yield 'Normalize'
+    for i in range(len(goal['conditions'])):yield {'Hypothesis':i}
+    yield {'Linear':dict(premises=[])}
+    for i in range(len(goal['conditions'])):yield {'Linear':dict(premises=[[i,1]])}
+    if len(goal['conditions'])>1:yield {'Linear':dict(premises=[[i,1]for i in range(len(goal['conditions']))])}
+    from ink_planner.semantic_search import children
+    conditions=[];seen=set()
+    def visit(term,depth=0):
+        if depth>64:return
+        node=term.get('node')
+        if isinstance(node,dict)and 'Lambda'in node:return
+        if term.get('sort')=={'Value':'Bool'}:
+            data=json.dumps(term,sort_keys=True)
+            if '"Bound"'not in data and data not in seen:
+                seen.add(data);conditions.append(term)
+        for child in children(term):visit(child,depth+1)
+    for term in [goal['goal']['from'],goal['goal']['to']]:visit(term)
+    for name,sort in goal['params'].items():
+        if sort=={'Value':'Bool'}:
+            term=dict(sort=sort,node={'Free':name})
+            if term not in conditions:conditions.append(term)
+    conditions=[c for c in conditions if not isinstance(c['node'],dict)or 'Bool'not in c['node']][:12]
+    for condition in conditions:
+        yield {'Cases':dict(condition=condition,on_false='Normalize',on_true='Normalize')}
+    # Compose a bounded set of cases rather than recognise a particular formula.
+    if 1<len(conditions)<=4:
+        proof='Normalize'
+        for condition in reversed(conditions):proof={'Cases':dict(condition=condition,on_false=proof,on_true=proof)}
+        yield proof
+    for name,sort in goal['params'].items():
+        if isinstance(sort,dict)and isinstance(sort.get('Value'),dict)and 'List'in sort['Value']:
+            head,tail='contract_head','contract_tail'
+            while head in goal['params']:head+='_' 
+            while tail in goal['params']:tail+='_' 
+            yield {'Induction':dict(variable=name,names=[head,tail],base='Normalize',step='Normalize')}
+
+def rewrite_proposals(goal,store,limit=64):
+    """Compose ordinary database laws through the exact obligation context.
+
+    This bounded search has no privileged collection/property names. Lambda
+    interiors are left to binder-aware producers; closed argument positions
+    support arbitrary surrounding observations, including multiset contracts.
+    """
+    from ink_planner.semantic_search import children,match,substitute,replace,key
+    from producers.beta_specialization15 import lift_use
+    def positions(term,path=()):
+        yield path,term
+        if isinstance(term['node'],dict)and 'Lambda'in term['node']:return
+        for i,child in enumerate(children(term)):yield from positions(child,path+(i,))
+    def size(term):return 1+sum(size(child)for child in children(term))
+    frontier=[(goal['goal']['from'],None,())];seen={key(goal['goal']['from'])};attempts=0
+    cache={}
+    for _ in range(8):
+        next_frontier=[]
+        for body,prior,dependencies in frontier:
+            for path,target in positions(body):
+                node=target['node']
+                if not isinstance(node,dict)or 'Op'not in node:continue
+                operation=node['Op'][0];query_key=(key(target['sort']),operation)
+                if query_key not in cache:
+                    rows=[];after=None
+                    while len(rows)<1024:
+                        page=store.query(kind='rewrite',semantics='ink-conditional-laws-v1',result=target['sort'],operation=operation,after=after,limit=128)
+                        for ident in page:
+                            payload=store.object(ident)['payload']
+                            head=payload['from'].get('node',{})
+                            if isinstance(head,dict)and head.get('Op',[None])[0]==operation:rows.append((ident,payload))
+                        if len(page)<128:break
+                        after=page[-1]
+                    cache[query_key]=rows
+                for ident,law in cache[query_key]:
+                        args={}
+                        if law.get('types')or law.get('assumptions'):continue
+                        if not match(law['from'],target,law['params'],args)or set(args)!=set(law['params']):continue
+                        replacement=substitute(law['to'],args)
+                        if size(replacement)>=size(target):continue
+                        updated=replace(body,path,replacement);fingerprint=key(updated)
+                        if fingerprint in seen:continue
+                        seen.add(fingerprint)
+                        roots=tuple(sorted(set(dependencies)|{ident}));bundle=store.bundle(roots)
+                        use={'Use':dict(law=ident,arguments=args,premises=['Normalize']*len(law['conditions']))}
+                        step=lift_use(body,path,use)
+                        chain=step if prior is None else {'Trans':dict(middle=body,left=prior,right=step)}
+                        reduced={**goal,'goal':dict(**{'from':updated,'to':goal['goal']['to']})}
+                        # Replay even small proof proposals before retaining a path.
+                        for terminal in pure_proposals(reduced):
+                            if attempts>=limit:return
+                            attempts+=1
+                            yield {'Trans':dict(middle=updated,left=chain,right=terminal)},bundle
+                        next_frontier.append((updated,chain,roots))
+                        if len(next_frontier)>=8:break
+                if len(next_frontier)>=8:break
+            if len(next_frontier)>=8:break
+        frontier=next_frontier
+        if not frontier:return
 
 def references(value):
     if isinstance(value,list):return set().union(*(references(x) for x in value))
@@ -209,20 +312,25 @@ def author(compiler,source,directory,bodies=None,source_evidence=None):
     export=directory/'obligations.json'
     subprocess.run([compiler,'emit-contract-obligations',source,'-o',str(export),*options],check=True,capture_output=True,text=True)
     goals=json.loads(export.read_text());pure_objects={};state_objects=dict((goals['state'] or {}).get('objects',{}));pure_roots=[];state_roots=[]
-    proofs={};state_proofs={};names={}
+    proofs={};state_proofs={};names={};installed=Store(Path(__file__).resolve().parents[1])
     def check(g,proof,bundle=None):
         path=directory/'trial.json';path.write_text(json.dumps(dict(proof=proof,knowledge=bundle)))
         trial=subprocess.run([compiler,'check-contract-proof',source,g['name'],str(path),*options],capture_output=True,text=True)
         if trial.returncode:(directory/"last-check-error.txt").write_text(trial.stderr)
         return trial.returncode==0
     for g in goals['pure']:
-        candidates=['Normalize',*[{'Hypothesis':i} for i in range(len(g['conditions']))]]
-        for n,t in g['params'].items():
-            if isinstance(t,dict) and isinstance(t.get('Value'),dict) and 'List' in t['Value']:
-                candidates.append({'Induction':dict(variable=n,names=['contract_head','contract_tail'],base='Normalize',step='Normalize')})
-        proof=next((p for p in candidates if check(g,p)),None)
+        proof=next((p for p in pure_proposals(g) if check(g,p)),None);dependencies=[]
+        if proof is None:
+            from producers.semantic_observations import proposals
+            for candidate,bundle in proposals(g,installed,goals['definition_context']):
+                if check(g,candidate,bundle):
+                    proof=candidate;dependencies=bundle['roots'];pure_objects.update(bundle['objects']);break
+        if proof is None:
+            for candidate,bundle in rewrite_proposals(g,installed):
+                if check(g,candidate,bundle):
+                    proof=candidate;dependencies=bundle['roots'];pure_objects.update(bundle['objects']);break
         if proof is None:raise ValueError('no checked proof for '+g['name'])
-        law=dict(schema=1,semantics='ink-conditional-laws-v1',params=g['params'],conditions=g['conditions'],**g['goal'],proof=proof,dependencies=[],definition_context=context_for(goals['definition_context'],g))
+        law=dict(schema=1,semantics='ink-conditional-laws-v1',params=g['params'],conditions=g['conditions'],**g['goal'],proof=proof,dependencies=dependencies,definition_context=context_for(goals['definition_context'],g))
         obj=semantic_entry(law);i=identity(obj);pure_objects[i]=obj;pure_roots.append(i);names['contract.'+g['name']]=i
         proofs[g['name']]={'Use':dict(law=i,arguments={n:dict(sort=t,node={'Free':n}) for n,t in g['params'].items()},premises=[{'Hypothesis':j} for j in range(len(g['conditions']))])}
     def add(declaration):

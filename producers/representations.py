@@ -29,7 +29,9 @@ def unchanged_query(model,action):
             and args[1]=={'Bool':False} and args[2]==var('version')
             and args[3]==cons(model['state'],0,[var(n) for n in action['case']['bindings']])
             and args[4]==cons(model['events'],0,[]))
-def generate(model,directory,replacement=None,cache_query=None,retain_queries=True,preserve_cache=False,compact_queries=False,delta_query=False,aggregate_query=False,dynamic_delta=False,columnar=False,packed_booleans=False,column_points=False,column_mutations=False,ordered_queries=(), indexed=False, fused_queries=(), dense_slots=0, membership_query=False,access=None):
+def generate(model,directory,replacement=None,cache_query=None,retain_queries=True,preserve_cache=False,compact_queries=False,delta_query=False,aggregate_query=False,dynamic_delta=False,columnar=False,packed_booleans=False,column_points=False,column_mutations=False,ordered_queries=(), indexed=False, fused_queries=(), dense_slots=0, membership_query=False,access=None,source_domain=False):
+    if source_domain and not model.get('source_domain'):raise ValueError('source domain requires checked source invariants')
+    semantics='ink-source-representation-v2'if source_domain else REP
     if fused_queries:
         if replacement:raise ValueError('supply fused queries or a selected action proposal, not both')
         from producers.aggregate_fusion import replacement as fuse
@@ -361,7 +363,8 @@ def generate(model,directory,replacement=None,cache_query=None,retain_queries=Tr
             actions[name]=dict(execute=execute,result=result,next=nextf,observe=observe,preservation=[preservation],observation=observation)
         init_a,init_z=relation(call(encode,[var('logical')]),var('logical'))
         plan=dict(source_objects=sorted(model["objects"]),logical_state=L,physical_state=P,encode=encode,decode=decode,relations=[dict(left=left,right=right)],initialisation=[convert(init_a,init_z)],snapshot=snapshot,actions=actions)
-        e=entry('representation',REP,plan,refs(plan),parameters={'logical':L},result=P,effects=['source-transitions']);e['interface']['operations']=sorted(actions)
+        if source_domain:plan['source_domain']=True
+        e=entry('representation',semantics,plan,refs(plan),parameters={'logical':L},result=P,effects=['source-transitions'],conditions=[{'source_domain':'checked-source-invariants'}]if source_domain else []);e['interface']['operations']=sorted(actions)
         rid=identity(e);objects[rid]=e;plans.append(plan);ids.append(rid)
     old,new=plans
     migrate=fun([['physical',old['physical_state']]],new['physical_state'],call(new['encode'],[call(old['decode'],[var('physical')])]))
@@ -370,7 +373,7 @@ def generate(model,directory,replacement=None,cache_query=None,retain_queries=Tr
     migration=dict(**{'from':ids[0],'to':ids[1]},function=migrate,preservation=[proof]);e=entry('bridge',MIG,migration,refs(migration));e['interface']['operations']=['migrate'];mid=identity(e);objects[mid]=e
     store=Store.publish(directory,list(objects.values()),{'representations/direct':ids[0],'representations/reversed':ids[1],'migrations/direct-to-reversed':mid})
     for rid in ids:
-        requests.append(dict(schema=1,semantics=REP,input_core_sha256=model['source'],knowledge=store.bundle([rid]),representation=rid))
+        requests.append(dict(schema=1,semantics=semantics,input_core_sha256=model['source'],knowledge=store.bundle([rid]),representation=rid))
     return dict(requests=requests,migration=dict(root=mid,knowledge=store.bundle([mid,*objects])))
 def substitute_names(x,mapping):
     if isinstance(x,dict):
@@ -383,6 +386,7 @@ def substitute_names(x,mapping):
 def main():
     p=argparse.ArgumentParser(description=__doc__);p.add_argument('model',type=Path);p.add_argument('-o','--output',type=Path,required=True);p.add_argument('--replacement',type=Path);p.add_argument('--selected-model',type=Path);p.add_argument('--cache-query');p.add_argument('--preserve-cache',action='store_true',help='propose checked cache reuse on aborts and changes to unrelated tables');p.add_argument('--compact-queries',action='store_true',help='propose query transitions without carrying a second copy of table roots');p.add_argument('--aggregate-query',action='store_true',help='propose universal word sum/count or Boolean any/all update proofs');p.add_argument('--delta-query',action='store_true',help='propose proved fixed-key remove/replace cache deltas, retaining refresh fallback');p.add_argument('--dynamic-delta',action='store_true',help='prove guarded dynamic-key remove/replace deltas and skip unrelated insert refresh');p.add_argument('--rebuild-queries',action='store_true',help='comparison candidate: refresh physical state even after ordinary queries')
     p.add_argument('--columnar',action='store_true',help='propose ordinary key/record-field columns with universal round-trip proofs')
+    p.add_argument('--source-domain',action='store_true',help='admit against exact checked source invariants; logical restore validates before encoding')
     p.add_argument('--packed-booleans',action='store_true',help='pack record Bool fields into a proved u64 bit column; implies --columnar')
     p.add_argument('--column-points',action='store_true',help='prove direct point reads over columns; implies --columnar')
     p.add_argument('--membership-query',action='store_true',help='prove key-only cache retention across payload replacements; refresh membership changes')
@@ -394,5 +398,5 @@ def main():
     a=p.parse_args();a.output.parent.mkdir(parents=True,exist_ok=True)
     replacement=read(a.replacement) if a.replacement else None
     if replacement:replacement['selected_model']=read(a.selected_model)
-    result=generate(read(a.model),a.output.parent/'database',replacement,a.cache_query,not a.rebuild_queries,a.preserve_cache,a.compact_queries,a.delta_query,a.aggregate_query,a.dynamic_delta,a.columnar,a.packed_booleans,a.column_points,a.column_mutations,a.ordered_query,a.column_index,a.fuse_query,a.dense_slots,a.membership_query);a.output.write_text(json.dumps(result,indent=2)+'\n')
+    result=generate(read(a.model),a.output.parent/'database',replacement,a.cache_query,not a.rebuild_queries,a.preserve_cache,a.compact_queries,a.delta_query,a.aggregate_query,a.dynamic_delta,a.columnar,a.packed_booleans,a.column_points,a.column_mutations,a.ordered_query,a.column_index,a.fuse_query,a.dense_slots,a.membership_query,source_domain=a.source_domain);a.output.write_text(json.dumps(result,indent=2)+'\n')
 if __name__=='__main__':main()
