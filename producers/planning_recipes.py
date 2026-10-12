@@ -257,7 +257,7 @@ def properties(context):
             if name not in signatures:continue
             variable='__ink_property_subject'
             params=dict(signatures[name]['params'])
-            while variable in params:variable+='_' 
+            while variable in params:variable+='_'
             for probe in probes:
                 if probe['operator'] is None:query=body;observation=dict(sort=body['sort'],node={'Free':variable})
                 else:
