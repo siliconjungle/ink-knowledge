@@ -29,13 +29,16 @@ def unchanged_query(model,action):
             and args[1]=={'Bool':False} and args[2]==var('version')
             and args[3]==cons(model['state'],0,[var(n) for n in action['case']['bindings']])
             and args[4]==cons(model['events'],0,[]))
-def generate(model,directory,replacement=None,cache_query=None,retain_queries=True,preserve_cache=False,compact_queries=False,delta_query=False,aggregate_query=False,dynamic_delta=False,columnar=False,packed_booleans=False,column_points=False,column_mutations=False,ordered_queries=(), indexed=False, fused_queries=(), dense_slots=0, membership_query=False):
+def generate(model,directory,replacement=None,cache_query=None,retain_queries=True,preserve_cache=False,compact_queries=False,delta_query=False,aggregate_query=False,dynamic_delta=False,columnar=False,packed_booleans=False,column_points=False,column_mutations=False,ordered_queries=(), indexed=False, fused_queries=(), dense_slots=0, membership_query=False,access=None):
     if fused_queries:
         if replacement:raise ValueError('supply fused queries or a selected action proposal, not both')
         from producers.aggregate_fusion import replacement as fuse
         replacement=fuse(model,fused_queries)
     if (delta_query or aggregate_query or dynamic_delta or membership_query) and (not cache_query or not preserve_cache):raise ValueError("delta tactics require --cache-query and --preserve-cache")
     if preserve_cache and not cache_query:raise ValueError("--preserve-cache requires --cache-query")
+    if access is not None:
+        if not cache_query or not preserve_cache:raise ValueError('access-guided maintenance requires a preserved cache')
+        if replacement or any((delta_query,aggregate_query,dynamic_delta,membership_query)):raise ValueError('access-guided maintenance cannot use a different source or repair tactic')
     if compact_queries and not retain_queries:raise ValueError("--compact-queries conflicts with --rebuild-queries")
     if indexed and dense_slots:raise ValueError('choose bucket or dense prefix index')
     column_mutations=column_mutations or bool(ordered_queries) or indexed or bool(dense_slots)
@@ -126,13 +129,16 @@ def generate(model,directory,replacement=None,cache_query=None,retain_queries=Tr
         eq={'Hypothesis':0}
         snapshot=trans(convert(call(decode,[var('physical')]),call(decode,[relation(var('physical'),var('logical'))[0]])),subst(eq,call(decode,[var('replacement')])),convert(call(decode,[relation(var('physical'),var('logical'))[1]]),lhs),{'Use':dict(theorem=roundtrip,arguments=[var('logical')],premises=[])})
         delta=None
-        if cache and (delta_query or aggregate_query or dynamic_delta or membership_query):
-            if membership_query: from producers.membership_cache import setup
+        if cache and (delta_query or aggregate_query or dynamic_delta or membership_query or access is not None):
+            if access is not None:
+                from producers.access_cache import setup
+                delta=setup(model,cache,add,objects,access,cache_query)
+            elif membership_query: from producers.membership_cache import setup
             elif dynamic_delta: from producers.point_delta_dynamic import setup
             elif aggregate_query and cache_sort=='Bool': from producers.boolean_delta import setup
             elif aggregate_query: from producers.aggregate_delta import setup
             else: from producers.point_delta import setup
-            delta=setup(model,cache,add,objects)
+            if access is None:delta=setup(model,cache,add,objects)
         actions={}
         for name,a in model['actions'].items():
             sa=selected['actions'][name];rest=a['params'][1:];params=[['initial',P]]+rest
@@ -154,6 +160,10 @@ def generate(model,directory,replacement=None,cache_query=None,retain_queries=Tr
             retain=retain_queries and query and not (compact_queries and (not cache or cached_read))
             maintain=bool(cache and not cached_read and
                           ((preserve_cache and not retain) or (compact_queries and query)))
+            # An access-guided decline uses the literal encode(post-state)
+            # implementation. Do not require the cache tactic to understand the
+            # declined action's control-flow shape merely to provide fallback.
+            if access is not None and predicted is None:maintain=False
             use_delta=maintain and predicted is not None
             if use_delta:
                 delta_pair=add({'Datatype':dict(constructors=[dict(name='CacheDelta',fields=[cache_sort,cache_sort])])})
@@ -308,7 +318,9 @@ def generate(model,directory,replacement=None,cache_query=None,retain_queries=Tr
                         if x['constructor']!=0 or args[1]!={'Bool':True}:return convert(before_update(obs),after_update(obs))
                         roots=args[3]['Construct']['arguments']
                         from producers.point_delta import sub
-                        cache_eq=delta['equality'](roots if delta.get('roots') else roots[delta['index']],names)
+                        equality_args=[roots if delta.get('roots') else roots[delta['index']],names]
+                        if delta.get('contextual_equality'):equality_args.append(facts)
+                        cache_eq=delta['equality'](*equality_args)
                         cached=delta['recipe'](roots if delta.get('roots') else roots[delta['index']],cache_body,names)
                         rhs_cache=sub(cache['case']['normal']['Construct']['arguments'][0],dict(zip(cache['case']['bindings'],roots)))
                         aphys=cons(Pid,0,[roots[i] for i in order]+[cached]);zphys=cons(Pid,0,[roots[i] for i in order]+[rhs_cache])
