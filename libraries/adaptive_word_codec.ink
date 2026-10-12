@@ -1,7 +1,7 @@
 module ink.knowledge.adaptive_word_codec;
 import "codecs.ink" as rle;
 // Tagged word format. Tag 0 carries raw words, tag 1 carries the RLE format.
-// Compressed output is chosen only when it is smaller; neither tag denotes LZ4.
+// Compressed output is chosen only when it is no larger; neither tag denotes LZ4.
 fn encode(xs:List<u32>)->List<u32>{
  let n=length(xs);var previous:u32=0;var started:Bool=false;var runs:u32=0;
  for word in xs {if !started || word!=previous {runs=runs+1;}started=true;previous=word;}
