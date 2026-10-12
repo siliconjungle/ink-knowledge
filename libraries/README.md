@@ -29,3 +29,11 @@ buffers, records, vectors, `Int`, words and Bool; `incremental-laws.ink` states
 the delta rules of sum, group-by, join and views over views over signed
 collections. General laws reach programs only through concrete instances that
 prove their assumptions. Both libraries export to Lean with `ink-to-lean`.
+
+`buffers.ink`, `voxels.ink`, `codecs.ink` and `ecs.ink` exercise the V9 general
+owned range machinery. They supply stable column movement, dense voxel box
+painting, bounded word-stream run-length decoding, packed octet serialisation,
+and sparse component gathering. They add no compiler algorithm recognisers.
+The external bulk-buffer producer separately publishes checked range identities
+and fill length invariants. See the distribution's `docs/bulk-buffer-workloads.md`
+for admission, CPU/device boundaries, reproducible measurements and limitations.

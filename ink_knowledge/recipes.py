@@ -38,7 +38,7 @@ def load(path=None,store=None):
             raise ValueError('recipe fields or duplicate identity')
         if not MODULE.fullmatch(recipe['module']) or not re.fullmatch('[a-z][a-z0-9_]*',recipe['function']):
             raise ValueError('recipes must name installed knowledge producers')
-        if recipe['stage'] not in {'rewrite','representation','definitions','properties','physical','routing','migration'}:
+        if recipe['stage'] not in {'rewrite','representation','definitions','properties','physical','routing','resources','migration'}:
             raise ValueError('recipe stage')
         if not isinstance(recipe['parameters'],dict):raise ValueError('recipe parameters')
         for field in ['requires','obligations','inputs']:
@@ -66,9 +66,11 @@ def role(obj):
     if kind in {'definition','theorem'} and sem=='first-order-inductive-equality-v1':
         return 'definition-and-property-search' if kind=='theorem' else 'executable-and-proof-dependency'
     if kind in {'definition','theorem'} and sem=='total-scalar-equality-v1':return 'scalar-proof-dependency'
+    if kind=='definition' and sem in {'ink-source-read-capability-v1','ink-source-column-map-v1'}:return 'physical-proof-dependency'
     if kind=='maintenance':return 'maintenance-search'
     if kind=='definition' and sem in {'ink-target-work-measurement-v1','ink-target-work-prices-v1','ink-target-work-publication-context-v1'}:
         return 'cost-evidence'
+    if kind=='definition' and sem=='ink-observed-usage-v1':return 'usage-evidence'
     if kind=='definition' and sem==SEMANTICS:return 'recipe-discovery'
     raise ValueError('unhandled database semantics: '+kind+'/'+sem)
 

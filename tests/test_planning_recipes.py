@@ -13,7 +13,7 @@ class RegistryCoverage(unittest.TestCase):
             ('maintenance','maintenance-test'),('definition','first-order-inductive-equality-v1'),
             ('theorem','first-order-inductive-equality-v1'),('definition','total-scalar-equality-v1'),
             ('definition','ink-target-work-measurement-v1'),('definition','ink-target-work-prices-v1'),
-            ('definition','ink-target-work-publication-context-v1')}
+            ('definition','ink-target-work-publication-context-v1'),('definition','ink-source-read-capability-v1'),('definition','ink-source-column-map-v1')}
         objects=[entry(k,s,dict(node={'Op':['new-operation',[]]}))for k,s in families]
         with tempfile.TemporaryDirectory()as d:
             store=Store.publish(d,objects);report=coverage(store)
@@ -36,8 +36,10 @@ class RegistryCoverage(unittest.TestCase):
         covered={k for recipe in recipes for k in recipe}
         # Whole-action replacements are composed by the graph; authoring model
         # and temporary output paths are plumbing, not layout strategies.
-        expected=set(inspect.signature(generate).parameters)-{'model','directory','replacement'}
+        # Access descriptions are recomputed by their source-bound recipe.
+        expected=set(inspect.signature(generate).parameters)-{'model','directory','replacement','access'}
         self.assertEqual(covered,expected)
+        self.assertTrue(any(r['function']=='point_access_cache' and r['inputs']==['core','model'] for r in registry['recipes']))
     def test_all_other_authoring_parameters_have_recipe_domains(self):
         import inspect
         from producers import generic_indexed,partition_representation,packed_representations,source_sequence_tree,scalar_representation
@@ -50,6 +52,8 @@ class RegistryCoverage(unittest.TestCase):
         registry,_=load();recipe=next(r for r in registry['recipes']if r['function']=='physical')
         self.assertEqual({r['tables']for r in recipe['parameters']['source_strategies']},{'ordered','indexed_slots'})
         self.assertEqual({r['definitions']for r in recipe['parameters']['definition_strategies']},{'packed','memo'})
+        self.assertEqual({r['buffers']for r in recipe['parameters']['source_strategies']},{'scoped','direct'})
+        self.assertTrue(any(r['id']=='source-capabilities'for r in registry['recipes']))
 
     def test_published_recipe_is_discovered_without_planner_dispatch(self):
         recipe=dict(id='published-family',stage='representation',module='producers.planning_recipes',function='representations',parameters={'retain_queries':False},requires=['model'],obligations=['universal-source-action-and-observation-preservation'])

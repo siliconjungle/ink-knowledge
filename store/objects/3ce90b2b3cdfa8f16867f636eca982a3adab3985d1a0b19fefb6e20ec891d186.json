@@ -1,0 +1,1 @@
+{"dependencies":[],"interface":{"conditions":[],"effects":[],"operations":[],"parameters":{},"result":null},"kind":"definition","payload":{"declaration":{"Datatype":{"constructors":[{"fields":[],"name":"C0"},{"fields":["Bool","SelfType"],"name":"C1"}]}}},"schema":1,"semantics":"first-order-inductive-equality-v1"}
