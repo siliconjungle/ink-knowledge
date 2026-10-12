@@ -357,7 +357,7 @@ def physical(context, source_strategies, definition_strategies):
             if name in {'map','filter'}and 'Method'in receiver:
                 base=receiver['Method']
                 if base[1]in {'values','get'}and base[0].get('Var')in tables:rows.add(identity(node))
-    base=dict(tables='ordered',buffers='scoped',definitions='shared',borrow_reads=[],borrow_rows=[],packed_datatypes=[],memo_functions=[])
+    base=dict(tables='ordered',buffers='scoped',definitions='shared',borrow_reads=[],borrow_rows=[],packed_datatypes=[],memo_functions=[],reservations=(context.get('physical')or{}).get('reservations',[]))
     strategies=[base];target=context.get('emit_target','rust')
     if current is None and target in {'rust','rust-wasm'}:
         for strategy in source_strategies:
