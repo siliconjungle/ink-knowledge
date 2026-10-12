@@ -83,6 +83,7 @@ class ComposableKnowledge(unittest.TestCase):
   self.assertTrue(any(p['packed_datatypes']and p['memo_functions']for p in plans))
   self.assertLessEqual(len(rows),recipe['parameters']['composition_limit'])
   self.assertFalse(matches({'has':[{'path':['subject']},{'literal':'Data'}]},'Bool'))
+  self.assertTrue(matches({'or':[{'eq':[{'path':['subject','absent']},{'literal':1}]},{'eq':[{'path':['subject','present']},{'literal':2}]}]},{'present':2}))
   with self.assertRaisesRegex(ValueError,'budget'):evaluate({'all':[{'literal':[1]*5000},{'literal':True}]},{})
   with self.assertRaisesRegex(ValueError,'unknown'):matches({'execute':[{'literal':'code'}]},{})
   # A broad packing domain cannot consume every proposal before memoisation
@@ -108,7 +109,8 @@ class ComposableKnowledge(unittest.TestCase):
    packet=dict(schema=1,semantics='ink-compiled-plan-v1',input_core_sha256=ctx['source'],steps=candidate['steps']);path=d/'plan.json';path.write_bytes(canonical(packet))
    r=subprocess.run([str(COMPILER),'check-plan',str(core),str(path),'--core'],capture_output=True,text=True);self.assertEqual(r.returncode,0,r.stderr)
    # A false parent law still has genuine imported helpers and a genuine base.
-   bad=copy.deepcopy(payload);bad['law']['to']=op(value({'List':{'Named':'$A'}}),'call:empty')
+   seq=value({'List':{'Named':'$A'}})
+   bad=copy.deepcopy(payload);bad['law']['to']=op(seq,'method:drop',var(seq,'xs'),dict(sort=value('U32'),node={'Word':1}))
    broken=entry('definition','ink-source-algorithm-v1',bad,[bid]);badst=Store.publish(d/'bad',[base,broken]);ctx.update(knowledge_root=str(badst.root),knowledge_snapshot=badst.snapshot_id)
    candidate=next(r for r in propose(ctx)if r['status']=='proposal'and r['label']==identity(broken));packet['steps']=candidate['steps'];path.write_bytes(canonical(packet))
    r=subprocess.run([str(COMPILER),'check-plan',str(core),str(path),'--core'],capture_output=True,text=True);self.assertNotEqual(r.returncode,0)

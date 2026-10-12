@@ -27,7 +27,10 @@ def evaluate(expression, subject, node_limit=4096):
             if not isinstance(args,list)or len(args)!=2:raise ValueError('selector quantifier')
             values=sub(args[0])
             if not isinstance(values,list)or len(values)>4096:raise ValueError('selector list budget')
-            matches=[run(args[1],dict(env,item=v),depth+1) for v in values]
+            matches=[]
+            for v in values:
+                try:matches.append(run(args[1],dict(env,item=v),depth+1))
+                except Missing:matches.append(False)
             if any(type(v)is not bool for v in matches):raise ValueError('selector predicate type')
             return all(matches) if op=='all' else sum(matches)
         if op=='length':
@@ -37,7 +40,8 @@ def evaluate(expression, subject, node_limit=4096):
         if not isinstance(args,list):raise ValueError('selector arguments')
         if op in {'and','or'}:
             for arg in args:
-                value=sub(arg)
+                try:value=sub(arg)
+                except Missing:value=False
                 if type(value)is not bool:raise ValueError('selector Boolean type')
                 if op=='and'and not value:return False
                 if op=='or'and value:return True
