@@ -284,6 +284,25 @@ class Store:
         finally:
             if Path(tmp).exists():Path(tmp).unlink()
         return len(objects)
+    def ensure_index(self):
+        """Reuse a complete pinned discovery cache without rewriting all rows.
+
+        This is a scheduling hint, never proof admission. Missing/legacy snapshots
+        still refresh atomically; canonical objects and witnesses authenticate on
+        export. Rebuild/refresh remain the explicit audit and repair operations.
+        """
+        index=self.root/'index.sqlite'
+        if index.exists():
+            try:
+                with closing(sqlite3.connect(index.as_uri()+'?mode=ro',uri=True))as db:
+                    tables={r[0]for r in db.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+                    columns={r[1]for r in db.execute('PRAGMA table_info(members)')}
+                    if {'snapshots','entries','members','witnesses','pattern_roots','pattern_targets','observations'}<=tables and 'witness_id'in columns:
+                        found=db.execute('SELECT root FROM snapshots WHERE id=?',(self.snapshot_id,)).fetchone()
+                        if found and found[0]==self.snapshot['root']:return False
+            except sqlite3.DatabaseError:pass
+        self.refresh_index();return True
+
     def refresh_index(self):
         """Incrementally refresh a disposable index with atomic publication.
 

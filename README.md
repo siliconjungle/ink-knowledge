@@ -315,3 +315,10 @@ clearing and postconditions for the distribution’s private-list example. Gener
 traversal equivalence and data equality reflexivity are ordinary induction proofs
 in those dependency closures. Search may weaken premises to prove a stronger
 theorem; it never assumes the resulting theorem without kernel replay.
+
+Planner discovery may use `Store.ensure_index()` to reuse an already indexed
+immutable snapshot. `refresh_index()` explicitly synchronises discovery and
+observation files, and `rebuild()` repairs the disposable cache. Canonical object
+hashes, membership witnesses and local proof checking remain the authority for
+exported selections. Typed pattern reachability now batches successor heads over
+one read connection per discovery pass.

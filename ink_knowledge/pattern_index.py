@@ -59,3 +59,35 @@ def targets(store,ident):
                 found=list(db.execute('SELECT sort,head FROM pattern_targets WHERE entry_id=?',(ident,)))
                 if found:return set(found)
     return heads(store.object(ident)['payload']['to'])
+
+
+class Reader:
+    """One read connection per reachability walk; metadata is never authority."""
+    def __init__(self,store):
+        self.store=store;self.db=None
+    def __enter__(self):
+        index=self.store.root/'index.sqlite'
+        if index.exists():
+            db=sqlite3.connect(index.as_uri()+'?mode=ro',uri=True)
+            tables={r[0]for r in db.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+            if {'pattern_roots','pattern_targets','snapshots'}<=tables and db.execute('SELECT 1 FROM snapshots WHERE id=?',(self.store.snapshot_id,)).fetchone():
+                self.db=db
+            else:db.close()
+        return self
+    def __exit__(self,*_):
+        if self.db is not None:self.db.close()
+    def candidates(self,sort,head,after=None,limit=1024):
+        if self.db is None:return candidates(self.store,sort,head,after,limit)
+        sql='SELECT p.entry_id FROM pattern_roots p JOIN members m ON m.entry_id=p.entry_id WHERE m.snapshot_id=? AND p.sort=? AND p.head IN (?,?)'
+        args=[self.store.snapshot_id,canonical(sort).decode(),head,'*']
+        if after is not None:sql+=' AND p.entry_id>?';args.append(after)
+        return [r[0]for r in self.db.execute(sql+' ORDER BY p.entry_id LIMIT ?',args+[limit])]
+    def targets(self,idents):
+        ids=sorted(set(idents));result=set();found=set()
+        if self.db is not None:
+            for at in range(0,len(ids),256):
+                batch=ids[at:at+256]
+                for ident,sort,head in self.db.execute('SELECT entry_id,sort,head FROM pattern_targets WHERE entry_id IN ('+','.join('?'for _ in batch)+')',batch):
+                    found.add(ident);result.add((sort,head))
+        for ident in set(ids)-found:result.update(heads(self.store.object(ident)['payload']['to']))
+        return result

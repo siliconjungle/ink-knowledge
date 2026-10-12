@@ -75,7 +75,7 @@ class StoreTests(unittest.TestCase):
         self.assertEqual(set(view['objects']),{identity(self.a),identity(self.b)})
         # Reauthentication is scoped to a call, not cached across later exports.
         with closing(sqlite3.connect(self.root/'index.sqlite')) as db,db:
-            db.execute('UPDATE members SET witness=? WHERE entry_id=?',
+            db.execute('UPDATE witnesses SET witness=? WHERE id=(SELECT witness_id FROM members WHERE entry_id=?)',
                        (json.dumps({'entries':['0'*64],'path':[]}),identity(self.b)))
         with self.assertRaisesRegex(ValueError,'membership proof'):
             fresh.bundle([identity(self.b)])
@@ -93,7 +93,7 @@ class StoreTests(unittest.TestCase):
             number+=1
         (self.root/'store/objects'/f'{fid}.json').write_bytes(canonical(forged)+b'\n')
         with closing(sqlite3.connect(self.root/'index.sqlite')) as db,db:
-            witness=db.execute('SELECT witness FROM members WHERE entry_id=?',(aid,)).fetchone()[0]
+            witness=db.execute('SELECT witness_id FROM members WHERE entry_id=?',(aid,)).fetchone()[0]
             db.execute('INSERT INTO entries VALUES(?,?,?,?,?,?)',(fid,forged['kind'],forged['semantics'],'null','{}','[]'))
             db.execute('INSERT INTO members VALUES(?,?,?)',(self.store.snapshot_id,fid,witness))
         with self.assertRaisesRegex(ValueError,'membership proof'):
@@ -135,7 +135,7 @@ class StoreTests(unittest.TestCase):
     def test_index_forgery_cannot_supply_membership_authority(self):
         self.store.rebuild()
         with closing(sqlite3.connect(self.root/'index.sqlite')) as db,db:
-            db.execute('UPDATE members SET witness=?',(json.dumps({'entries':['0'*64],'path':[]}),))
+            db.execute('UPDATE witnesses SET witness=?',(json.dumps({'entries':['0'*64],'path':[]}),))
         with self.assertRaises(ValueError):Store(self.root).bundle([identity(self.a)])
     def test_tampered_content_and_missing_dependencies_are_rejected(self):
         i=identity(self.a);p=self.root/'store/objects'/f'{i}.json'

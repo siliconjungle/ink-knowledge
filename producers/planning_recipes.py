@@ -3,7 +3,7 @@
 Every row is an untrusted proposal. All source, observation, migration, equality
 and physical capability obligations must be replayed by the compiler.
 """
-import copy, itertools, json, os, subprocess, tempfile
+import copy, itertools, json, os, subprocess, tempfile, time
 from pathlib import Path
 from ink_knowledge import Store, identity, canonical
 from ink_knowledge.store import entry
@@ -166,18 +166,36 @@ def semantic(context):
             '--core',str(core),'--knowledge-root',context['knowledge_root'],
             '--snapshot',str(store.root/'store/snapshots'/f'{store.snapshot_id}.json'),
             '--budget',str(context.get('semantic_budget',4096)),
-            '--alternatives',str(d/'alternatives.jsonl'),'--compact-output','-o',str(out)]
+            '--alternatives',str(d/'alternatives.jsonl'),'--stream-alternatives','--time-seconds',str(context.get('semantic_seconds',600)),'--compact-output','-o',str(out)]
         if context.get('semantic_rounds') is not None:command+=['--rounds',str(context['semantic_rounds'])]
         if context.get('properties'):
             properties=d/'properties.json';properties.write_bytes(canonical(context['properties']));command+=['--properties',str(properties)]
-        result=subprocess.run(command,capture_output=True,text=True,timeout=context.get('proposal_timeout',600))
-        if result.returncode:yield decline('semantic search',result.stderr);return
-        count=0
-        with (d/'alternatives.jsonl').open()as alternatives:
-            for line in alternatives:
-                package=json.loads(line);count+=1
-                yield row('rewrite',package,'semantic alternative/'+identity(package))
-        if not count:yield decline('semantic search','fixed point within supplied search budget')
+        count=0;position=0;pending=b'';started=time.monotonic()
+        alternatives=d/'alternatives.jsonl'
+        with (d/'stdout.log').open('wb')as stdout,(d/'stderr.log').open('wb')as stderr:
+            process=subprocess.Popen(command,stdout=stdout,stderr=stderr)
+            try:
+                while True:
+                    if alternatives.exists():
+                        with alternatives.open('rb')as stream:
+                            stream.seek(position);chunk=stream.read(128_000_001)
+                        if len(chunk)>128_000_000:raise ValueError('semantic alternative byte budget')
+                        position+=len(chunk);pending+=chunk
+                        while b'\n'in pending:
+                            line,pending=pending.split(b'\n',1);package=json.loads(line);count+=1
+                            yield row('rewrite',package,'semantic alternative/'+identity(package))
+                    if process.poll()is not None:
+                        # A final read after observing exit consumes the flushed tail.
+                        if alternatives.exists()and alternatives.stat().st_size>position:continue
+                        break
+                    if time.monotonic()-started>=context.get('proposal_timeout',600):
+                        yield decline('semantic search','proposal process time budget');break
+                    time.sleep(.02)
+                if process.returncode not in (None,0):yield decline('semantic search',(d/'stderr.log').read_text()[-2000:])
+                elif not count:yield decline('semantic search','fixed point within supplied search budget')
+            finally:
+                if process.poll()is None:process.kill()
+                process.wait()
 
 def first_order_match(pattern,term,parameters,bindings):
     if isinstance(pattern,dict)and set(pattern)=={'Var'}and pattern['Var']in parameters:
