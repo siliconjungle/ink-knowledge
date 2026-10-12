@@ -98,13 +98,13 @@ def main():
             output.write(canonical(dict(recipe=a.recipe,registry_sha256=digest))+b'\n');output.flush()
             for count,result in enumerate(execute(recipe,context)):
                 raw=canonical(result);bytes_used+=len(raw)
-                if bytes_used>64_000_000 or count>=context.get('candidate_limit',4096):
+                if bytes_used>128_000_000 or count>=context.get('candidate_limit',4096):
                     output.write(canonical(dict(status='declined',label='resource budget',reason='recipe candidate or byte budget'))+b'\n');break
                 output.write(raw+b'\n');output.flush()
         return
     for result in execute(recipe,context):
         bytes_used+=len(canonical(result))
-        if bytes_used>64_000_000:raise ValueError('recipe output byte budget')
+        if bytes_used>128_000_000:raise ValueError('recipe output byte budget')
         rows.append(result)
         if len(rows)>context.get('candidate_limit',4096):raise ValueError('recipe candidate budget')
     a.o.write_bytes(canonical(dict(recipe=a.recipe,registry_sha256=digest,candidates=rows))+b'\n')

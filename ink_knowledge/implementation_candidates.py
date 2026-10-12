@@ -54,6 +54,6 @@ def publish_candidates(root, packages, *, shared_knowledge=False):
                 objects[i] = obj
         obj = candidate_entry(package, shared_knowledge=shared_knowledge); i = identity(obj)
         objects[i] = obj; candidates.append(i)
-    store = previous.extend(objects.values(), names) if previous is not None else Store.publish(root, objects.values(), names)
+    store = previous.extend(objects.values(), names, leaf_size=2 if shared_knowledge else None) if previous is not None else Store.publish(root, objects.values(), names, leaf_size=2 if shared_knowledge else 64)
     store.refresh_index()
     return store, candidates
