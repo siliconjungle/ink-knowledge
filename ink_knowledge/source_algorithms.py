@@ -71,7 +71,8 @@ def context(core,subject,roots):
     return result
 
 def propose(context_,**_):
-    from ink_planner.semantic_search import positions,match,key
+    from ink_planner.semantic_search import match,key
+    from .template_matching import TemplateSites
     compiler=context_['compiler'];root=Path(context_['knowledge_root']);store=Store(root,root/'store/snapshots'/f"{context_['knowledge_snapshot']}.json")
     def invoke(*args):
         r=subprocess.run([compiler,*map(str,args)],capture_output=True,text=True,timeout=context_.get('check_timeout',120))
@@ -80,7 +81,7 @@ def propose(context_,**_):
     if not store.query(kind='definition',semantics=SEMANTICS,limit=1):return
     with tempfile.TemporaryDirectory(prefix='ink-source-algorithms-')as tmp:
         d=Path(tmp);original=d/'input.json';original.write_bytes(canonical(context_['core']));subjectfile=d/'subject.json';invoke('emit-semantic',original,'--core','-o',subjectfile);subject=json.loads(subjectfile.read_bytes())
-        after=None;work=0;produced=0
+        after=None;produced=0;sites_index=TemplateSites(subject)
         while True:
             page=store.query(kind='definition',semantics=SEMANTICS,after=after,limit=64)
             for ident in page:
@@ -90,12 +91,8 @@ def propose(context_,**_):
                     types=payload['type_parameters']
                     if len(types)>8 or len(set(types))!=len(types)or any(not isinstance(t,str)or not t.isidentifier()for t in types):raise ValueError('algorithm type parameters')
                     pattern=payload['law']['from'];params=payload['law']['params'];instances={}
-                    for name,body in subject['functions'].items():
-                        for path,target in positions(body):
-                            work+=1
-                            if work>200_000:raise ValueError('algorithm matching budget')
-                            bindings={}
-                            if infer(pattern,target,params,types,bindings)and set(bindings)==set(types):instances.setdefault(key(bindings),(bindings,[]))[1].append((name,path,target))
+                    for name,path,target,bindings in sites_index.matches(pattern,params,types):
+                        instances.setdefault(key(bindings),(bindings,[]))[1].append((name,path,target))
                     for bindings,sites in instances.values():
                         definitions,law=instantiate(payload,bindings,ident)
                         current=context_['core']['program'];known={f['name']:f for f in current['functions']}

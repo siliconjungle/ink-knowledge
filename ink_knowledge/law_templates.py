@@ -39,7 +39,7 @@ def infer(pattern,actual,params,names,bindings):
     return len(pc)==len(ac)and all(infer(x,y,params,names,bindings)for x,y in zip(pc,ac))
 
 def generate(store,subject,core):
-    from ink_planner.semantic_search import positions
+    from .template_matching import TemplateSites
     from .proposals import nominal_types
     from producers.definition_context28 import bind
     templates={};after=None
@@ -52,10 +52,10 @@ def generate(store,subject,core):
             if not isinstance(names,list)or not 1<=len(names)<=8 or len(set(names))!=len(names)or any(not isinstance(n,str)or not n.isidentifier()for n in names):raise ValueError('law template type parameters')
             if not isinstance(payload['dependencies'],dict)or len(payload['dependencies'])>64:raise ValueError('law template dependency budget')
             templates[ident]=payload
-        if len(templates)>128:raise ValueError('law template count budget')
+        if len(templates)>4096:raise ValueError('law template count budget')
         if len(page)<64:break
         after=page[-1]
-    objects={};receipts=[];work=0
+    objects={};receipts=[];sites=TemplateSites(subject)
     def instantiate(payload,bindings,active):
         if len(active)>16:raise ValueError('law template dependency depth')
         candidate=substitute_types(payload['law'],bindings);dependencies={}
@@ -74,12 +74,8 @@ def generate(store,subject,core):
         return ident
     for ident,payload in sorted(templates.items()):
         instances=set()
-        for root in subject['functions'].values():
-            for _,actual in positions(root):
-                work+=1
-                if work>200_000:raise ValueError('law template matching budget')
-                bindings={}
-                if infer(payload['law']['from'],actual,payload['law']['params'],payload['type_parameters'],bindings)and set(bindings)==set(payload['type_parameters']):
-                    instances.add(instantiate(payload,bindings,{ident}))
-        receipts.append(dict(template=ident,instances=len(instances)))
+        before=sites.attempts
+        for _,_,_,bindings in sites.matches(payload['law']['from'],payload['law']['params'],payload['type_parameters']):
+            instances.add(instantiate(payload,bindings,{ident}))
+        receipts.append(dict(template=ident,instances=len(instances),inference_attempts=sites.attempts-before,subject_nodes=len(sites.sites)))
     return objects,receipts

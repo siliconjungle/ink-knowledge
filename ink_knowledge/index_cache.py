@@ -3,11 +3,14 @@ from .store import canonical,identity
 import time
 MAX_SNAPSHOTS=16
 TABLES=('entries','dependencies','types','operations','effects','applicability','names','observations')
+INDEXES=('membership_entry_lookup','dependency_parent_lookup')
+INDEX_SCHEMA='''CREATE INDEX IF NOT EXISTS membership_entry_lookup ON members(entry_id,snapshot_id);
+CREATE INDEX IF NOT EXISTS dependency_parent_lookup ON dependencies(dependency_id,entry_id);'''
 
 def copy(source,target,db):
     columns={r[1]for r in source.execute('PRAGMA table_info(members)')}
     if 'witness_id'in columns:
-        source.backup(db);return
+        source.backup(db);db.executescript(INDEX_SCHEMA);return
     # Reuse untrusted discovery summaries, not duplicated old witness blobs.
     # Recreate membership from the authenticated current canonical tree below.
     from pathlib import Path

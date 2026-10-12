@@ -64,6 +64,10 @@ def semantic_entry(law):
                  result=law['from']['sort'], conditions=law['conditions'])
 
 def validate_entry(v):
+    _entry_fields(v)
+    _entry_size(v,len(canonical(v)))
+
+def _entry_fields(v):
     fields(v, ('schema','kind','semantics','dependencies','interface','payload'))
     if type(v['schema']) is not int or v['schema'] != 1 or v['kind'] not in KINDS or not isinstance(v['semantics'],str) or not v['semantics']: raise ValueError('unsupported entry')
     fields(v['interface'], ('parameters','result','operations','effects','conditions'))
@@ -74,7 +78,8 @@ def validate_entry(v):
     dependency_limit=MAX_VIEW_ENTRIES if v['semantics']=='ink-implementation-candidate-v1' else 512 if v['semantics']=='ink-source-representation-v1' else 128
     if not isinstance(v['dependencies'],list) or len(v['dependencies'])>dependency_limit or v['dependencies'] != sorted(set(v['dependencies'])): raise ValueError('dependencies must be unique and sorted')
     for i in v['dependencies']: hash_id(i)
-    if len(canonical(v)) > (MAX_VIEW_BYTES if v['semantics']=='ink-implementation-candidate-v1' else MAX_ENTRY_BYTES): raise ValueError("knowledge object byte limit")
+def _entry_size(v,size):
+    if size > (MAX_VIEW_BYTES if v['semantics']=='ink-implementation-candidate-v1' else MAX_ENTRY_BYTES): raise ValueError("knowledge object byte limit")
 
 def immutable(path, value):
     data=canonical(value)+b'\n';path.parent.mkdir(parents=True,exist_ok=True)
@@ -84,12 +89,15 @@ def immutable(path, value):
         with path.open('xb') as f: f.write(data)
 
 def read(path):
+    return _read_canonical(path)[0]
+
+def _read_canonical(path):
     with path.open('rb') as f: raw=f.read(MAX_VIEW_BYTES+2)
     if raw.endswith(b'\n'):raw=raw[:-1]
     if len(raw)>MAX_VIEW_BYTES: raise ValueError('knowledge object byte limit')
     value=json.loads(raw)
-    canonical(value)
-    return value
+    encoded=canonical(value)
+    return value,encoded
 
 class Store:
     def __init__(self, root, snapshot=None):
@@ -222,8 +230,13 @@ class Store:
         self.witness(i)
         return self._read_object(i)
     def _read_object(self,i):
-        obj=read(self.data/'objects'/f'{i}.json');validate_entry(obj)
-        if identity(obj)!=i:raise ValueError('entry content mismatch')
+        # Parse, validate canonical values, and serialize once. The exact same
+        # bytes establish the size limit and content identity; no cached receipt
+        # or unverified on-disk hash substitutes for either check.
+        hash_id(i)
+        obj,encoded=_read_canonical(self.data/'objects'/f'{i}.json')
+        _entry_fields(obj);_entry_size(obj,len(encoded))
+        if hashlib.sha256(encoded).hexdigest()!=i:raise ValueError('entry content mismatch')
         return obj
     def bundle(self, roots):
         roots=sorted(set(roots));objects={};active=set();membership={};verified=set()
@@ -297,7 +310,9 @@ class Store:
                 with closing(sqlite3.connect(index.as_uri()+'?mode=ro',uri=True))as db:
                     tables={r[0]for r in db.execute("SELECT name FROM sqlite_master WHERE type='table'")}
                     columns={r[1]for r in db.execute('PRAGMA table_info(members)')}
-                    if {'snapshots','entries','members','witnesses','pattern_roots','pattern_targets','observations'}<=tables and 'witness_id'in columns:
+                    from .index_cache import INDEXES
+                    indexes={r[0]for r in db.execute("SELECT name FROM sqlite_master WHERE type='index'")}
+                    if {'snapshots','entries','members','witnesses','pattern_roots','pattern_targets','observations'}<=tables and 'witness_id'in columns and set(INDEXES)<=indexes:
                         found=db.execute('SELECT root FROM snapshots WHERE id=?',(self.snapshot_id,)).fetchone()
                         if found and found[0]==self.snapshot['root']:return False
             except sqlite3.DatabaseError:pass
