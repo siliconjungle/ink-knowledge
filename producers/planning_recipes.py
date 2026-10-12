@@ -387,7 +387,7 @@ def physical(context, source_strategies, definition_strategies):
         for ident,declaration in ds.items():
             if 'Datatype'in declaration:
                 cs=declaration['Datatype']['constructors']
-                if len(cs)==2 and not cs[0]['fields']and len(cs[1]['fields'])==2 and cs[1]['fields'][1]=='SelfType'and (cs[1]['fields'][0]in ['Bool','U64']or isinstance(cs[1]['fields'][0],dict)and 'Data'in cs[1]['fields'][0]):eligible['packed'].append(ident)
+                if len(cs)==2 and not cs[0]['fields']and 2<=len(cs[1]['fields'])<=17 and cs[1]['fields'][-1]=='SelfType'and all(s in ['Bool','U64']or isinstance(s,dict)and 'Data'in s for s in cs[1]['fields'][:-1]):eligible['packed'].append(ident)
             if 'Function'in declaration:
                 f=declaration['Function'];sorts=[s for _,s in f['params']]
                 if f['result']in ['Bool','U64']and len(sorts)<=5 and all(s in ['Bool','U64']or isinstance(s,dict)and 'Data'in s for s in sorts)and sum(isinstance(s,dict)and 'Data'in s for s in sorts)==1:eligible['memo'].append(ident)
@@ -472,3 +472,8 @@ def contract_witnesses(context):
                 yield row('rewrite',store.object(ident)['payload']['package'],'contract/'+ident)
             for failure in report['rejected']:yield decline('contract/'+failure['specification'],failure['reason'])
         except (ValueError,subprocess.CalledProcessError) as error:yield decline('contract-witnesses',error)
+
+
+def source_algorithms(context):
+    from ink_knowledge.source_algorithms import propose
+    yield from propose(context)

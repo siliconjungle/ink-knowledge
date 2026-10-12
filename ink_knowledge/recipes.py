@@ -38,7 +38,7 @@ def load(path=None,store=None):
             raise ValueError('recipe fields or duplicate identity')
         if not MODULE.fullmatch(recipe['module']) or not re.fullmatch('[a-z][a-z0-9_]*',recipe['function']):
             raise ValueError('recipes must name installed knowledge producers')
-        if recipe['stage'] not in {'rewrite','representation','definitions','properties','physical','routing','resources','migration'}:
+        if recipe['stage'] not in {'rewrite','representation','definitions','properties','physical','routing','resources','migration','extension'}:
             raise ValueError('recipe stage')
         if not isinstance(recipe['parameters'],dict):raise ValueError('recipe parameters')
         for field in ['requires','obligations','inputs']:
@@ -74,6 +74,8 @@ def role(obj):
     if kind=='definition' and sem==SEMANTICS:return 'recipe-discovery'
     if kind=='definition' and sem=='ink-semantic-producers-v1':return 'semantic-producer-discovery'
     if kind=='definition' and sem=='ink-semantic-law-template-v1':return 'semantic-template-discovery'
+    if kind=='definition' and sem=='ink-source-extension-v1':return 'executable-extension'
+    if kind=='definition' and sem=='ink-source-algorithm-v1':return 'source-algorithm-discovery'
     raise ValueError('unhandled database semantics: '+kind+'/'+sem)
 
 def coverage(store):

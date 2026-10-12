@@ -1,0 +1,1159 @@
+[
+  {
+    "name": "identity-map-derived-operation",
+    "object": {
+      "schema": 1,
+      "kind": "definition",
+      "semantics": "ink-source-algorithm-v1",
+      "dependencies": [],
+      "interface": {
+        "parameters": {},
+        "result": null,
+        "operations": [
+          "call:unwrap",
+          "method:map"
+        ],
+        "effects": [],
+        "conditions": []
+      },
+      "payload": {
+        "type_parameters": [
+          "A"
+        ],
+        "definitions": {
+          "functions": [
+            {
+              "name": "unwrap",
+              "params": [
+                [
+                  "xs",
+                  {
+                    "List": {
+                      "Named": "$A"
+                    }
+                  }
+                ]
+              ],
+              "result": {
+                "List": {
+                  "Named": "$A"
+                }
+              },
+              "body": {
+                "Field": [
+                  {
+                    "Record": [
+                      "Frame",
+                      [
+                        [
+                          "value",
+                          {
+                            "Var": "xs"
+                          }
+                        ]
+                      ]
+                    ]
+                  },
+                  "value"
+                ]
+              }
+            }
+          ],
+          "ids": [],
+          "records": {
+            "Frame": [
+              [
+                "value",
+                {
+                  "List": {
+                    "Named": "$A"
+                  }
+                }
+              ]
+            ]
+          },
+          "enums": {}
+        },
+        "law": {
+          "schema": 1,
+          "semantics": "ink-conditional-laws-v1",
+          "params": {
+            "xs": {
+              "Value": {
+                "List": {
+                  "Named": "$A"
+                }
+              }
+            }
+          },
+          "conditions": [],
+          "from": {
+            "sort": {
+              "Value": {
+                "List": {
+                  "Named": "$A"
+                }
+              }
+            },
+            "node": {
+              "Op": [
+                "method:map",
+                [
+                  {
+                    "sort": {
+                      "Value": {
+                        "List": {
+                          "Named": "$A"
+                        }
+                      }
+                    },
+                    "node": {
+                      "Free": "xs"
+                    }
+                  },
+                  {
+                    "sort": {
+                      "Arrow": [
+                        {
+                          "Value": {
+                            "Named": "$A"
+                          }
+                        },
+                        {
+                          "Value": {
+                            "Named": "$A"
+                          }
+                        }
+                      ]
+                    },
+                    "node": {
+                      "Lambda": {
+                        "sort": {
+                          "Value": {
+                            "Named": "$A"
+                          }
+                        },
+                        "node": {
+                          "Bound": 0
+                        }
+                      }
+                    }
+                  }
+                ]
+              ]
+            }
+          },
+          "to": {
+            "sort": {
+              "Value": {
+                "List": {
+                  "Named": "$A"
+                }
+              }
+            },
+            "node": {
+              "Op": [
+                "call:unwrap",
+                [
+                  {
+                    "sort": {
+                      "Value": {
+                        "List": {
+                          "Named": "$A"
+                        }
+                      }
+                    },
+                    "node": {
+                      "Free": "xs"
+                    }
+                  }
+                ]
+              ]
+            }
+          },
+          "proof": {
+            "Induction": {
+              "variable": "xs",
+              "names": [
+                "head",
+                "tail"
+              ],
+              "base": "Normalize",
+              "step": "Normalize"
+            }
+          },
+          "dependencies": []
+        }
+      }
+    }
+  },
+  {
+    "name": "partition-derived-operation",
+    "object": {
+      "schema": 1,
+      "kind": "definition",
+      "semantics": "ink-source-algorithm-v1",
+      "dependencies": [],
+      "interface": {
+        "parameters": {},
+        "result": null,
+        "operations": [
+          "binary:-",
+          "binary:==",
+          "call:unwrap",
+          "method:concat",
+          "method:drop",
+          "method:take"
+        ],
+        "effects": [],
+        "conditions": []
+      },
+      "payload": {
+        "type_parameters": [
+          "A"
+        ],
+        "definitions": {
+          "functions": [
+            {
+              "name": "unwrap",
+              "params": [
+                [
+                  "xs",
+                  {
+                    "List": {
+                      "Named": "$A"
+                    }
+                  }
+                ]
+              ],
+              "result": {
+                "List": {
+                  "Named": "$A"
+                }
+              },
+              "body": {
+                "Field": [
+                  {
+                    "Record": [
+                      "Frame",
+                      [
+                        [
+                          "value",
+                          {
+                            "Var": "xs"
+                          }
+                        ]
+                      ]
+                    ]
+                  },
+                  "value"
+                ]
+              }
+            }
+          ],
+          "ids": [],
+          "records": {
+            "Frame": [
+              [
+                "value",
+                {
+                  "List": {
+                    "Named": "$A"
+                  }
+                }
+              ]
+            ]
+          },
+          "enums": {}
+        },
+        "law": {
+          "schema": 1,
+          "semantics": "ink-conditional-laws-v1",
+          "params": {
+            "count": {
+              "Value": "U32"
+            },
+            "xs": {
+              "Value": {
+                "List": {
+                  "Named": "$A"
+                }
+              }
+            }
+          },
+          "conditions": [],
+          "from": {
+            "sort": {
+              "Value": {
+                "List": {
+                  "Named": "$A"
+                }
+              }
+            },
+            "node": {
+              "Op": [
+                "method:concat",
+                [
+                  {
+                    "sort": {
+                      "Value": {
+                        "List": {
+                          "Named": "$A"
+                        }
+                      }
+                    },
+                    "node": {
+                      "Op": [
+                        "method:take",
+                        [
+                          {
+                            "sort": {
+                              "Value": {
+                                "List": {
+                                  "Named": "$A"
+                                }
+                              }
+                            },
+                            "node": {
+                              "Free": "xs"
+                            }
+                          },
+                          {
+                            "sort": {
+                              "Value": "U32"
+                            },
+                            "node": {
+                              "Free": "count"
+                            }
+                          }
+                        ]
+                      ]
+                    }
+                  },
+                  {
+                    "sort": {
+                      "Value": {
+                        "List": {
+                          "Named": "$A"
+                        }
+                      }
+                    },
+                    "node": {
+                      "Op": [
+                        "method:drop",
+                        [
+                          {
+                            "sort": {
+                              "Value": {
+                                "List": {
+                                  "Named": "$A"
+                                }
+                              }
+                            },
+                            "node": {
+                              "Free": "xs"
+                            }
+                          },
+                          {
+                            "sort": {
+                              "Value": "U32"
+                            },
+                            "node": {
+                              "Free": "count"
+                            }
+                          }
+                        ]
+                      ]
+                    }
+                  }
+                ]
+              ]
+            }
+          },
+          "to": {
+            "sort": {
+              "Value": {
+                "List": {
+                  "Named": "$A"
+                }
+              }
+            },
+            "node": {
+              "Op": [
+                "call:unwrap",
+                [
+                  {
+                    "sort": {
+                      "Value": {
+                        "List": {
+                          "Named": "$A"
+                        }
+                      }
+                    },
+                    "node": {
+                      "Free": "xs"
+                    }
+                  }
+                ]
+              ]
+            }
+          },
+          "proof": {
+            "GeneralizedInduction": {
+              "variable": "xs",
+              "generalize": [
+                "count"
+              ],
+              "names": [
+                "head",
+                "tail"
+              ],
+              "base": "Normalize",
+              "step": {
+                "Cases": {
+                  "condition": {
+                    "sort": {
+                      "Value": "Bool"
+                    },
+                    "node": {
+                      "Op": [
+                        "binary:==",
+                        [
+                          {
+                            "sort": {
+                              "Value": "U32"
+                            },
+                            "node": {
+                              "Free": "count"
+                            }
+                          },
+                          {
+                            "sort": {
+                              "Value": "U32"
+                            },
+                            "node": {
+                              "Word": 0
+                            }
+                          }
+                        ]
+                      ]
+                    }
+                  },
+                  "on_false": {
+                    "Trans": {
+                      "middle": {
+                        "sort": {
+                          "Value": {
+                            "List": {
+                              "Named": "$A"
+                            }
+                          }
+                        },
+                        "node": {
+                          "Cons": [
+                            {
+                              "sort": {
+                                "Value": {
+                                  "Named": "$A"
+                                }
+                              },
+                              "node": {
+                                "Free": "head"
+                              }
+                            },
+                            {
+                              "sort": {
+                                "Value": {
+                                  "List": {
+                                    "Named": "$A"
+                                  }
+                                }
+                              },
+                              "node": {
+                                "Op": [
+                                  "method:concat",
+                                  [
+                                    {
+                                      "sort": {
+                                        "Value": {
+                                          "List": {
+                                            "Named": "$A"
+                                          }
+                                        }
+                                      },
+                                      "node": {
+                                        "Op": [
+                                          "method:take",
+                                          [
+                                            {
+                                              "sort": {
+                                                "Value": {
+                                                  "List": {
+                                                    "Named": "$A"
+                                                  }
+                                                }
+                                              },
+                                              "node": {
+                                                "Free": "tail"
+                                              }
+                                            },
+                                            {
+                                              "sort": {
+                                                "Value": "U32"
+                                              },
+                                              "node": {
+                                                "Op": [
+                                                  "binary:-",
+                                                  [
+                                                    {
+                                                      "sort": {
+                                                        "Value": "U32"
+                                                      },
+                                                      "node": {
+                                                        "Free": "count"
+                                                      }
+                                                    },
+                                                    {
+                                                      "sort": {
+                                                        "Value": "U32"
+                                                      },
+                                                      "node": {
+                                                        "Word": 1
+                                                      }
+                                                    }
+                                                  ]
+                                                ]
+                                              }
+                                            }
+                                          ]
+                                        ]
+                                      }
+                                    },
+                                    {
+                                      "sort": {
+                                        "Value": {
+                                          "List": {
+                                            "Named": "$A"
+                                          }
+                                        }
+                                      },
+                                      "node": {
+                                        "Op": [
+                                          "method:drop",
+                                          [
+                                            {
+                                              "sort": {
+                                                "Value": {
+                                                  "List": {
+                                                    "Named": "$A"
+                                                  }
+                                                }
+                                              },
+                                              "node": {
+                                                "Free": "tail"
+                                              }
+                                            },
+                                            {
+                                              "sort": {
+                                                "Value": "U32"
+                                              },
+                                              "node": {
+                                                "Op": [
+                                                  "binary:-",
+                                                  [
+                                                    {
+                                                      "sort": {
+                                                        "Value": "U32"
+                                                      },
+                                                      "node": {
+                                                        "Free": "count"
+                                                      }
+                                                    },
+                                                    {
+                                                      "sort": {
+                                                        "Value": "U32"
+                                                      },
+                                                      "node": {
+                                                        "Word": 1
+                                                      }
+                                                    }
+                                                  ]
+                                                ]
+                                              }
+                                            }
+                                          ]
+                                        ]
+                                      }
+                                    }
+                                  ]
+                                ]
+                              }
+                            }
+                          ]
+                        }
+                      },
+                      "left": "Normalize",
+                      "right": {
+                        "Trans": {
+                          "middle": {
+                            "sort": {
+                              "Value": {
+                                "List": {
+                                  "Named": "$A"
+                                }
+                              }
+                            },
+                            "node": {
+                              "Cons": [
+                                {
+                                  "sort": {
+                                    "Value": {
+                                      "Named": "$A"
+                                    }
+                                  },
+                                  "node": {
+                                    "Free": "head"
+                                  }
+                                },
+                                {
+                                  "sort": {
+                                    "Value": {
+                                      "List": {
+                                        "Named": "$A"
+                                      }
+                                    }
+                                  },
+                                  "node": {
+                                    "Op": [
+                                      "call:unwrap",
+                                      [
+                                        {
+                                          "sort": {
+                                            "Value": {
+                                              "List": {
+                                                "Named": "$A"
+                                              }
+                                            }
+                                          },
+                                          "node": {
+                                            "Free": "tail"
+                                          }
+                                        }
+                                      ]
+                                    ]
+                                  }
+                                }
+                              ]
+                            }
+                          },
+                          "left": {
+                            "Congruence": [
+                              "Normalize",
+                              {
+                                "GeneralizedHypothesis": {
+                                  "index": 0,
+                                  "arguments": {
+                                    "count": {
+                                      "sort": {
+                                        "Value": "U32"
+                                      },
+                                      "node": {
+                                        "Op": [
+                                          "binary:-",
+                                          [
+                                            {
+                                              "sort": {
+                                                "Value": "U32"
+                                              },
+                                              "node": {
+                                                "Free": "count"
+                                              }
+                                            },
+                                            {
+                                              "sort": {
+                                                "Value": "U32"
+                                              },
+                                              "node": {
+                                                "Word": 1
+                                              }
+                                            }
+                                          ]
+                                        ]
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            ]
+                          },
+                          "right": "Normalize"
+                        }
+                      }
+                    }
+                  },
+                  "on_true": "Normalize"
+                }
+              }
+            }
+          },
+          "dependencies": []
+        }
+      }
+    }
+  },
+  {
+    "name": "filtered-count-derived-operation",
+    "object": {
+      "schema": 1,
+      "kind": "definition",
+      "semantics": "ink-source-algorithm-v1",
+      "dependencies": [],
+      "interface": {
+        "parameters": {},
+        "result": null,
+        "operations": [
+          "binary:+",
+          "binary:>=",
+          "call:choose",
+          "call:count",
+          "call:foldr",
+          "call:ge_count",
+          "method:filter"
+        ],
+        "effects": [],
+        "conditions": []
+      },
+      "payload": {
+        "type_parameters": [],
+        "definitions": {
+          "functions": [
+            {
+              "name": "ge_count",
+              "params": [
+                [
+                  "xs",
+                  {
+                    "List": "U32"
+                  }
+                ],
+                [
+                  "cut",
+                  "U32"
+                ]
+              ],
+              "result": "U64",
+              "body": {
+                "Call": [
+                  "foldr",
+                  [
+                    {
+                      "Var": "xs"
+                    },
+                    {
+                      "Num": 0
+                    },
+                    {
+                      "Lambda": [
+                        "item",
+                        {
+                          "Lambda": [
+                            "acc",
+                            {
+                              "Call": [
+                                "choose",
+                                [
+                                  {
+                                    "Binary": [
+                                      ">=",
+                                      {
+                                        "Var": "item"
+                                      },
+                                      {
+                                        "Var": "cut"
+                                      }
+                                    ]
+                                  },
+                                  {
+                                    "Binary": [
+                                      "+",
+                                      {
+                                        "Var": "acc"
+                                      },
+                                      {
+                                        "Num": 1
+                                      }
+                                    ]
+                                  },
+                                  {
+                                    "Var": "acc"
+                                  }
+                                ]
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                ]
+              }
+            }
+          ],
+          "ids": [],
+          "records": {},
+          "enums": {}
+        },
+        "law": {
+          "schema": 1,
+          "semantics": "ink-conditional-laws-v1",
+          "params": {
+            "cut": {
+              "Value": "U32"
+            },
+            "xs": {
+              "Value": {
+                "List": "U32"
+              }
+            }
+          },
+          "conditions": [],
+          "from": {
+            "sort": {
+              "Value": "U64"
+            },
+            "node": {
+              "Op": [
+                "call:count",
+                [
+                  {
+                    "sort": {
+                      "Value": {
+                        "List": "U32"
+                      }
+                    },
+                    "node": {
+                      "Op": [
+                        "method:filter",
+                        [
+                          {
+                            "sort": {
+                              "Value": {
+                                "List": "U32"
+                              }
+                            },
+                            "node": {
+                              "Free": "xs"
+                            }
+                          },
+                          {
+                            "sort": {
+                              "Arrow": [
+                                {
+                                  "Value": "U32"
+                                },
+                                {
+                                  "Value": "Bool"
+                                }
+                              ]
+                            },
+                            "node": {
+                              "Lambda": {
+                                "sort": {
+                                  "Value": "Bool"
+                                },
+                                "node": {
+                                  "Op": [
+                                    "binary:>=",
+                                    [
+                                      {
+                                        "sort": {
+                                          "Value": "U32"
+                                        },
+                                        "node": {
+                                          "Bound": 0
+                                        }
+                                      },
+                                      {
+                                        "sort": {
+                                          "Value": "U32"
+                                        },
+                                        "node": {
+                                          "Free": "cut"
+                                        }
+                                      }
+                                    ]
+                                  ]
+                                }
+                              }
+                            }
+                          }
+                        ]
+                      ]
+                    }
+                  }
+                ]
+              ]
+            }
+          },
+          "to": {
+            "sort": {
+              "Value": "U64"
+            },
+            "node": {
+              "Op": [
+                "call:ge_count",
+                [
+                  {
+                    "sort": {
+                      "Value": {
+                        "List": "U32"
+                      }
+                    },
+                    "node": {
+                      "Free": "xs"
+                    }
+                  },
+                  {
+                    "sort": {
+                      "Value": "U32"
+                    },
+                    "node": {
+                      "Free": "cut"
+                    }
+                  }
+                ]
+              ]
+            }
+          },
+          "proof": {
+            "Induction": {
+              "variable": "xs",
+              "names": [
+                "head",
+                "tail"
+              ],
+              "base": "Normalize",
+              "step": {
+                "Cases": {
+                  "condition": {
+                    "sort": {
+                      "Value": "Bool"
+                    },
+                    "node": {
+                      "Op": [
+                        "binary:>=",
+                        [
+                          {
+                            "sort": {
+                              "Value": "U32"
+                            },
+                            "node": {
+                              "Free": "head"
+                            }
+                          },
+                          {
+                            "sort": {
+                              "Value": "U32"
+                            },
+                            "node": {
+                              "Free": "cut"
+                            }
+                          }
+                        ]
+                      ]
+                    }
+                  },
+                  "on_true": "Normalize",
+                  "on_false": "Normalize"
+                }
+              }
+            }
+          },
+          "dependencies": []
+        }
+      }
+    }
+  },
+  {
+    "name": "numeric-derived-operation",
+    "object": {
+      "schema": 1,
+      "kind": "definition",
+      "semantics": "ink-source-algorithm-v1",
+      "dependencies": [],
+      "interface": {
+        "parameters": {},
+        "result": null,
+        "operations": [
+          "binary:*",
+          "binary:+",
+          "call:scaled"
+        ],
+        "effects": [],
+        "conditions": []
+      },
+      "payload": {
+        "type_parameters": [
+          "N"
+        ],
+        "definitions": {
+          "functions": [
+            {
+              "name": "scaled",
+              "params": [
+                [
+                  "x",
+                  {
+                    "Named": "$N"
+                  }
+                ],
+                [
+                  "scale",
+                  {
+                    "Named": "$N"
+                  }
+                ]
+              ],
+              "result": {
+                "Named": "$N"
+              },
+              "body": {
+                "Binary": [
+                  "*",
+                  {
+                    "Binary": [
+                      "+",
+                      {
+                        "Var": "x"
+                      },
+                      {
+                        "Num": 1
+                      }
+                    ]
+                  },
+                  {
+                    "Var": "scale"
+                  }
+                ]
+              }
+            }
+          ],
+          "ids": [],
+          "records": {},
+          "enums": {}
+        },
+        "law": {
+          "schema": 1,
+          "semantics": "ink-conditional-laws-v1",
+          "params": {
+            "scale": {
+              "Value": {
+                "Named": "$N"
+              }
+            },
+            "x": {
+              "Value": {
+                "Named": "$N"
+              }
+            }
+          },
+          "conditions": [],
+          "from": {
+            "sort": {
+              "Value": {
+                "Named": "$N"
+              }
+            },
+            "node": {
+              "Op": [
+                "binary:+",
+                [
+                  {
+                    "sort": {
+                      "Value": {
+                        "Named": "$N"
+                      }
+                    },
+                    "node": {
+                      "Op": [
+                        "binary:*",
+                        [
+                          {
+                            "sort": {
+                              "Value": {
+                                "Named": "$N"
+                              }
+                            },
+                            "node": {
+                              "Free": "x"
+                            }
+                          },
+                          {
+                            "sort": {
+                              "Value": {
+                                "Named": "$N"
+                              }
+                            },
+                            "node": {
+                              "Free": "scale"
+                            }
+                          }
+                        ]
+                      ]
+                    }
+                  },
+                  {
+                    "sort": {
+                      "Value": {
+                        "Named": "$N"
+                      }
+                    },
+                    "node": {
+                      "Free": "scale"
+                    }
+                  }
+                ]
+              ]
+            }
+          },
+          "to": {
+            "sort": {
+              "Value": {
+                "Named": "$N"
+              }
+            },
+            "node": {
+              "Op": [
+                "call:scaled",
+                [
+                  {
+                    "sort": {
+                      "Value": {
+                        "Named": "$N"
+                      }
+                    },
+                    "node": {
+                      "Free": "x"
+                    }
+                  },
+                  {
+                    "sort": {
+                      "Value": {
+                        "Named": "$N"
+                      }
+                    },
+                    "node": {
+                      "Free": "scale"
+                    }
+                  }
+                ]
+              ]
+            }
+          },
+          "proof": "Normalize",
+          "dependencies": []
+        }
+      }
+    }
+  }
+]

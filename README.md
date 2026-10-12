@@ -322,3 +322,5 @@ observation files, and `rebuild()` repairs the disposable cache. Canonical objec
 hashes, membership witnesses and local proof checking remain the authority for
 exported selections. Typed pattern reachability now batches successor heads over
 one read connection per discovery pass.
+
+Typed algorithm templates in `libraries/source-algorithms.json` introduce helper functions and intermediate record types through conservative source admission, then supply ordinary equality proofs for their use. `python -m ink_knowledge.source_algorithms libraries/source-algorithms.json --root .` publishes them. `python -m producers.allocation_laws --root .` publishes exact-integer allocation bounds; capacity formulas are data checked against each source. Both remain subject to normal admission and offline profitability selection.
