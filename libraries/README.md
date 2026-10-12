@@ -20,3 +20,12 @@ finite-list producer separately supplies locally checked work-skipping laws.
 `value-laws.ink` is external theorem authoring source. Use `ink emit-laws` or
 `producers/source_laws.py`; application compilation rejects its rewrite declarations.
 Exact-integer laws use the general bounded ring checker, with no trusted labels.
+
+`general-laws.ink` and `incremental-laws.ink` are external law sources in Ink's
+one `law` form: type parameters, function parameters, conditions, quantified
+assumptions and proofs (see the distribution's `docs/laws-in-source.md`).
+`general-laws.ink` covers lists, folds over any monoid, Option/Result, maps,
+buffers, records, vectors, `Int`, words and Bool; `incremental-laws.ink` states
+the delta rules of sum, group-by, join and views over views over signed
+collections. General laws reach programs only through concrete instances that
+prove their assumptions. Both libraries export to Lean with `ink-to-lean`.
