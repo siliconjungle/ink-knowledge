@@ -330,7 +330,7 @@ def lexical_reads(program):
             if method=='map'and isinstance(ty,dict)and 'List'in ty and args and 'Lambda'in args[0]:
                 n,body=args[0]['Lambda'];out=infer(body,dict(env,**{n:ty['List']}));return {'List':out}if out else None
         return None
-    def visit(e,env):
+    def visit(e,env,want=None):
         if not isinstance(e,dict):return
         ty=infer(e,env)
         if set(e)&{'Var','Field'}and ty is not None:
@@ -339,10 +339,21 @@ def lexical_reads(program):
             place=(base['Var'],fields)if isinstance(base,dict)and 'Var'in base else None
             if place and isinstance(env.get(place[0]),dict)and set(env[place[0]])&{'Named','List'}:result.add(identity(e))
         if 'Let'in e:
-            name,annotation,value,body=e['Let'];visit(value,env)
-            local=dict(env);local[name]=annotation or infer(value,env);visit(body,local);return
-        if 'Lambda'in e:
-            name,body=e['Lambda'];local=dict(env);local.pop(name,None);visit(body,local);return
+            name,annotation,value,body=e['Let'];visit(value,env,annotation)
+            local=dict(env);local[name]=annotation or infer(value,env);visit(body,local,want);return
+        if 'Call'in e and e['Call'][0]in {'foldr','foldl','fold_until'}:
+            name,args=e['Call'];source=infer(args[0],env)
+            if isinstance(source,dict)and 'List'in source and len(args)==(4 if name=='fold_until'else 3):
+                accumulator=infer(args[1],env)or want
+                for arg in args[2:]:
+                    local=dict(env);body=arg
+                    for parameter in [source['List'],accumulator]:
+                        if not isinstance(body,dict)or 'Lambda'not in body:break
+                        binder,body=body['Lambda'];local[binder]=parameter
+                    visit(body,local,accumulator)
+                visit(args[0],env);visit(args[1],env,accumulator);return
+        if 'Lambda'in e:return
+
         if 'Method'in e:
             receiver,method,args=e['Method'];visit(receiver,env);ty=infer(receiver,env)
             for arg in args:
@@ -358,7 +369,7 @@ def lexical_reads(program):
                     elif isinstance(child,list):
                         for nested in child:
                             if isinstance(nested,dict):visit(nested,env)
-    for f in program['functions']:visit(f['body'],dict(f['params']))
+    for f in program['functions']:visit(f['body'],dict(f['params']),f['result'])
     return result
 def physical(context, source_strategies, definition_strategies):
     program=context['core']['program'];current=context.get('representation')

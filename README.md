@@ -324,3 +324,15 @@ exported selections. Typed pattern reachability now batches successor heads over
 one read connection per discovery pass.
 
 Typed algorithm templates in `libraries/source-algorithms.json` introduce helper functions and intermediate record types through conservative source admission, then supply ordinary equality proofs for their use. `python -m ink_knowledge.source_algorithms libraries/source-algorithms.json --root .` publishes them. `python -m producers.allocation_laws --root .` publishes exact-integer allocation bounds; capacity formulas are data checked against each source. Both remain subject to normal admission and offline profitability selection.
+
+Generic pipeline templates also cover ordered left/right map folds, left-fold
+filter/map pipelines, and two first-replacement implementations. The optional
+result implementation composes an absorbing-state lemma and evaluates its
+predicate once per row, using existing source operations. These are opaque-carrier
+laws, including distinct item, mapped and accumulator types; they make no monoid
+assumption or floating-point reassociation.
+
+Template discovery can abstract a free function applied to distinct local
+variables. It rejects other local dependencies and emits an ordinary adapter
+proof with the exact source endpoint. Template matching remains untrusted: the
+kernel replays the universal law, adapter, source context and dependency closure.
