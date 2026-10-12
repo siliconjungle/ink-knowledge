@@ -71,7 +71,7 @@ def validate_entry(v):
     for key in ['operations','effects']:
         a=v['interface'][key]
         if not isinstance(a,list) or any(not isinstance(x,str) for x in a) or a != sorted(set(a)): raise ValueError('invalid interface index')
-    dependency_limit=512 if v['semantics']=='ink-source-representation-v1' else 128
+    dependency_limit=MAX_VIEW_ENTRIES if v['semantics']=='ink-implementation-candidate-v1' else 512 if v['semantics']=='ink-source-representation-v1' else 128
     if not isinstance(v['dependencies'],list) or len(v['dependencies'])>dependency_limit or v['dependencies'] != sorted(set(v['dependencies'])): raise ValueError('dependencies must be unique and sorted')
     for i in v['dependencies']: hash_id(i)
     if len(canonical(v)) > (MAX_VIEW_BYTES if v['semantics']=='ink-implementation-candidate-v1' else MAX_ENTRY_BYTES): raise ValueError("knowledge object byte limit")
@@ -345,6 +345,9 @@ class Store:
 
     def query(self, *, kind=None, semantics=None, operation=None, result=None, effect=None, parameter_type=None, condition=None, after=None, limit=1024):
         if not isinstance(limit,int) or not 0<=limit<=1024:raise ValueError('query limit')
+        accelerator=getattr(self,'_discovery_accelerator',None)
+        if accelerator is not None and accelerator.snapshot==self.snapshot_id:
+            return accelerator.query(kind=kind,semantics=semantics,operation=operation,result=result,effect=effect,parameter_type=parameter_type,condition=condition,after=after,limit=limit)
         index=self.root/'index.sqlite'
         constraints=(kind,semantics,operation,result,effect,parameter_type,condition,after,limit)
         if not index.exists():
@@ -393,25 +396,44 @@ class Store:
             with closing(sqlite3.connect(index)) as db,db:
                 db.execute('INSERT OR IGNORE INTO observations VALUES(?,?,?,?,?,?)',(i,obj['program'],obj['plan'],canonical(obj['target']).decode(),canonical(obj['workload']).decode(),canonical(obj['metrics']).decode()))
         return i
-    def observations(self,program,plans,target,workload,limit=1024):
+    def _observation_page(self,program,plans,target,workload,limit=1024,after=None):
         hash_id(program)
         if not 0<=limit<=1024:raise ValueError('observation query limit')
+        if after is not None:hash_id(after)
         plans=set(plans)
         if len(plans)>1024:raise ValueError('observation plan limit')
         for p in plans:hash_id(p)
-        if not plans or limit==0:return []
+        if not plans or limit==0:return [],None,0
         index=self.root/'index.sqlite'
         if not index.exists():self.rebuild()
         with closing(sqlite3.connect(index.as_uri()+'?mode=ro',uri=True)) as db:
             # Filter candidates before limiting; unrelated plans must not exhaust
             # the evidence budget. Old disposable indexes remain query-compatible.
             placeholders=','.join('?' for _ in plans)
-            rows=db.execute(f'SELECT id FROM observations WHERE program_id=? AND plan_id IN ({placeholders}) AND target=? AND workload=? ORDER BY id LIMIT ?',
-                            [program,*sorted(plans),canonical(target).decode(),canonical(workload).decode(),limit]).fetchall()
+            cursor=' AND id>?'if after is not None else''
+            values=[program,*sorted(plans),canonical(target).decode(),canonical(workload).decode()]
+            if after is not None:values.append(after)
+            rows=db.execute(f'SELECT id FROM observations WHERE program_id=? AND plan_id IN ({placeholders}) AND target=? AND workload=?{cursor} ORDER BY id LIMIT ?',values+[limit]).fetchall()
         result=[]
         for (i,) in rows:
             o=read(self.data/'observations'/f'{hash_id(i)}.json');self.validate_observation(o)
             if identity(o)!=i:raise ValueError('observation hash mismatch')
             # The disposable index cannot make incomparable measurements comparable.
             if o['program']==program and o['target']==target and o['workload']==workload and o['plan'] in plans:result.append(o)
-        return result
+        return result,rows[-1][0]if rows else None,len(rows)
+
+    def observations(self,program,plans,target,workload,limit=1024,after=None):
+        return self._observation_page(program,plans,target,workload,limit,after)[0]
+
+    def iter_observations(self,program,plans,target,workload,page_size=512):
+        """Page evidence independently of candidate/check budgets and SQLite's
+        parameter limit. Every returned immutable observation is authenticated."""
+        if not 1<=page_size<=1024:raise ValueError('observation page size')
+        plans=sorted(set(plans))
+        for offset in range(0,len(plans),512):
+            group=plans[offset:offset+512];after=None
+            while True:
+                page,cursor,count=self._observation_page(program,group,target,workload,limit=page_size,after=after)
+                yield from page
+                if count<page_size:break
+                after=cursor

@@ -1,0 +1,25 @@
+{
+  "schema": 1,
+  "probes": [
+    {
+      "id": "value",
+      "operator": null
+    },
+    {
+      "id": "length",
+      "operator": "call:length",
+      "receiver": "List",
+      "result": {
+        "Value": "U32"
+      }
+    },
+    {
+      "id": "count",
+      "operator": "call:count",
+      "receiver": "List",
+      "result": {
+        "Value": "U64"
+      }
+    }
+  ]
+}

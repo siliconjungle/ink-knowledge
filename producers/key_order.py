@@ -54,7 +54,7 @@ class Order:
             if 'Call' in t and self.objects[t['Call']['function']]['payload']['declaration']['Function']['result']=='Bool':
                 if t not in atoms:
                     atoms.append(t);n='order_atom_'+str(len(atoms)-1)
-                    while n in occupied:n+='_' 
+                    while n in occupied:n+='_'
                     atom_names.append(n);occupied.add(n)
                 return var(atom_names[atoms.index(t)])
             raise ValueError('order scalar needs structural elimination')

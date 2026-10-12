@@ -5,10 +5,11 @@ build-backend = "setuptools.build_meta"
 name = "ink-knowledge"
 version = "0.1.0"
 requires-python = ">=3.10"
+dependencies = ["python-sat==1.9.dev5"]
 description = "Canonical Ink knowledge objects, snapshots and SQLite discovery"
 [tool.setuptools]
 packages = ["ink_knowledge", "producers"]
 
 [tool.setuptools.package-data]
-ink_knowledge = ["index.sql", "structural-costs.json", "producer-catalog.json"]
+ink_knowledge = ["index.sql", "structural-costs.json", "producer-catalog.json", "implementation-recipes.json", "property-probes.json"]
 producers = ["data/*.json", "data/*.json.gz"]
