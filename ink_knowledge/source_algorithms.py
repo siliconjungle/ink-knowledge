@@ -175,7 +175,7 @@ def propose(context_,**_):
     with tempfile.TemporaryDirectory(prefix='ink-source-algorithms-')as tmp:
         d=Path(tmp);original=d/'input.json';original.write_bytes(canonical(context_['core']));subjectfile=d/'subject.json';invoke('emit-semantic',original,'--core','-o',subjectfile);subject=json.loads(subjectfile.read_bytes())
         from .template_index import candidates
-        selected=candidates(store,subject,SEMANTICS);produced=0;sites_index=TemplateSites(subject)
+        sites_index=TemplateSites(subject);selected=candidates(store,subject,SEMANTICS,sites=sites_index);produced=0
         for at in range(0,len(selected),64):
             page=selected[at:at+64]
             for ident in page:

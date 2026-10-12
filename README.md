@@ -367,3 +367,18 @@ scaling curves, strong runtime controls, physical regressions and remaining limi
 
 Project code and documentation are [MIT licensed](LICENSE). Third-party dependencies,
 vendored projects and research data retain their own licenses and notices.
+
+## Traversal elimination and local discovery reuse
+
+`producers.traversal_templates.templates()` contains six new parametric families:
+constant filters, unchanged-accumulator left/right folds and length/count over
+concatenation. Their concrete instances use ordinary induction and normalization.
+They need no compiler recogniser or new execution primitive.
+
+A discovery invocation reuses its bounded source-site traversal, type-instantiated
+proof closures and exact higher-order adapters. Caches are local to that exact
+source/definition context, retain dependency-depth limits and never replace kernel
+replay. Larger operation-head buckets use necessary structural, literal and
+concrete-sort constraints; small buckets match directly. Applied higher-order
+holes remain unrestricted. See the distribution's `docs/discovery-reuse.md` for
+ablation curves and the cases where index construction adds overhead.
