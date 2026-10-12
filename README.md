@@ -286,3 +286,25 @@ no rewrite authority. Planner's optional HNSW structural sketch likewise supplie
 ordering hints, leaving exact membership, matching and proof replay in place.
 The distribution's probabilistic-planner report retains warm index gains, setup
 costs, approximate recall and the cases where learned positions lose to C bisect.
+
+## Source contract knowledge
+
+`producers.contract_proofs` derives ordinary pure laws and first-order state
+proofs from `ink emit-contract-obligations`, replays each proposal, and publishes
+canonical entries plus source-bound `ink-contracts-v1` evidence. Static clauses,
+`before`, invariants, finite bag observations and uniqueness are checked source
+meanings; producers cannot assign their own interpretation.
+
+The database includes `contracts.zero-map-u64`, `contracts.identity-map-u32` and
+`contracts.sorted-identity-u64`: two list-induction laws and a conditional sort
+law. Their definition contexts contain no exact helper bodies. The
+`contract-witnesses` recipe proposes specification witnesses, checks the complete
+selected module, and publishes ordinary implementation candidates. Contracts can
+permit more than one value; refinement is distinct from equality rewriting.
+
+Use `python -m producers.contract_candidates SOURCE OUTPUT --compiler ink` to
+publish examples. This bounded producer is deliberately incomplete; explicit
+proofs remain available through the existing kernels. Compiler admission checks
+every proof regardless of database membership. Performance measurements are
+separate immutable observations, never theorem authority. See the distribution's
+`docs/source-contracts.md` and `tools/bench_contracts.py`.

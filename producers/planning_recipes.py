@@ -439,3 +439,18 @@ def point_access_cache(context):
                     yield row('representation',result['requests'][1],'point-cache:'+query)
                 except (ValueError,KeyError,TypeError,NotImplementedError) as error:yield decline('point-cache:'+query,error)
         except (ValueError,KeyError,OSError) as error:yield decline('point-access',error)
+
+
+def contract_witnesses(context):
+    """Find postcondition witnesses and replay every contract in the module."""
+    if not context['core']['program'].get('contracts',{}).get('specifications'):return
+    from producers.contract_candidates import propose
+    with tempfile.TemporaryDirectory(prefix='ink-contract-recipe-') as temporary:
+        directory=Path(temporary);core=directory/'core.json';core.write_bytes(canonical(context['core'])+b'\n')
+        try:
+            report=propose(context['compiler'],core,directory/'candidates')
+            store=Store(directory/'candidates')
+            for ident in report['candidates']:
+                yield row('rewrite',store.object(ident)['payload']['package'],'contract/'+ident)
+            for failure in report['rejected']:yield decline('contract/'+failure['specification'],failure['reason'])
+        except (ValueError,subprocess.CalledProcessError) as error:yield decline('contract-witnesses',error)

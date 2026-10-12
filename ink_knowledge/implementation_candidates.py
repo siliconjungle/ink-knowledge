@@ -15,10 +15,15 @@ def proof_views(package):
         for step in package['steps']:
             payload=step['package']
             if step['kind']=='definitions':payload=payload['request']
-            if 'knowledge'in payload:yield payload['knowledge']
+            yield from proof_views(payload)
             if step['kind']=='routing'and payload.get('equivalence'):
                 yield payload['equivalence']['knowledge']
     elif 'knowledge'in package:yield package['knowledge']
+    refinement=package.get('contract_refinement')
+    if refinement:
+        for key in ('knowledge','state_knowledge'):
+            view=refinement['evidence'].get(key)
+            if view:yield view
 
 def identity_selection(source):
     """An ordinary empty selection, represented as data like any other package."""
