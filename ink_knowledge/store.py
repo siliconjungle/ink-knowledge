@@ -131,7 +131,7 @@ class Store:
         for obj in added:
             if not set(obj['dependencies'])<=known:raise ValueError('dependency absent from snapshot')
         if Store(self.root).snapshot_id!=self.snapshot_id:raise ValueError('publication changed during extension')
-        if names is None:names=read(self.data/'names.json')
+        names={**read(self.data/'names.json'),**(names or {})}
         return self._publish_ids(self.root,known,names,leaf_size)
     @classmethod
     def _publish_ids(cls, root, ids, names, leaf_size):
