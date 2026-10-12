@@ -6,8 +6,8 @@ import sqlite3
 import tempfile
 from pathlib import Path
 
-MAX_VIEW_ENTRIES = 4096
-MAX_VIEW_BYTES = 64_000_000
+MAX_VIEW_ENTRIES = 8192
+MAX_VIEW_BYTES = 128_000_000
 MAX_ENTRY_BYTES = 16_000_000
 SNAPSHOT = 'ink-knowledge-snapshot-v1'
 KINDS = {'definition', 'theorem', 'rewrite', 'implementation', 'representation', 'maintenance', 'bridge'}
@@ -110,7 +110,7 @@ class Store:
         for i in ids:
             if not set(read(data/'objects'/f'{i}.json')['dependencies']) <= known: raise ValueError('dependency absent from snapshot')
         return cls._publish_ids(root,ids,names,leaf_size)
-    def extend(self, objects, names=None):
+    def extend(self, objects, names=None, *, leaf_size=None):
         """Append to a current publication without reopening old proof bodies.
 
         Old content references retain their authenticated snapshot membership.
@@ -118,7 +118,12 @@ class Store:
         admission. This operation never creates a checked executable context.
         """
         if self._explicit_snapshot:raise ValueError('extend requires current publication')
-        known=set(self.members());added=[]
+        members=self.members()
+        if leaf_size is None:
+            # Preserve an established compact transport topology for wide views.
+            # Small publications keep the original 64-entry default.
+            leaf_size=2 if len(members)>64 and all(len(w['entries'])<=2 for w in members.values()) else 64
+        known=set(members);added=[]
         for obj in objects:
             validate_entry(obj);i=identity(obj)
             immutable(self.data/'objects'/f'{i}.json',obj)
@@ -127,32 +132,26 @@ class Store:
             if not set(obj['dependencies'])<=known:raise ValueError('dependency absent from snapshot')
         if Store(self.root).snapshot_id!=self.snapshot_id:raise ValueError('publication changed during extension')
         if names is None:names=read(self.data/'names.json')
-        return self._publish_ids(self.root,known,names,64)
+        return self._publish_ids(self.root,known,names,leaf_size)
     @classmethod
     def _publish_ids(cls, root, ids, names, leaf_size):
+        if type(leaf_size) is not int or not 1<=leaf_size<=64:raise ValueError('snapshot leaf size limit')
         root=Path(root);data=root/'store';ids=sorted(set(ids))
         # Stable hash-prefix buckets prevent an insertion shifting every later
         # leaf. Topology grows only at powers of two; an oversized bucket splits
         # locally. Nodes and membership witnesses keep the existing contract.
-        bits=((max(1,len(ids))-1)//64).bit_length()
+        bits=((max(1,len(ids))-1)//leaf_size).bit_length()
         buckets=[[] for _ in range(1<<bits)]
         for i in ids:buckets[int(i[:16],16)>>(64-bits) if bits else 0].append(i)
         def node(value):
             i=identity(value);immutable(data/'trees'/f'{i}.json',value);return i
         def leaf(items):
-            if len(items)<=64:return node(dict(schema=1,entries=items))
+            if len(items)<=leaf_size:return node(dict(schema=1,entries=items))
             middle=len(items)//2
             return node(dict(schema=1,left=leaf(items[:middle]),right=leaf(items[middle:])))
         nodes=[leaf(items) for items in buckets]
-        if leaf_size != 64:
-            nodes=[]
-            for at in range(0,max(1,len(ids)),leaf_size):
-                value=dict(schema=1,entries=ids[at:at+leaf_size]);i=identity(value);immutable(data/'trees'/f'{i}.json',value);nodes.append(i)
-            while len(nodes)>1:
-                nodes=[node(dict(schema=1,left=nodes[at],right=nodes[min(at+1,len(nodes)-1)])) for at in range(0,len(nodes),2)]
-        else:
-            while len(nodes)>1:
-                nodes=[node(dict(schema=1,left=nodes[at],right=nodes[at+1])) for at in range(0,len(nodes),2)]
+        while len(nodes)>1:
+            nodes=[node(dict(schema=1,left=nodes[at],right=nodes[at+1])) for at in range(0,len(nodes),2)]
         snapshot=dict(schema=1,semantics=SNAPSHOT,root=nodes[0]);sid=identity(snapshot)
         immutable(data/'snapshots'/f'{sid}.json',snapshot)
         for name,value in [('names.json',names or {}),('snapshot.json',snapshot)]:

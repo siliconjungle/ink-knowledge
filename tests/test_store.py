@@ -3,6 +3,7 @@ import copy,json,sqlite3,tempfile,unittest
 from unittest.mock import patch
 from pathlib import Path
 from ink_knowledge import Store,entry,identity,canonical
+from ink_knowledge.store import MAX_VIEW_ENTRIES
 class StoreTests(unittest.TestCase):
     def setUp(self):
         self.temp=tempfile.TemporaryDirectory();self.root=Path(self.temp.name)
@@ -125,8 +126,8 @@ class StoreTests(unittest.TestCase):
         # A failed read transaction must not retain a lock on the disposable index.
         with closing(sqlite3.connect(self.root/'index.sqlite',timeout=0)) as db,db:
             db.execute('DELETE FROM names')
-        leaves=[entry('definition','test-v1',dict(body=['leaf',i])) for i in range(4096)]
-        parents=[entry('definition','test-v1',dict(body=['parent',i]),[identity(x) for x in leaves[i:i+128]]) for i in range(0,4096,128)]
+        leaves=[entry('definition','test-v1',dict(body=['leaf',i])) for i in range(MAX_VIEW_ENTRIES)]
+        parents=[entry('definition','test-v1',dict(body=['parent',i]),[identity(x) for x in leaves[i:i+128]]) for i in range(0,MAX_VIEW_ENTRIES,128)]
         root=entry('definition','test-v1',dict(body='root'),[identity(x) for x in parents])
         store=Store.publish(self.root,[*leaves,*parents,root]);store.rebuild()
         with self.assertRaisesRegex(ValueError,'dependency closure limit'):
@@ -278,4 +279,17 @@ class StoreTests(unittest.TestCase):
         (self.root/'store/observations'/f'{oid}.json').write_text(json.dumps({**obs,'plan':'3'*64}))
         with self.assertRaisesRegex(ValueError,'hash mismatch'):
             self.store.observations('1'*64,['3'*64],obs['target'],obs['workload'])
+class CompactExtensions(unittest.TestCase):
+ def test_large_compact_publication_preserves_witness_size_after_append(self):
+  with tempfile.TemporaryDirectory() as tmp:
+   objects=[entry('definition','test',{'number':i}) for i in range(70)]
+   store=Store.publish(Path(tmp),objects,leaf_size=2)
+   store=store.extend([entry('definition','test',{'number':70})])
+   self.assertTrue(all(len(w['entries'])<=2 for w in store.members().values()))
+   self.assertEqual(len(store.members()),71)
+ def test_invalid_leaf_sizes_fail_closed(self):
+  for size in [0,65,True]:
+   with self.subTest(size=size),tempfile.TemporaryDirectory() as tmp:
+    with self.assertRaisesRegex(ValueError,'leaf size'):Store.publish(Path(tmp),[],leaf_size=size)
+
 if __name__=='__main__':unittest.main()
