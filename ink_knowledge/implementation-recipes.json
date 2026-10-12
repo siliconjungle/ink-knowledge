@@ -1,0 +1,768 @@
+{
+  "schema": 1,
+  "semantics": "ink-planning-recipes-v1",
+  "recipes": [
+    {
+      "id": "all-published-packages",
+      "stage": "representation",
+      "module": "producers.planning_recipes",
+      "function": "published",
+      "parameters": {},
+      "requires": [
+        "core"
+      ],
+      "obligations": [
+        "universal-source-action-and-observation-preservation"
+      ],
+      "inputs": [
+        "model"
+      ]
+    },
+    {
+      "id": "semantic-laws",
+      "stage": "rewrite",
+      "module": "producers.planning_recipes",
+      "function": "semantic",
+      "parameters": {},
+      "requires": [
+        "core"
+      ],
+      "obligations": [
+        "source-equality-and-complete-observations"
+      ],
+      "inputs": [
+        "core",
+        "properties"
+      ]
+    },
+    {
+      "id": "whole-action-coalescing",
+      "stage": "rewrite",
+      "module": "producers.planning_recipes",
+      "function": "action_coalescing",
+      "parameters": {
+        "operations": [
+          {
+            "first": "remove",
+            "second": "remove",
+            "drop": "first"
+          },
+          {
+            "first": "replace",
+            "second": "replace",
+            "drop": "first"
+          },
+          {
+            "first": "replace",
+            "second": "remove",
+            "drop": "first"
+          }
+        ]
+      },
+      "requires": [
+        "model"
+      ],
+      "obligations": [
+        "source-equality-and-complete-observations"
+      ],
+      "inputs": [
+        "core",
+        "model"
+      ]
+    },
+    {
+      "id": "index",
+      "stage": "representation",
+      "module": "producers.planning_recipes",
+      "function": "generic_index",
+      "parameters": {
+        "batching": false
+      },
+      "requires": [
+        "model"
+      ],
+      "obligations": [
+        "universal-source-action-and-observation-preservation"
+      ],
+      "inputs": [
+        "core",
+        "model"
+      ]
+    },
+    {
+      "id": "grouped-index",
+      "stage": "representation",
+      "module": "producers.planning_recipes",
+      "function": "generic_index",
+      "parameters": {
+        "batching": true
+      },
+      "requires": [
+        "model"
+      ],
+      "obligations": [
+        "universal-source-action-and-observation-preservation"
+      ],
+      "inputs": [
+        "core",
+        "model"
+      ]
+    },
+    {
+      "id": "direct",
+      "stage": "representation",
+      "module": "producers.planning_recipes",
+      "function": "representations",
+      "parameters": {},
+      "requires": [
+        "model"
+      ],
+      "obligations": [
+        "universal-source-action-and-observation-preservation"
+      ],
+      "inputs": [
+        "core",
+        "model"
+      ]
+    },
+    {
+      "id": "refresh-on-query",
+      "stage": "representation",
+      "module": "producers.planning_recipes",
+      "function": "representations",
+      "parameters": {
+        "retain_queries": false
+      },
+      "requires": [
+        "model"
+      ],
+      "obligations": [
+        "universal-source-action-and-observation-preservation"
+      ],
+      "inputs": [
+        "core",
+        "model"
+      ]
+    },
+    {
+      "id": "representation-5",
+      "stage": "representation",
+      "module": "producers.planning_recipes",
+      "function": "representations",
+      "parameters": {
+        "cache_query": "$query"
+      },
+      "requires": [
+        "model"
+      ],
+      "obligations": [
+        "universal-source-action-and-observation-preservation"
+      ],
+      "inputs": [
+        "core",
+        "model"
+      ]
+    },
+    {
+      "id": "representation-6",
+      "stage": "representation",
+      "module": "producers.planning_recipes",
+      "function": "representations",
+      "parameters": {
+        "cache_query": "$query",
+        "preserve_cache": true
+      },
+      "requires": [
+        "model"
+      ],
+      "obligations": [
+        "universal-source-action-and-observation-preservation"
+      ],
+      "inputs": [
+        "core",
+        "model"
+      ]
+    },
+    {
+      "id": "representation-7",
+      "stage": "representation",
+      "module": "producers.planning_recipes",
+      "function": "representations",
+      "parameters": {
+        "cache_query": "$query",
+        "compact_queries": true
+      },
+      "requires": [
+        "model"
+      ],
+      "obligations": [
+        "universal-source-action-and-observation-preservation"
+      ],
+      "inputs": [
+        "core",
+        "model"
+      ]
+    },
+    {
+      "id": "representation-8",
+      "stage": "representation",
+      "module": "producers.planning_recipes",
+      "function": "representations",
+      "parameters": {
+        "cache_query": "$query",
+        "delta_query": true,
+        "preserve_cache": true
+      },
+      "requires": [
+        "model"
+      ],
+      "obligations": [
+        "universal-source-action-and-observation-preservation"
+      ],
+      "inputs": [
+        "core",
+        "model"
+      ]
+    },
+    {
+      "id": "representation-9",
+      "stage": "representation",
+      "module": "producers.planning_recipes",
+      "function": "representations",
+      "parameters": {
+        "cache_query": "$query",
+        "dynamic_delta": true,
+        "preserve_cache": true
+      },
+      "requires": [
+        "model"
+      ],
+      "obligations": [
+        "universal-source-action-and-observation-preservation"
+      ],
+      "inputs": [
+        "core",
+        "model"
+      ]
+    },
+    {
+      "id": "representation-10",
+      "stage": "representation",
+      "module": "producers.planning_recipes",
+      "function": "representations",
+      "parameters": {
+        "cache_query": "$query",
+        "aggregate_query": true,
+        "preserve_cache": true
+      },
+      "requires": [
+        "model"
+      ],
+      "obligations": [
+        "universal-source-action-and-observation-preservation"
+      ],
+      "inputs": [
+        "core",
+        "model"
+      ]
+    },
+    {
+      "id": "representation-11",
+      "stage": "representation",
+      "module": "producers.planning_recipes",
+      "function": "representations",
+      "parameters": {
+        "cache_query": "$query",
+        "membership_query": true,
+        "preserve_cache": true
+      },
+      "requires": [
+        "model"
+      ],
+      "obligations": [
+        "universal-source-action-and-observation-preservation"
+      ],
+      "inputs": [
+        "core",
+        "model"
+      ]
+    },
+    {
+      "id": "representation-12",
+      "stage": "representation",
+      "module": "producers.planning_recipes",
+      "function": "representations",
+      "parameters": {
+        "columnar": true
+      },
+      "requires": [
+        "model"
+      ],
+      "obligations": [
+        "universal-source-action-and-observation-preservation"
+      ],
+      "inputs": [
+        "core",
+        "model"
+      ]
+    },
+    {
+      "id": "representation-13",
+      "stage": "representation",
+      "module": "producers.planning_recipes",
+      "function": "representations",
+      "parameters": {
+        "columnar": true,
+        "packed_booleans": true
+      },
+      "requires": [
+        "model"
+      ],
+      "obligations": [
+        "universal-source-action-and-observation-preservation"
+      ],
+      "inputs": [
+        "core",
+        "model"
+      ]
+    },
+    {
+      "id": "representation-14",
+      "stage": "representation",
+      "module": "producers.planning_recipes",
+      "function": "representations",
+      "parameters": {
+        "columnar": true,
+        "column_points": true
+      },
+      "requires": [
+        "model"
+      ],
+      "obligations": [
+        "universal-source-action-and-observation-preservation"
+      ],
+      "inputs": [
+        "core",
+        "model"
+      ]
+    },
+    {
+      "id": "representation-15",
+      "stage": "representation",
+      "module": "producers.planning_recipes",
+      "function": "representations",
+      "parameters": {
+        "columnar": true,
+        "column_points": true,
+        "column_mutations": true
+      },
+      "requires": [
+        "model"
+      ],
+      "obligations": [
+        "universal-source-action-and-observation-preservation"
+      ],
+      "inputs": [
+        "core",
+        "model"
+      ]
+    },
+    {
+      "id": "representation-16",
+      "stage": "representation",
+      "module": "producers.planning_recipes",
+      "function": "representations",
+      "parameters": {
+        "columnar": true,
+        "indexed": true
+      },
+      "requires": [
+        "model"
+      ],
+      "obligations": [
+        "universal-source-action-and-observation-preservation"
+      ],
+      "inputs": [
+        "core",
+        "model"
+      ]
+    },
+    {
+      "id": "representation-17",
+      "stage": "representation",
+      "module": "producers.planning_recipes",
+      "function": "representations",
+      "parameters": {
+        "columnar": true,
+        "column_mutations": true,
+        "ordered_queries": [
+          "$query"
+        ]
+      },
+      "requires": [
+        "model"
+      ],
+      "obligations": [
+        "universal-source-action-and-observation-preservation"
+      ],
+      "inputs": [
+        "core",
+        "model"
+      ]
+    },
+    {
+      "id": "representation-18",
+      "stage": "representation",
+      "module": "producers.planning_recipes",
+      "function": "representations",
+      "parameters": {
+        "columnar": true,
+        "dense_slots": "$slots"
+      },
+      "requires": [
+        "model"
+      ],
+      "obligations": [
+        "universal-source-action-and-observation-preservation"
+      ],
+      "inputs": [
+        "core",
+        "model"
+      ]
+    },
+    {
+      "id": "representation-19",
+      "stage": "representation",
+      "module": "producers.planning_recipes",
+      "function": "representations",
+      "parameters": {
+        "fused_queries": [
+          "$query"
+        ]
+      },
+      "requires": [
+        "model"
+      ],
+      "obligations": [
+        "universal-source-action-and-observation-preservation"
+      ],
+      "inputs": [
+        "core",
+        "model"
+      ]
+    },
+    {
+      "id": "partition-index",
+      "stage": "representation",
+      "module": "producers.planning_recipes",
+      "function": "partition",
+      "parameters": {
+        "table_index": "$table"
+      },
+      "requires": [
+        "model"
+      ],
+      "obligations": [
+        "universal-source-action-and-observation-preservation"
+      ],
+      "inputs": [
+        "core",
+        "model"
+      ]
+    },
+    {
+      "id": "packed-rows",
+      "stage": "representation",
+      "module": "producers.planning_recipes",
+      "function": "packed",
+      "parameters": {
+        "width": "$width",
+        "hot_keys": "$hot_keys"
+      },
+      "requires": [
+        "model"
+      ],
+      "obligations": [
+        "universal-source-action-and-observation-preservation"
+      ],
+      "inputs": [
+        "core",
+        "model"
+      ]
+    },
+    {
+      "id": "sequence-tree",
+      "stage": "representation",
+      "module": "producers.planning_recipes",
+      "function": "sequence_tree",
+      "parameters": {
+        "cache_query": "$optional_query"
+      },
+      "requires": [
+        "model"
+      ],
+      "obligations": [
+        "universal-source-action-and-observation-preservation"
+      ],
+      "inputs": [
+        "core",
+        "model"
+      ]
+    },
+    {
+      "id": "scalar-Bool",
+      "stage": "representation",
+      "module": "producers.planning_recipes",
+      "function": "scalar",
+      "parameters": {
+        "sort": "Bool"
+      },
+      "requires": [
+        "model"
+      ],
+      "obligations": [
+        "universal-source-action-and-observation-preservation"
+      ],
+      "inputs": [
+        "core",
+        "model"
+      ]
+    },
+    {
+      "id": "scalar-U64",
+      "stage": "representation",
+      "module": "producers.planning_recipes",
+      "function": "scalar",
+      "parameters": {
+        "sort": "U64"
+      },
+      "requires": [
+        "model"
+      ],
+      "obligations": [
+        "universal-source-action-and-observation-preservation"
+      ],
+      "inputs": [
+        "core",
+        "model"
+      ]
+    },
+    {
+      "id": "compact-observer",
+      "stage": "representation",
+      "module": "producers.planning_recipes",
+      "function": "compact",
+      "parameters": {},
+      "requires": [
+        "representation"
+      ],
+      "obligations": [
+        "universal-source-action-and-observation-preservation"
+      ],
+      "inputs": [
+        "representation"
+      ]
+    },
+    {
+      "id": "representation-products",
+      "stage": "representation",
+      "module": "producers.planning_recipes",
+      "function": "product",
+      "parameters": {},
+      "requires": [
+        "representation",
+        "model"
+      ],
+      "obligations": [
+        "universal-source-action-and-observation-preservation"
+      ],
+      "inputs": [
+        "representation",
+        "representation_pool"
+      ]
+    },
+    {
+      "id": "first-order-choices",
+      "stage": "definitions",
+      "module": "producers.planning_recipes",
+      "function": "definitions",
+      "parameters": {},
+      "requires": [
+        "representation",
+        "definitions"
+      ],
+      "obligations": [
+        "pure-exported-function-equality"
+      ],
+      "inputs": [
+        "representation",
+        "definition_choices"
+      ]
+    },
+    {
+      "id": "proved-observations",
+      "stage": "properties",
+      "module": "producers.planning_recipes",
+      "function": "properties",
+      "parameters": {},
+      "requires": [
+        "core"
+      ],
+      "obligations": [
+        "source-bound-observation-equality"
+      ],
+      "inputs": [
+        "core"
+      ]
+    },
+    {
+      "id": "literal-physical-alternatives",
+      "stage": "physical",
+      "module": "producers.planning_recipes",
+      "function": "physical",
+      "parameters": {
+        "source_strategies": [
+          {
+            "tables": "ordered",
+            "borrow": false
+          },
+          {
+            "tables": "ordered",
+            "borrow": true
+          },
+          {
+            "tables": "indexed_slots",
+            "borrow": false
+          },
+          {
+            "tables": "indexed_slots",
+            "borrow": true
+          }
+        ],
+        "definition_strategies": [
+          {
+            "definitions": "packed",
+            "sites": "individual",
+            "site_field": "packed_datatypes"
+          },
+          {
+            "definitions": "packed",
+            "sites": "all",
+            "site_field": "packed_datatypes"
+          },
+          {
+            "definitions": "memo",
+            "sites": "individual",
+            "site_field": "memo_functions"
+          },
+          {
+            "definitions": "memo",
+            "sites": "all",
+            "site_field": "memo_functions"
+          }
+        ]
+      },
+      "requires": [
+        "core"
+      ],
+      "obligations": [
+        "typed-carrier-ownership-and-lifetime-capabilities"
+      ],
+      "inputs": [
+        "core",
+        "representation",
+        "definitions"
+      ]
+    },
+    {
+      "id": "pure-routing",
+      "stage": "routing",
+      "module": "producers.planning_recipes",
+      "function": "routing",
+      "parameters": {},
+      "requires": [
+        "core"
+      ],
+      "obligations": [
+        "typed-pure-entry-equivalence"
+      ],
+      "inputs": [
+        "core"
+      ]
+    },
+    {
+      "id": "migration-bridges",
+      "stage": "migration",
+      "module": "producers.planning_recipes",
+      "function": "migration",
+      "parameters": {},
+      "requires": [
+        "representation"
+      ],
+      "obligations": [
+        "encode-decode-and-transition-preservation"
+      ],
+      "inputs": [
+        "representation",
+        "representation_pool"
+      ]
+    },
+    {
+      "id": "whole-entry-placement",
+      "stage": "routing",
+      "module": "producers.planning_recipes",
+      "function": "whole_entry_routing",
+      "parameters": {
+        "placements": [
+          "cpu",
+          "gpu"
+        ]
+      },
+      "requires": [
+        "core"
+      ],
+      "obligations": [
+        "typed-pure-entry-equivalence"
+      ],
+      "inputs": [
+        "core"
+      ]
+    },
+    {
+      "id": "residual-execution-carriers",
+      "stage": "representation",
+      "module": "producers.planning_recipes",
+      "function": "residual",
+      "parameters": {},
+      "requires": [
+        "representation",
+        "model"
+      ],
+      "obligations": [
+        "full-source-observation-and-next-state-preservation",
+        "compact-source-observation-equality"
+      ],
+      "inputs": [
+        "representation",
+        "model"
+      ]
+    },
+    {
+      "id": "precise-point-cache",
+      "stage": "representation",
+      "module": "producers.planning_recipes",
+      "function": "point_access_cache",
+      "parameters": {},
+      "requires": [
+        "model"
+      ],
+      "obligations": [
+        "universal-source-action-and-observation-preservation"
+      ],
+      "inputs": [
+        "core",
+        "model"
+      ]
+    }
+  ]
+}

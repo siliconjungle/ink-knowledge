@@ -6,7 +6,7 @@ uses the kernel's ordinary Use rule and the exact supplied premise proofs.
 import hashlib,json,os,subprocess,tempfile
 from pathlib import Path
 from producers.action_replacement import var
-from bitvector_proofs import certificate
+from producers.bitvector_proofs import certificate
 
 class Scalar:
     def __init__(self,add,sort,normal):

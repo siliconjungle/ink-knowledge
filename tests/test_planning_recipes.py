@@ -1,0 +1,81 @@
+import json,tempfile,unittest
+from pathlib import Path
+from ink_knowledge import Store
+from ink_knowledge.store import entry
+from ink_knowledge.recipes import load,coverage,role
+from producers.collection_analysis import analyse
+from producers.planning_recipes import lexical_reads
+
+class RegistryCoverage(unittest.TestCase):
+    def test_registry_covers_every_current_operation_kind_and_fails_new_semantics(self):
+        families={('rewrite','ink-conditional-laws-v1'),('representation','ink-source-representation-v1'),
+            ('implementation','ink-implementation-candidate-v1'),('bridge','ink-representation-migration-v1'),
+            ('maintenance','maintenance-test'),('definition','first-order-inductive-equality-v1'),
+            ('theorem','first-order-inductive-equality-v1'),('definition','total-scalar-equality-v1'),
+            ('definition','ink-target-work-measurement-v1'),('definition','ink-target-work-prices-v1'),
+            ('definition','ink-target-work-publication-context-v1')}
+        objects=[entry(k,s,dict(node={'Op':['new-operation',[]]}))for k,s in families]
+        with tempfile.TemporaryDirectory()as d:
+            store=Store.publish(d,objects);report=coverage(store)
+            self.assertEqual(report['entries'],len(objects));self.assertIn('new-operation',report['operations']);self.assertFalse(report['unhandled'])
+        with self.assertRaises(ValueError):role(dict(kind='definition',semantics='unhandled-domain'))
+    def test_new_installed_recipe_needs_no_planner_dispatch_change(self):
+        registry,_=load()
+        self.assertGreater(len(registry['recipes']),30)
+        with tempfile.TemporaryDirectory()as d:
+            p=Path(d)/'registry.json';registry['recipes'].append(dict(id='new-family',stage='representation',module='producers.new_family',function='generate',parameters={}))
+            p.write_text(json.dumps(registry));loaded,_=load(p)
+            self.assertEqual(loaded['recipes'][-1]['id'],'new-family')
+            registry['recipes'][-1]['module']='os';p.write_text(json.dumps(registry))
+            with self.assertRaises(ValueError):load(p)
+
+    def test_every_public_layout_parameter_has_a_registry_recipe(self):
+        import inspect
+        from producers.representations import generate
+        registry,_=load();recipes=[r['parameters']for r in registry['recipes']if r['function']=='representations']
+        covered={k for recipe in recipes for k in recipe}
+        # Whole-action replacements are composed by the graph; authoring model
+        # and temporary output paths are plumbing, not layout strategies.
+        expected=set(inspect.signature(generate).parameters)-{'model','directory','replacement'}
+        self.assertEqual(covered,expected)
+    def test_all_other_authoring_parameters_have_recipe_domains(self):
+        import inspect
+        from producers import generic_indexed,partition_representation,packed_representations,source_sequence_tree,scalar_representation
+        registry,_=load()
+        for name,module in [('generic_index',generic_indexed),('partition',partition_representation),('packed',packed_representations),('sequence_tree',source_sequence_tree),('scalar',scalar_representation)]:
+            expected=set(inspect.signature(module.generate).parameters)-{'model','directory','compiler'}
+            actual={k for r in registry['recipes']if r['function']==name for k in r['parameters']}
+            self.assertEqual(actual,expected,name)
+    def test_physical_strategy_domains_are_published_as_data(self):
+        registry,_=load();recipe=next(r for r in registry['recipes']if r['function']=='physical')
+        self.assertEqual({r['tables']for r in recipe['parameters']['source_strategies']},{'ordered','indexed_slots'})
+        self.assertEqual({r['definitions']for r in recipe['parameters']['definition_strategies']},{'packed','memo'})
+
+    def test_published_recipe_is_discovered_without_planner_dispatch(self):
+        recipe=dict(id='published-family',stage='representation',module='producers.planning_recipes',function='representations',parameters={'retain_queries':False},requires=['model'],obligations=['universal-source-action-and-observation-preservation'])
+        with tempfile.TemporaryDirectory()as directory:
+            store=Store.publish(directory,[entry('definition','ink-planning-recipes-v1',dict(recipe=recipe))]);store.refresh_index()
+            before=load()[1];registry,digest=load(store=store)
+            self.assertIn(recipe,registry['recipes']);self.assertNotEqual(before,digest)
+            self.assertEqual(coverage(store)['roles']['recipe-discovery'],1)
+
+class ExternalAnalysis(unittest.TestCase):
+    def program(self):
+        return dict(records={},functions=[dict(name='mapped',params=[['xs',{'List':'U32'}]],result={'List':'U32'},body={'Method':[{'Var':'xs'},'map',[{'Lambda':['x',{'Var':'x'}]}]]})])
+    def test_length_is_an_authoring_hint_not_compiler_authority(self):
+        p=self.program();facts=analyse(p,'mapped')
+        self.assertEqual(facts['length'],['input','xs']);self.assertEqual(facts['ownership'],'fresh')
+        self.assertIn('mathematical certificates required',facts['scope'])
+        p['functions'][0]['body']['Method'][1]='filter'
+        self.assertIsNone(analyse(p,'mapped')['length'])
+    def test_recursion_and_work_limits_do_not_invent_alias_or_length_facts(self):
+        p=self.program();p['functions'][0]['body']={'Call':['mapped',[{'Var':'xs'}]]}
+        self.assertIsNone(analyse(p,'mapped')['length'])
+        self.assertTrue(analyse(p,'mapped',node_budget=0)['exhausted'])
+    def test_lexical_place_discovery_does_not_select_scalar_callback_variables(self):
+        from ink_knowledge import identity
+        sites=lexical_reads(self.program())
+        self.assertIn(identity({'Var':'xs'}),sites)
+        self.assertNotIn(identity({'Var':'x'}),sites)
+
+if __name__=='__main__':unittest.main()

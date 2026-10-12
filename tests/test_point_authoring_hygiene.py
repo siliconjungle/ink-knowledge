@@ -15,4 +15,10 @@ class Hygiene(unittest.TestCase):
   result=normal(term,{})['Match']['branches'][0]
   self.assertNotEqual(result['bindings'],['unused_binding_0_0'])
   self.assertEqual(normal(normal(term,{}),{}),normal(term,{}))
+ def test_substitution_avoids_nested_binder_shadowing_in_argument(self):
+  inner={'Match':{'scrutinee':{'Var':'other'},'branches':[{'bindings':['x'],'body':{'Var':'x'}}]}}
+  outer={'Match':{'scrutinee':{'Var':'input'},'branches':[{'bindings':['x'],'body':{'Var':'argument'}}]}}
+  result=sub(outer,{'argument':inner})['Match']['branches'][0]
+  self.assertNotEqual(result['bindings'],['x'])
+  self.assertEqual(result['body'],inner)
 if __name__=='__main__':unittest.main()
