@@ -1,10 +1,11 @@
--- Disposable discovery/cache schema v1. Rebuilt from canonical Git objects.
+-- Disposable discovery/cache schema v2. Rebuilt from canonical Git objects.
 -- Proof authority stays in the semantic core, including for cached witnesses.
 PRAGMA foreign_keys = ON;
 
 CREATE TABLE snapshots (
     id TEXT PRIMARY KEY,
-    root TEXT NOT NULL
+    root TEXT NOT NULL,
+    touched INTEGER NOT NULL DEFAULT 0
 ) STRICT;
 
 CREATE TABLE entries (
@@ -20,12 +21,19 @@ CREATE TABLE entries (
 ) STRICT;
 CREATE INDEX entry_lookup ON entries (semantics, kind, result);
 
+CREATE TABLE witnesses (
+    id TEXT PRIMARY KEY,
+    witness TEXT NOT NULL CHECK(json_valid(witness))
+) STRICT;
+
 CREATE TABLE members (
     snapshot_id TEXT REFERENCES snapshots (id),
     entry_id TEXT REFERENCES entries (id),
-    witness TEXT NOT NULL CHECK (json_valid(witness)),
+    witness_id TEXT NOT NULL REFERENCES witnesses(id),
     PRIMARY KEY (snapshot_id, entry_id)
 ) STRICT;
+
+CREATE INDEX membership_witness_lookup ON members(witness_id);
 
 CREATE TABLE dependencies (
     entry_id TEXT REFERENCES entries (id),
@@ -80,3 +88,17 @@ CREATE TABLE observations (
     metrics TEXT NOT NULL CHECK (json_valid(metrics))
 ) STRICT;
 CREATE INDEX observation_lookup ON observations (program_id, plan_id, target, workload, id);
+
+-- Typed pattern heads are disposable discovery metadata, never proof authority.
+CREATE TABLE pattern_roots (
+    entry_id TEXT PRIMARY KEY REFERENCES entries(id),
+    sort TEXT NOT NULL CHECK(json_valid(sort)),
+    head TEXT NOT NULL
+) STRICT;
+CREATE INDEX pattern_root_lookup ON pattern_roots(sort,head,entry_id);
+CREATE TABLE pattern_targets (
+    entry_id TEXT REFERENCES entries(id),
+    sort TEXT NOT NULL CHECK(json_valid(sort)),
+    head TEXT NOT NULL,
+    PRIMARY KEY(entry_id,sort,head)
+) STRICT;

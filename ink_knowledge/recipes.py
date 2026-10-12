@@ -70,6 +70,8 @@ def role(obj):
     if kind=='definition' and sem in {'ink-target-work-measurement-v1','ink-target-work-prices-v1','ink-target-work-publication-context-v1'}:
         return 'cost-evidence'
     if kind=='definition' and sem==SEMANTICS:return 'recipe-discovery'
+    if kind=='definition' and sem=='ink-semantic-producers-v1':return 'semantic-producer-discovery'
+    if kind=='definition' and sem=='ink-semantic-law-template-v1':return 'semantic-template-discovery'
     raise ValueError('unhandled database semantics: '+kind+'/'+sem)
 
 def coverage(store):
@@ -110,3 +112,27 @@ def main():
     a.o.write_bytes(canonical(dict(recipe=a.recipe,registry_sha256=digest,candidates=rows))+b'\n')
 
 if __name__=='__main__':main()
+
+
+def indexed_coverage(store):
+    """Disposable index diagnostics; never mathematical admission evidence.
+
+    Authenticate the active ID set against its pinned Merkle tree. Indexed kinds,
+    semantics and operation labels remain untrusted summaries, like search hints.
+    The standalone coverage() audit still authenticates every object body.
+    """
+    import sqlite3
+    from contextlib import closing
+    index=store.root/'index.sqlite'
+    if not index.exists():return coverage(store)
+    counts=Counter();operations={};seen=set()
+    with closing(sqlite3.connect(index.as_uri()+'?mode=ro',uri=True))as db:
+        if not db.execute('SELECT 1 FROM snapshots WHERE id=?',(store.snapshot_id,)).fetchone():return coverage(store)
+        rows=list(db.execute('SELECT e.id,e.kind,e.semantics FROM entries e JOIN members m ON m.entry_id=e.id WHERE m.snapshot_id=?',(store.snapshot_id,)))
+        if {r[0]for r in rows}!=set(store.members()):raise ValueError('coverage index membership differs from pinned snapshot')
+        handlers={}
+        for ident,kind,semantics in rows:
+            handler=role(dict(kind=kind,semantics=semantics));counts[handler]+=1;handlers[ident]=handler
+        for ident,operation in db.execute('SELECT o.entry_id,o.operation FROM operations o JOIN members m ON m.entry_id=o.entry_id WHERE m.snapshot_id=?',(store.snapshot_id,)):
+            operations.setdefault(operation,set()).add(handlers[ident])
+    return dict(schema=1,snapshot=store.snapshot_id,entries=len(rows),roles=dict(sorted(counts.items())),operations={k:sorted(v)for k,v in sorted(operations.items())},unhandled=[],scope='Untrusted indexed discovery diagnostics with authenticated active ID set; selected proof closures replay independently; use coverage() for canonical per-object audit')

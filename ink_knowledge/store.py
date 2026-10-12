@@ -194,7 +194,11 @@ class Store:
                 return self.members()[i]
             return self._indexed_witness(i,db)
     def _indexed_witness(self,i,db,verified=None):
-        row=db.execute('SELECT witness FROM members WHERE snapshot_id=? AND entry_id=?',(self.snapshot_id,i)).fetchone()
+        try:row=db.execute('SELECT w.witness FROM members m JOIN witnesses w ON w.id=m.witness_id WHERE m.snapshot_id=? AND m.entry_id=?',(self.snapshot_id,i)).fetchone()
+        except sqlite3.OperationalError:
+            # Read-only compatibility for a disposable v1 index. Refresh migrates
+            # it; canonical publication/proof formats are unchanged.
+            row=db.execute('SELECT witness FROM members WHERE snapshot_id=? AND entry_id=?',(self.snapshot_id,i)).fetchone()
         if row is None:raise ValueError('entry absent from indexed snapshot; rebuild index')
         w=json.loads(row[0])
         # Only identical proof bytes may share authentication within one export.
@@ -252,16 +256,19 @@ class Store:
     def rebuild(self):
         target=self.root/'index.sqlite'; fd,tmp=tempfile.mkstemp(prefix='.ink-index-',dir=self.root);os.close(fd)
         try:
-            with closing(sqlite3.connect(tmp)) as db, db:
+            with closing(sqlite3.connect(tmp,uri=True)) as db, db:
                 db.executescript(Path(__file__).with_name("index.sql").read_text())
 
-                db.execute('INSERT INTO snapshots VALUES(?,?)',(self.snapshot_id,self.snapshot['root']))
-                objects=self.members()
+                db.execute('INSERT INTO snapshots(id,root) VALUES(?,?)',(self.snapshot_id,self.snapshot['root']))
+                objects=self.members();witness_cache={}
+                from .index_cache import member as index_member
                 for i in objects:
                     obj=self.object(i)
                     iface=obj['interface'];encode=lambda x:canonical(x).decode()
                     db.execute('INSERT INTO entries VALUES(?,?,?,?,?,?)',(i,obj['kind'],obj['semantics'],encode(iface['result']),encode(iface['parameters']),encode(iface['conditions'])))
-                    db.execute('INSERT INTO members VALUES(?,?,?)',(self.snapshot_id,i,encode(self.members()[i])))
+                    from .pattern_index import insert as insert_pattern
+                    insert_pattern(db,i,obj)
+                    index_member(db,self.snapshot_id,i,self.members()[i],witness_cache)
                     db.execute('INSERT INTO types VALUES(?,?,?,?)',(i,'result','',encode(iface['result'])))
                     db.executemany('INSERT INTO types VALUES(?,?,?,?)',[(i,'parameter',n,encode(t)) for n,t in iface['parameters'].items()])
                     db.executemany('INSERT INTO applicability VALUES(?,?,?)',[(i,n,encode(c)) for n,c in enumerate(iface['conditions'])])
@@ -288,28 +295,37 @@ class Store:
         if not target.exists():return self.rebuild()
         fd,tmp=tempfile.mkstemp(prefix='.ink-index-',dir=self.root);os.close(fd)
         try:
-            with closing(sqlite3.connect(target.as_uri()+'?mode=ro',uri=True)) as source, closing(sqlite3.connect(tmp)) as db:
-                source.backup(db)
+            with closing(sqlite3.connect(target.as_uri()+'?mode=ro',uri=True)) as source, closing(sqlite3.connect(tmp,uri=True)) as db:
+                from .index_cache import copy as copy_index
+                copy_index(source,target,db)
                 db.execute('PRAGMA foreign_keys=ON')
+                from .pattern_index import SCHEMA as pattern_schema
+                db.executescript(pattern_schema)
                 with db:
-                    db.execute('INSERT OR IGNORE INTO snapshots VALUES(?,?)',(self.snapshot_id,self.snapshot['root']))
-                    members=self.members();encode=lambda x:canonical(x).decode()
+                    db.execute('INSERT OR IGNORE INTO snapshots(id,root) VALUES(?,?)',(self.snapshot_id,self.snapshot['root']))
+                    members=self.members();encode=lambda x:canonical(x).decode();witness_cache={}
+                    from .index_cache import member as index_member,prune as prune_index
                     indexed={r[0] for r in db.execute('SELECT id FROM entries')}
                     added=0
                     for i in members:
                         if i not in indexed:
                             obj=self._read_object(i);iface=obj['interface'];added+=1
                             db.execute('INSERT INTO entries VALUES(?,?,?,?,?,?)',(i,obj['kind'],obj['semantics'],encode(iface['result']),encode(iface['parameters']),encode(iface['conditions'])))
+                            from .pattern_index import insert as insert_pattern
+                            insert_pattern(db,i,obj)
                             db.execute('INSERT INTO types VALUES(?,?,?,?)',(i,'result','',encode(iface['result'])))
                             db.executemany('INSERT INTO types VALUES(?,?,?,?)',[(i,'parameter',n,encode(t)) for n,t in iface['parameters'].items()])
                             db.executemany('INSERT INTO applicability VALUES(?,?,?)',[(i,n,encode(c)) for n,c in enumerate(iface['conditions'])])
                             db.executemany('INSERT INTO operations VALUES(?,?)',[(i,x) for x in iface['operations']])
                             db.executemany('INSERT INTO effects VALUES(?,?)',[(i,x) for x in iface['effects']])
                             db.executemany('INSERT INTO dependencies VALUES(?,?)',[(i,d) for d in obj['dependencies']])
-                        db.execute('INSERT OR REPLACE INTO members VALUES(?,?,?)',(self.snapshot_id,i,encode(members[i])))
+                        index_member(db,self.snapshot_id,i,members[i],witness_cache)
+                    prune_index(db,self.snapshot_id)
                     db.execute('DELETE FROM names')
                     for name,i in read(self.data/'names.json').items():
                         if i in members:db.execute('INSERT INTO names VALUES(?,?)',(name,i))
+                    from .pattern_index import refresh as refresh_patterns
+                    refresh_patterns(self,db)
                     for p in sorted((self.data/'observations').glob('*.json')):
                         if db.execute('SELECT 1 FROM observations WHERE id=?',(p.stem,)).fetchone():continue
                         obj=read(p);self.validate_observation(obj)
