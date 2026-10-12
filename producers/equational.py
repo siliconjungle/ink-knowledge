@@ -133,10 +133,25 @@ class Tactic:
         for _ in range(96):
             changed = False
             for a,z,index in hypotheses:
-                a,z = self.norm(a), self.norm(z)
+                original_a,original_z=a,z;a,z = self.norm(a), self.norm(z)
+                left_proof,right_proof=convert(original_a,a),convert(original_z,z);specialized=False
+                # A Boolean case can specialize an induction parameter itself.
+                # Keep the hypothesis usable after that substitution, and prove
+                # the specialization by congruence from the exact branch facts.
+                for x,y,j in hypotheses:
+                    if j==index or 'Bool' not in y:continue
+                    x=self.norm(x)
+                    for side in [0,1]:
+                        value=a if side==0 else z;updated=replace(value,x,y)
+                        if updated==value:continue
+                        specialized=True
+                        p=trans(lift({'Hypothesis':j},replace(value,x,var('delta_hole'))),convert(updated,self.norm(updated)))
+                        if side==0:left_proof=trans(left_proof,p);a=self.norm(updated)
+                        else:right_proof=trans(right_proof,p);z=self.norm(updated)
+                equality=trans({'Sym':left_proof},{'Hypothesis':index},right_proof) if specialized else {'Hypothesis':index}
                 following = replace(current,a,z)
                 if following != current:
-                    proof = trans(proof, lift({'Hypothesis': index}, replace(current,a,var('delta_hole'))), convert(following,self.norm(following)))
+                    proof = trans(proof, lift(equality, replace(current,a,var('delta_hole'))), convert(following,self.norm(following)))
                     current = self.norm(following); changed = True; break
             if changed: continue
             found = self.rewrite(current,hypotheses)
