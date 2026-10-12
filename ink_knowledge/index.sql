@@ -106,3 +106,19 @@ CREATE TABLE pattern_targets (
     head TEXT NOT NULL,
     PRIMARY KEY(entry_id,sort,head)
 ) STRICT;
+
+-- Disposable template index projection; canonical bytes remain authoritative.
+CREATE TABLE IF NOT EXISTS template_heads(
+ entry_id TEXT PRIMARY KEY REFERENCES entries(id), head TEXT NOT NULL) STRICT;
+CREATE INDEX IF NOT EXISTS template_head_lookup ON template_heads(head,entry_id);
+CREATE TABLE IF NOT EXISTS template_tokens(
+ entry_id TEXT REFERENCES entries(id), path TEXT NOT NULL, token TEXT NOT NULL,
+ PRIMARY KEY(entry_id,path)) STRICT;
+CREATE INDEX IF NOT EXISTS template_token_lookup ON template_tokens(path,token,entry_id);
+
+-- Disposable family evidence projection; canonical bytes remain authoritative.
+CREATE TABLE IF NOT EXISTS observation_entries(
+ observation_id TEXT REFERENCES observations(id), entry_id TEXT NOT NULL,
+ PRIMARY KEY(observation_id,entry_id)) STRICT;
+CREATE INDEX IF NOT EXISTS observation_entry_lookup ON observation_entries(entry_id,observation_id);
+CREATE TABLE IF NOT EXISTS observation_attribution(id TEXT PRIMARY KEY REFERENCES observations(id)) STRICT;

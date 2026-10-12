@@ -33,19 +33,22 @@ def generate(store,subject,core):
     from .template_matching import TemplateSites
     from .proposals import nominal_types
     from producers.definition_context28 import bind
-    templates={};after=None
-    while True:
-        page=store.query(kind='definition',semantics=SEMANTICS,after=after,limit=64)
+    from .template_index import candidates
+    templates={};selected=candidates(store,subject,SEMANTICS);pending=list(selected)
+    while pending:
+        page=pending[:64];pending=pending[64:]
         for ident in page:
-            payload=store.object(ident)['payload']
+            if ident in templates:continue
+            obj=store.object(ident)
+            if obj['kind']!='definition' or obj['semantics']!=SEMANTICS:raise ValueError('law template dependency role')
+            payload=obj['payload']
             if set(payload)!={'type_parameters','law','dependencies'}:raise ValueError('law template fields')
             names=payload['type_parameters']
             if not isinstance(names,list)or not 1<=len(names)<=8 or len(set(names))!=len(names)or any(not isinstance(n,str)or not n.isidentifier()for n in names):raise ValueError('law template type parameters')
             if not isinstance(payload['dependencies'],dict)or len(payload['dependencies'])>64:raise ValueError('law template dependency budget')
             templates[ident]=payload
+            pending.extend(dep for dep in payload['dependencies'].values() if dep not in templates)
         if len(templates)>4096:raise ValueError('law template count budget')
-        if len(page)<64:break
-        after=page[-1]
     objects={};receipts=[];sites=TemplateSites(subject)
     def instantiate(payload,bindings,active):
         if len(active)>16:raise ValueError('law template dependency depth')
@@ -63,7 +66,8 @@ def generate(store,subject,core):
         obj=semantic_entry(candidate);ident=identity(obj);objects[ident]=obj
         if len(objects)>1024:raise ValueError('instantiated law template budget')
         return ident
-    for ident,payload in sorted(templates.items()):
+    for ident in selected:
+        payload=templates[ident]
         instances=set();produced=set()
         before=sites.attempts
         for _,_,target,bindings in sites.matches(payload['law']['from'],payload['law']['params'],payload['type_parameters']):
