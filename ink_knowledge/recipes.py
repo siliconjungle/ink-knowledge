@@ -66,6 +66,7 @@ def role(obj):
     if kind in {'definition','theorem'} and sem=='first-order-inductive-equality-v1':
         return 'definition-and-property-search' if kind=='theorem' else 'executable-and-proof-dependency'
     if kind in {'definition','theorem'} and sem=='total-scalar-equality-v1':return 'scalar-proof-dependency'
+    if kind=='definition' and sem in {'ink-source-read-capability-v1','ink-source-column-map-v1'}:return 'physical-proof-dependency'
     if kind=='maintenance':return 'maintenance-search'
     if kind=='definition' and sem in {'ink-target-work-measurement-v1','ink-target-work-prices-v1','ink-target-work-publication-context-v1'}:
         return 'cost-evidence'

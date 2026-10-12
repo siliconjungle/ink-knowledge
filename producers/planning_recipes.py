@@ -357,12 +357,12 @@ def physical(context, source_strategies, definition_strategies):
             if name in {'map','filter'}and 'Method'in receiver:
                 base=receiver['Method']
                 if base[1]in {'values','get'}and base[0].get('Var')in tables:rows.add(identity(node))
-    base=dict(tables='ordered',definitions='shared',borrow_reads=[],borrow_rows=[],packed_datatypes=[],memo_functions=[])
+    base=dict(tables='ordered',buffers='scoped',definitions='shared',borrow_reads=[],borrow_rows=[],packed_datatypes=[],memo_functions=[])
     strategies=[base];target=context.get('emit_target','rust')
     if current is None and target in {'rust','rust-wasm'}:
         for strategy in source_strategies:
             if strategy['tables']=='indexed_slots'and not tables:continue
-            strategies.append(dict(base,tables=strategy['tables'],borrow_reads=sorted(reads)if strategy['borrow']else[],
+            strategies.append(dict(base,buffers=strategy.get('buffers','scoped'),tables=strategy['tables'],borrow_reads=sorted(reads)if strategy['borrow']else[],
                 borrow_rows=sorted(rows)if strategy['borrow']else[]))
     if current is not None and target in {'rust','rust-wasm'}:
         ds=context.get('definitions',{});eligible={'packed':[],'memo':[]}
