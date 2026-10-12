@@ -357,12 +357,12 @@ def physical(context, source_strategies, definition_strategies):
             if name in {'map','filter'}and 'Method'in receiver:
                 base=receiver['Method']
                 if base[1]in {'values','get'}and base[0].get('Var')in tables:rows.add(identity(node))
-    base=dict(tables='ordered',definitions='shared',borrow_reads=[],borrow_rows=[],packed_datatypes=[],memo_functions=[])
+    base=dict(tables='ordered',buffers='scoped',definitions='shared',borrow_reads=[],borrow_rows=[],packed_datatypes=[],memo_functions=[])
     strategies=[base];target=context.get('emit_target','rust')
     if current is None and target in {'rust','rust-wasm'}:
         for strategy in source_strategies:
             if strategy['tables']=='indexed_slots'and not tables:continue
-            strategies.append(dict(base,tables=strategy['tables'],borrow_reads=sorted(reads)if strategy['borrow']else[],
+            strategies.append(dict(base,buffers=strategy.get('buffers','scoped'),tables=strategy['tables'],borrow_reads=sorted(reads)if strategy['borrow']else[],
                 borrow_rows=sorted(rows)if strategy['borrow']else[]))
     if current is not None and target in {'rust','rust-wasm'}:
         ds=context.get('definitions',{});eligible={'packed':[],'memo':[]}
@@ -419,3 +419,23 @@ def migration(context):
                     # rather than an unproved change to a representation role.
                     yield dict(status='migration',label='migration/'+peer['representation'],source=current,target=peer,bridge=bridge)
             except (ValueError,KeyError)as error:yield decline('migration',error)
+
+
+def point_access_cache(context):
+    """Precise access hints discover candidates; universal equations admit them."""
+    from producers.access_cache import discover
+    from producers.representations import generate
+    with tempfile.TemporaryDirectory(prefix='ink-point-access-') as temporary:
+        d=Path(temporary);source=d/'source.json';access_path=d/'access.json'
+        source.write_bytes(canonical(context['core'])+b'\n')
+        try:
+            compiler(context,'emit-access',source,'--core','-o',access_path)
+            compiler(context,'check-access',source,access_path,'--core')
+            access=json.loads(access_path.read_bytes())
+            for query in discover(context['model'],access)[:2]:
+                try:
+                    os.environ['INK_COMPILER']=context['compiler']
+                    result=generate(context['model'],d/query,cache_query=query,preserve_cache=True,access=access)
+                    yield row('representation',result['requests'][1],'point-cache:'+query)
+                except (ValueError,KeyError,TypeError,NotImplementedError) as error:yield decline('point-cache:'+query,error)
+        except (ValueError,KeyError,OSError) as error:yield decline('point-access',error)

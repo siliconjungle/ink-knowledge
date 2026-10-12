@@ -624,19 +624,43 @@
         "source_strategies": [
           {
             "tables": "ordered",
-            "borrow": false
+            "borrow": false,
+            "buffers": "scoped"
           },
           {
             "tables": "ordered",
-            "borrow": true
+            "borrow": true,
+            "buffers": "scoped"
           },
           {
             "tables": "indexed_slots",
-            "borrow": false
+            "borrow": false,
+            "buffers": "scoped"
           },
           {
             "tables": "indexed_slots",
-            "borrow": true
+            "borrow": true,
+            "buffers": "scoped"
+          },
+          {
+            "tables": "ordered",
+            "borrow": false,
+            "buffers": "direct"
+          },
+          {
+            "tables": "ordered",
+            "borrow": true,
+            "buffers": "direct"
+          },
+          {
+            "tables": "indexed_slots",
+            "borrow": false,
+            "buffers": "direct"
+          },
+          {
+            "tables": "indexed_slots",
+            "borrow": true,
+            "buffers": "direct"
           }
         ],
         "definition_strategies": [
@@ -745,6 +769,41 @@
       "inputs": [
         "representation",
         "model"
+      ]
+    },
+    {
+      "id": "precise-point-cache",
+      "stage": "representation",
+      "module": "producers.planning_recipes",
+      "function": "point_access_cache",
+      "parameters": {},
+      "requires": [
+        "model"
+      ],
+      "obligations": [
+        "universal-source-action-and-observation-preservation"
+      ],
+      "inputs": [
+        "core",
+        "model"
+      ]
+    },
+    {
+      "id": "source-capabilities",
+      "stage": "physical",
+      "module": "producers.physical_capabilities",
+      "function": "candidates",
+      "parameters": {},
+      "requires": [
+        "core"
+      ],
+      "obligations": [
+        "source-bound-read-proof",
+        "column-codec-roundtrip",
+        "unchanged-field-equality"
+      ],
+      "inputs": [
+        "core"
       ]
     }
   ]
