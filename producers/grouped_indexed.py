@@ -1,4 +1,4 @@
-"""Checked shared traversals for ordered pairs of non-inserting table writes.
+"""Checked shared traversals for all nine ordered insert/replace/remove pairs.
 
 The split predicate changes cost only. Both paths prove the same sequential
 result; reads and argument computations remain at their original term positions.
@@ -11,16 +11,21 @@ from producers.equational import Tactic,factor
 def build(layout,objects,add,fun,law,rules,opaque):
     table,n=layout['table'],layout['roles'];T={'Data':n['tree']}
     row=objects[table['replace']]['payload']['declaration']['Function']['params'][2][1]
+    key_sort=objects[table['get']]['payload']['declaration']['Function']['params'][1][1]
     tree=var('group_tree');first,second=var('group_first'),var('group_second')
-    within=lambda k:binary('&&',binary('<=',call(n['low'],[tree]),k),binary('<=',k,call(n['high'],[tree])))
-    eligible=fun([['group_tree',T],['group_first','U64'],['group_second','U64']],'Bool',binary('&&',within(first),within(second)))
+    less=lambda a,b:call(n['key_less'],[a,b])
+    negate=lambda p:choice(p,{'Bool':False},{'Bool':True})
+    within=lambda k:binary('&&',negate(less(k,call(n['low'],[tree]))),negate(less(call(n['high'],[tree]),k)))
+    eligible=fun([['group_tree',T],['group_first',key_sort],['group_second',key_sort]],'Bool',binary('&&',within(first),within(second)))
     opaque.extend([eligible,n['branch']])
     rules.extend(n[k] for k in ['decode_branch','decode_choice','repair_choice','branch_preserves_metadata','encode_preserves_rows','encode_preserves_metadata','replace_append','remove_append'])
+    from producers.inserting_groups import prepare,body as inserting_body
+    inserting=prepare(layout,objects,add,fun,law,rules,opaque)
     constructors=objects[n['tree']]['payload']['declaration']['Datatype']['constructors'];pairs={};proofs={}
-    for op1 in ['replace','remove']:
-        for op2 in ['replace','remove']:
-            rest=[['group_first','U64']]+([['group_value_first',row]] if op1=='replace' else [])+[['group_second','U64']]+([['group_value_second',row]] if op2=='replace' else [])
-            args=[var(x) for x,_ in rest];args1=[first]+([var('group_value_first')] if op1=='replace' else []);args2=[second]+([var('group_value_second')] if op2=='replace' else [])
+    for op1 in ['replace','remove','insert']:
+        for op2 in ['replace','remove','insert']:
+            rest=[['group_first',key_sort]]+([['group_value_first',row]] if op1!='remove' else [])+[['group_second',key_sort]]+([['group_value_second',row]] if op2!='remove' else [])
+            args=[var(x) for x,_ in rest];args1=[first]+([var('group_value_first')] if op1!='remove' else []);args2=[second]+([var('group_value_second')] if op2!='remove' else [])
             rawseq=lambda t:call(n[op2],[call(n[op1],[t,*args1]),*args2])
             fresh=lambda t:call(n['repair'],[t]);decode=lambda t:call(n['decode'],[t]);source=lambda t:call(table[op2],[call(table[op1],[t,*args1]),*args2])
             sequential=fun([['group_tree',T],*rest],T,rawseq(tree))
@@ -43,10 +48,18 @@ def build(layout,objects,add,fun,law,rules,opaque):
             bs=['group_left','group_right','group_low','group_high','group_sum','group_count','group_height']
             joined=call(n['branch'],[{'SelfCall':[var('group_left'),*args]},{'SelfCall':[var('group_right'),*args]}])
             body=choice(call(eligible,[tree,first,second]),match(tree,[([],seq(tree)),(['group_key','group_value'],seq(tree)),(bs,joined)]),seq(tree))
+            if 'insert' in [op1,op2]:body=inserting_body(inserting,layout,op1,op2,args,args1,args2,bs,seq)
             grouped=fun([['group_tree',T],*rest],T,body,0)
             left,right=var('group_left'),var('group_right');parent=call(n['branch'],[left,right])
             branch_a=call(grouped,[parent,*args])
             branch_z=choice(call(eligible,[parent,first,second]),call(n['branch'],[call(grouped,[left,*args]),call(grouped,[right,*args])]),seq(parent))
+            if 'insert' in [op1,op2]:
+                def recursive_calls(t):
+                    if isinstance(t,list):return [recursive_calls(x) for x in t]
+                    if not isinstance(t,dict):return t
+                    if 'SelfCall' in t:return call(grouped,t['SelfCall'])
+                    return {k:recursive_calls(v) for k,v in t.items()}
+                branch_z=recursive_calls(body['Match']['branches'][2]['body'])
             rules.append(law([['group_left',T],['group_right',T],*rest],branch_a,branch_z,convert(branch_a,branch_z)))
             batch=lambda t:call(grouped,[t,*args])
             for label,a,z in [('rows',decode(batch(fresh(tree))),source(decode(tree))),('metadata',fresh(batch(fresh(tree))),batch(fresh(tree)))]:

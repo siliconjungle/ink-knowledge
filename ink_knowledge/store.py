@@ -6,8 +6,8 @@ import sqlite3
 import tempfile
 from pathlib import Path
 
-MAX_VIEW_ENTRIES = 4096
-MAX_VIEW_BYTES = 64_000_000
+MAX_VIEW_ENTRIES = 8192
+MAX_VIEW_BYTES = 128_000_000
 MAX_ENTRY_BYTES = 16_000_000
 SNAPSHOT = 'ink-knowledge-snapshot-v1'
 KINDS = {'definition', 'theorem', 'rewrite', 'implementation', 'representation', 'maintenance', 'bridge'}
@@ -71,7 +71,7 @@ def validate_entry(v):
     for key in ['operations','effects']:
         a=v['interface'][key]
         if not isinstance(a,list) or any(not isinstance(x,str) for x in a) or a != sorted(set(a)): raise ValueError('invalid interface index')
-    dependency_limit=512 if v['semantics']=='ink-source-representation-v1' else 128
+    dependency_limit=MAX_VIEW_ENTRIES if v['semantics']=='ink-implementation-candidate-v1' else 512 if v['semantics']=='ink-source-representation-v1' else 128
     if not isinstance(v['dependencies'],list) or len(v['dependencies'])>dependency_limit or v['dependencies'] != sorted(set(v['dependencies'])): raise ValueError('dependencies must be unique and sorted')
     for i in v['dependencies']: hash_id(i)
     if len(canonical(v)) > (MAX_VIEW_BYTES if v['semantics']=='ink-implementation-candidate-v1' else MAX_ENTRY_BYTES): raise ValueError("knowledge object byte limit")
@@ -110,7 +110,7 @@ class Store:
         for i in ids:
             if not set(read(data/'objects'/f'{i}.json')['dependencies']) <= known: raise ValueError('dependency absent from snapshot')
         return cls._publish_ids(root,ids,names,leaf_size)
-    def extend(self, objects, names=None):
+    def extend(self, objects, names=None, *, leaf_size=None):
         """Append to a current publication without reopening old proof bodies.
 
         Old content references retain their authenticated snapshot membership.
@@ -118,7 +118,12 @@ class Store:
         admission. This operation never creates a checked executable context.
         """
         if self._explicit_snapshot:raise ValueError('extend requires current publication')
-        known=set(self.members());added=[]
+        members=self.members()
+        if leaf_size is None:
+            # Preserve an established compact transport topology for wide views.
+            # Small publications keep the original 64-entry default.
+            leaf_size=2 if len(members)>64 and all(len(w['entries'])<=2 for w in members.values()) else 64
+        known=set(members);added=[]
         for obj in objects:
             validate_entry(obj);i=identity(obj)
             immutable(self.data/'objects'/f'{i}.json',obj)
@@ -127,32 +132,26 @@ class Store:
             if not set(obj['dependencies'])<=known:raise ValueError('dependency absent from snapshot')
         if Store(self.root).snapshot_id!=self.snapshot_id:raise ValueError('publication changed during extension')
         if names is None:names=read(self.data/'names.json')
-        return self._publish_ids(self.root,known,names,64)
+        return self._publish_ids(self.root,known,names,leaf_size)
     @classmethod
     def _publish_ids(cls, root, ids, names, leaf_size):
+        if type(leaf_size) is not int or not 1<=leaf_size<=64:raise ValueError('snapshot leaf size limit')
         root=Path(root);data=root/'store';ids=sorted(set(ids))
         # Stable hash-prefix buckets prevent an insertion shifting every later
         # leaf. Topology grows only at powers of two; an oversized bucket splits
         # locally. Nodes and membership witnesses keep the existing contract.
-        bits=((max(1,len(ids))-1)//64).bit_length()
+        bits=((max(1,len(ids))-1)//leaf_size).bit_length()
         buckets=[[] for _ in range(1<<bits)]
         for i in ids:buckets[int(i[:16],16)>>(64-bits) if bits else 0].append(i)
         def node(value):
             i=identity(value);immutable(data/'trees'/f'{i}.json',value);return i
         def leaf(items):
-            if len(items)<=64:return node(dict(schema=1,entries=items))
+            if len(items)<=leaf_size:return node(dict(schema=1,entries=items))
             middle=len(items)//2
             return node(dict(schema=1,left=leaf(items[:middle]),right=leaf(items[middle:])))
         nodes=[leaf(items) for items in buckets]
-        if leaf_size != 64:
-            nodes=[]
-            for at in range(0,max(1,len(ids)),leaf_size):
-                value=dict(schema=1,entries=ids[at:at+leaf_size]);i=identity(value);immutable(data/'trees'/f'{i}.json',value);nodes.append(i)
-            while len(nodes)>1:
-                nodes=[node(dict(schema=1,left=nodes[at],right=nodes[min(at+1,len(nodes)-1)])) for at in range(0,len(nodes),2)]
-        else:
-            while len(nodes)>1:
-                nodes=[node(dict(schema=1,left=nodes[at],right=nodes[at+1])) for at in range(0,len(nodes),2)]
+        while len(nodes)>1:
+            nodes=[node(dict(schema=1,left=nodes[at],right=nodes[at+1])) for at in range(0,len(nodes),2)]
         snapshot=dict(schema=1,semantics=SNAPSHOT,root=nodes[0]);sid=identity(snapshot)
         immutable(data/'snapshots'/f'{sid}.json',snapshot)
         for name,value in [('names.json',names or {}),('snapshot.json',snapshot)]:
@@ -397,25 +396,44 @@ class Store:
             with closing(sqlite3.connect(index)) as db,db:
                 db.execute('INSERT OR IGNORE INTO observations VALUES(?,?,?,?,?,?)',(i,obj['program'],obj['plan'],canonical(obj['target']).decode(),canonical(obj['workload']).decode(),canonical(obj['metrics']).decode()))
         return i
-    def observations(self,program,plans,target,workload,limit=1024):
+    def _observation_page(self,program,plans,target,workload,limit=1024,after=None):
         hash_id(program)
         if not 0<=limit<=1024:raise ValueError('observation query limit')
+        if after is not None:hash_id(after)
         plans=set(plans)
         if len(plans)>1024:raise ValueError('observation plan limit')
         for p in plans:hash_id(p)
-        if not plans or limit==0:return []
+        if not plans or limit==0:return [],None,0
         index=self.root/'index.sqlite'
         if not index.exists():self.rebuild()
         with closing(sqlite3.connect(index.as_uri()+'?mode=ro',uri=True)) as db:
             # Filter candidates before limiting; unrelated plans must not exhaust
             # the evidence budget. Old disposable indexes remain query-compatible.
             placeholders=','.join('?' for _ in plans)
-            rows=db.execute(f'SELECT id FROM observations WHERE program_id=? AND plan_id IN ({placeholders}) AND target=? AND workload=? ORDER BY id LIMIT ?',
-                            [program,*sorted(plans),canonical(target).decode(),canonical(workload).decode(),limit]).fetchall()
+            cursor=' AND id>?'if after is not None else''
+            values=[program,*sorted(plans),canonical(target).decode(),canonical(workload).decode()]
+            if after is not None:values.append(after)
+            rows=db.execute(f'SELECT id FROM observations WHERE program_id=? AND plan_id IN ({placeholders}) AND target=? AND workload=?{cursor} ORDER BY id LIMIT ?',values+[limit]).fetchall()
         result=[]
         for (i,) in rows:
             o=read(self.data/'observations'/f'{hash_id(i)}.json');self.validate_observation(o)
             if identity(o)!=i:raise ValueError('observation hash mismatch')
             # The disposable index cannot make incomparable measurements comparable.
             if o['program']==program and o['target']==target and o['workload']==workload and o['plan'] in plans:result.append(o)
-        return result
+        return result,rows[-1][0]if rows else None,len(rows)
+
+    def observations(self,program,plans,target,workload,limit=1024,after=None):
+        return self._observation_page(program,plans,target,workload,limit,after)[0]
+
+    def iter_observations(self,program,plans,target,workload,page_size=512):
+        """Page evidence independently of candidate/check budgets and SQLite's
+        parameter limit. Every returned immutable observation is authenticated."""
+        if not 1<=page_size<=1024:raise ValueError('observation page size')
+        plans=sorted(set(plans))
+        for offset in range(0,len(plans),512):
+            group=plans[offset:offset+512];after=None
+            while True:
+                page,cursor,count=self._observation_page(program,group,target,workload,limit=page_size,after=after)
+                yield from page
+                if count<page_size:break
+                after=cursor

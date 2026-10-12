@@ -1,0 +1,1 @@
+{"BitVector":{"certificate":{"problem_sha256":"1a92076d8940788063bd9b0dede46fddb080277c7ef7ec08868197873d8d7373","steps":[{"clause":[],"hints":[0,17,26,15,22,10,12,20,8,2,4]}]},"from":{"If":{"condition":{"Var":"x"},"on_false":{"Var":"b"},"on_true":{"Bool":false}}},"hypotheses":[0],"to":{"Bool":true}}}

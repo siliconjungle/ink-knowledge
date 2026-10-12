@@ -24,8 +24,11 @@ def sub(t,m):
         x=t['Match'];branches=[]
         for b in x['branches']:
             bindings=list(b['bindings']);local={k:v for k,v in m.items() if k not in bindings};body=b['body']
-            captures=set().union(*(free_variables(v) for v in local.values())) if local else set()
-            occupied=variables(body)|captures|set(local)|set(bindings);renames={}
+            # The kernel also forbids lexical shadowing of an outer binder by
+            # binders inside a substituted value. Bound names in arguments must
+            # therefore be avoided even when they cannot capture a free value.
+            captures=set().union(*(free_variables(v)|binding_names(v) for v in local.values())) if local else set()
+            occupied=variables(body)|binding_names(body)|captures|set(local)|set(bindings);renames={}
             for i,n in enumerate(bindings):
                 if n not in captures:continue
                 serial=0

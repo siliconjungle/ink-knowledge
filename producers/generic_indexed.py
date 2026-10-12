@@ -44,7 +44,7 @@ def generate(model,directory, *, batching=True):
         allrules += [n['repair_idempotent'],n['repair_preserves_rows']]
         functions={}
         for op in ['get','insert','replace','remove']:
-            rest=[['bridge_key','U64']]+([['bridge_row',objects[t['replace']]['payload']['declaration']['Function']['params'][2][1]]] if op in ['insert','replace'] else [])
+            rest=[['bridge_key',objects[t['get']]['payload']['declaration']['Function']['params'][1][1]]]+([['bridge_row',objects[t['replace']]['payload']['declaration']['Function']['params'][2][1]]] if op in ['insert','replace'] else [])
             args=[var(x) for x,_ in rest];f=n['lookup' if op=='get' else op];functions[op]=f
             a=call(f,[tree,*args]);z=call(t[op],[decode(tree),*args]);left=a if op=='get' else decode(a)
             p=trans(lift({'Sym':{'Hypothesis':0}},call(f,[var('delta_hole'),*args]) if op=='get' else decode(call(f,[var('delta_hole'),*args]))),use(n['indexed_'+('lookup' if op=='get' else op)+'_preserves_rows'],[tree,*args]))
@@ -55,7 +55,7 @@ def generate(model,directory, *, batching=True):
                 p=trans(lift({'Sym':{'Hypothesis':0}},fix(call(f,[var('delta_hole'),*args]))),use(n['indexed_'+op+'_preserves_metadata'],[tree,*args]),lift({'Hypothesis':0},call(f,[var('delta_hole'),*args])))
                 allrules.append(law([['bridge_tree',T],*rest],a,z,p,[valid]))
         option=objects[t['get']]['payload']['declaration']['Function']['result']['Data']
-        functions['contains']=fun([['bridge_tree',T],['bridge_key','U64']],'Bool',match(call(functions['get'],[tree,key]),[([],{'Bool':False}),(['present_row'],{'Bool':True})]))
+        functions['contains']=fun([['bridge_tree',T],['bridge_key',objects[t['get']]['payload']['declaration']['Function']['params'][1][1]]],'Bool',match(call(functions['get'],[tree,key]),[([],{'Bool':False}),(['present_row'],{'Bool':True})]))
         layout['functions']=functions
         for q in layout['queries']:
             a=call(q['projection'],[call(n['sum'],[tree])]);z=sub(q['term'],{q['binding']:decode(tree)})
@@ -124,8 +124,8 @@ def generate(model,directory, *, batching=True):
                     table,op=table_ops[f];layout=layouts[table['datatype']]
                     if args[0][1]=={'Data':table['datatype']}:args[0]=(transport.to_physical(args[0][0],args[0][1]),transport.sort(args[0][1]))
                     result=call(layout['functions'][op],[a for a,_ in args])
-                    if batching and op in ['replace','remove'] and 'Call' in args[0][0]:
-                        inner=args[0][0]['Call'];first=next((kind for kind in ['replace','remove'] if inner['function']==layout['functions'][kind]),None)
+                    if batching and op in ['insert','replace','remove'] and 'Call' in args[0][0]:
+                        inner=args[0][0]['Call'];first=next((kind for kind in ['insert','replace','remove'] if inner['function']==layout['functions'][kind]),None)
                         if first:
                             result=call(layout['grouped'][first,op],[*inner['arguments'],*[a for a,_ in args[1:]]])
                             discovery.append(dict(action=name,grouped=[first,op],table=table['datatype']))
@@ -154,7 +154,7 @@ def generate(model,directory, *, batching=True):
         normal,_=translate(action['case']['normal'])
         if batching:
             from producers.point_delta import normal as normalize
-            operations={layout['functions'][op]:(layout,op) for layout in layouts.values() for op in ['replace','remove']}
+            operations={layout['functions'][op]:(layout,op) for layout in layouts.values() for op in ['insert','replace','remove']}
             # Expose projections of constructed states before grouping. This is
             # ordinary conversion, including transitions around intermediate reads.
             normal=normalize(normal,objects,opaque=[*opaque,*operations])
@@ -198,5 +198,18 @@ def generate(model,directory, *, batching=True):
     return dict(request=request,discovery=discovery,layouts=layouts)
 
 def main():
-    p=argparse.ArgumentParser(description=__doc__);p.add_argument('model',type=Path);p.add_argument('-o',type=Path,required=True);p.add_argument('--no-batching',action='store_true');a=p.parse_args();result=generate(read(a.model),a.o.parent/'database',batching=not a.no_batching);a.o.parent.mkdir(exist_ok=True,parents=True);a.o.write_bytes(canonical(result['request'])+b'\n');a.o.with_suffix('.discovery.json').write_text(json.dumps(result['discovery'],indent=2)+'\n')
+    p=argparse.ArgumentParser(description=__doc__)
+    p.add_argument('model',type=Path);p.add_argument('-o',type=Path,required=True)
+    p.add_argument('--no-batching',action='store_true')
+    p.add_argument('--publish-root',type=Path);p.add_argument('--source',type=Path)
+    p.add_argument('--compiler',type=Path);p.add_argument('--report',type=Path)
+    a=p.parse_args()
+    if a.publish_root and not all([a.source,a.compiler,a.report]):p.error('publication requires source, compiler and report')
+    result=generate(read(a.model),a.o.parent/'database',batching=not a.no_batching)
+    a.o.parent.mkdir(exist_ok=True,parents=True)
+    a.o.write_bytes(canonical(result['request'])+b'\n')
+    a.o.with_suffix('.discovery.json').write_text(json.dumps(result['discovery'],indent=2)+'\n')
+    if a.publish_root:
+        from producers.indexed_aggregate import publish_checked
+        print(json.dumps(publish_checked(a.o.parent,a.publish_root,a.compiler,a.source,a.report,candidate_root=a.o.parent/'database',publish_implementations=True)))
 if __name__=='__main__':main()

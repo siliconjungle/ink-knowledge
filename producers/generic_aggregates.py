@@ -14,7 +14,7 @@ from producers.boolean_algebra import Tactic as Boolean
 from producers.word_ring import Tactic as Word
 
 def factory(model,table,add,objects):
-    rows=table['datatype'];R={'Data':rows};row=objects[table['replace']]['payload']['declaration']['Function']['params'][2][1]
+    key_sort=objects[table['get']]['payload']['declaration']['Function']['params'][1][1];rows=table['datatype'];R={'Data':rows};row=objects[table['replace']]['payload']['declaration']['Function']['params'][2][1]
     nil=cons(rows,0,[]);xs,k,v,tail=map(var,['summary_rows','summary_key','summary_value','summary_tail'])
     word=Word(add,Path(os.environ.get('INK_COMPILER','target/debug/ink')).resolve());boolean=Boolean(add);algebra_cache={}
     def arithmetic(a,z):
@@ -63,7 +63,7 @@ def factory(model,table,add,objects):
         op='+' if sort=='U64' else '&&' if empty['Bool'] else '||'
         algebra=arithmetic if sort=='U64' else boolean.prove
         try:
-            contribution=fun([['summary_key','U64'],['summary_value',row]],sort,sub(q,{binding:cons(rows,1,[k,v,nil])}))
+            contribution=fun([['summary_key',key_sort],['summary_value',row]],sort,sub(q,{binding:cons(rows,1,[k,v,nil])}))
             fold=fun([['summary_rows',R]],sort,match(xs,[([],empty),(['summary_key','summary_value','summary_tail'],binary(op,call(contribution,[k,v]),{'SelfCall':[tail]}))]),0)
             query=lambda r:sub(q,{binding:r});total=lambda r:call(fold,[r]);head=cons(rows,1,[k,v,tail]);a,z=query(xs),total(xs)
             tactic=Tactic(objects,algebra=algebra)
@@ -87,7 +87,7 @@ def factory(model,table,add,objects):
         rules.append(law([['summary_left',S],['summary_right',S]],a,z,{'Induction':dict(variable='summary_left',**{'from':a,'to':z},cases=[dict(bindings=left,proof=p)])}))
     eta_args=[call(f,[var('summary')]) for f in projections];a,z=build(eta_args),var('summary');ns=[f'summary_eta_{i}' for i in range(len(queries))];bound=build([var(n) for n in ns])
     eta=law([['summary',S]],a,z,{'Induction':dict(variable='summary',**{'from':a,'to':z},cases=[dict(bindings=ns,proof=convert(sub(a,{'summary':bound}),bound))])})
-    contribution=fun([['summary_key','U64'],['summary_value',row]],S,build([call(q['contribution'],[k,v]) for q in queries]))
+    contribution=fun([['summary_key',key_sort],['summary_value',row]],S,build([call(q['contribution'],[k,v]) for q in queries]))
     fold=fun([['summary_rows',R]],S,match(xs,[([],unit),(['summary_key','summary_value','summary_tail'],merge(call(contribution,[k,v]),{'SelfCall':[tail]}))]),0)
     # Projections of the product fold are the independently admitted folds.
     for field,q in zip(projections,queries):

@@ -94,7 +94,10 @@ def definitions(model, *, table_index=0, aggregate_factory=None, layout_only=Fal
     def induction(name,params,a,z,cases,conditions=()):
         return law(name,params,a,z,{'Induction':dict(variable=params[0][0],**{'from':a,'to':z},cases=[dict(bindings=bindings,proof=p) for bindings,p in cases])},conditions)
     if not layout_only and len(model['tables'])!=1:raise ValueError('whole-action legacy producer requires one table')
-    table=model['tables'][table_index];rows=table['datatype'];R={'Data':rows};row=objects[table['replace']]['payload']['declaration']['Function']['params'][2][1];nil=cons(rows,0,[])
+    table=model['tables'][table_index];rows=table['datatype'];R={'Data':rows};key_sort=objects[table['get']]['payload']['declaration']['Function']['params'][1][1];row=objects[table['replace']]['payload']['declaration']['Function']['params'][2][1];nil=cons(rows,0,[])
+    from producers.key_order import Order
+    order=Order(table,objects,add,fun)
+    names['key_less']=order.less_id;names['key_equal']=order.equal_id
     aggregates=aggregate_factory(model,table,add,objects) if aggregate_factory else [setup(model,model['actions'][query],add,objects) for query in ['total_query','count_query']]
     sum_sort=aggregates[0].get('sort','U64'); count_sort=aggregates[1].get('sort','U64')
     opaque=tuple(f for a in aggregates for f in a.get('opaque',[]))
@@ -107,16 +110,16 @@ def definitions(model, *, table_index=0, aggregate_factory=None, layout_only=Fal
         names[label+'_contribution']=a['contribution'];names[label+'_fold']=a['fold'];names[label+'_fusion']=a['fusion'];names.update({label+'_'+k+'_delta':v for k,v in a['updates'].items()})
     append=fun('append',[['left',R],['right',R]],R,match(var('left'),[([],var('right')),(['key','row','tail'],cons(rows,1,[var('key'),var('row'),{'SelfCall':[var('tail'),var('right')]}]))]),0)
     cat=lambda a,b:call(append,[a,b])
-    tree=add({'Datatype':dict(constructors=[dict(name='Empty',fields=[]),dict(name='Leaf',fields=['U64',row]),dict(name='Branch',fields=['SelfType','SelfType','U64','U64',sum_sort,count_sort,'U64'])])},name='tree');T={'Data':tree};empty=cons(tree,0,[]);leaf=lambda k,v:cons(tree,1,[k,v]);node=lambda l,r,lo,hi,s,c,h:cons(tree,2,[l,r,lo,hi,s,c,h]);bindings=['left','right','lo','hi','sum','count','height']
+    tree=add({'Datatype':dict(constructors=[dict(name='Empty',fields=[]),dict(name='Leaf',fields=[key_sort,row]),dict(name='Branch',fields=['SelfType','SelfType',key_sort,key_sort,sum_sort,count_sort,'U64'])])},name='tree');T={'Data':tree};empty=cons(tree,0,[]);leaf=lambda k,v:cons(tree,1,[k,v]);node=lambda l,r,lo,hi,s,c,h:cons(tree,2,[l,r,lo,hi,s,c,h]);bindings=['left','right','lo','hi','sum','count','height']
     fields={}
     for name,leaf_value,node_value,empty_value in [
-        ('low',var('key'),var('lo'),(1<<64)-1),('high',var('key'),var('hi'),0),
+        ('low',var('key'),var('lo'),order.top),('high',var('key'),var('hi'),order.bottom),
         ('sum',call(aggregates[0]['contribution'],[var('key'),var('row')] if aggregates[0].get('contribution_keys') else [var('row')]),var('sum'),0),
         ('count',call(aggregates[1]['contribution'],[var('row')]),var('count'),0),('height',{'U64':1},var('height'),0)]:
         field_bindings=['field_'+name+'_'+n for n in bindings];leaf_bindings=['field_'+name+'_key','field_'+name+'_row']
-        fields[name]=fun(name,[['tree',T]],sum_sort if name=='sum' else count_sort if name=='count' else 'U64',match(var('tree'),[([],aggregates[0].get('empty',{'U64':empty_value}) if name=='sum' else {'U64':empty_value}),(leaf_bindings,sub(leaf_value,{'key':var(leaf_bindings[0]),'row':var(leaf_bindings[1])})),(field_bindings,sub(node_value,dict(zip(bindings,map(var,field_bindings)))))]))
-    field=lambda n,t:call(fields[n],[t]);minimum=lambda a,b:choice(binary('<',a,b),a,b);maximum=lambda a,b:choice(binary('<',a,b),b,a)
-    smart=fun('branch',[['left',T],['right',T]],T,node(var('left'),var('right'),minimum(field('low',var('left')),field('low',var('right'))),maximum(field('high',var('left')),field('high',var('right'))),combine('sum',field('sum',var('left')),field('sum',var('right'))),combine('count',field('count',var('left')),field('count',var('right'))),binary('+',maximum(field('height',var('left')),field('height',var('right'))),{'U64':1})))
+        fields[name]=fun(name,[['tree',T]],sum_sort if name=='sum' else count_sort if name=='count' else key_sort if name in ['low','high'] else 'U64',match(var('tree'),[([],aggregates[0].get('empty',{'U64':empty_value}) if name=='sum' else empty_value if name in ['low','high'] else {'U64':empty_value}),(leaf_bindings,sub(leaf_value,{'key':var(leaf_bindings[0]),'row':var(leaf_bindings[1])})),(field_bindings,sub(node_value,dict(zip(bindings,map(var,field_bindings)))))]))
+    field=lambda n,t:call(fields[n],[t]);minimum=order.minimum;maximum=order.maximum;word_maximum=lambda a,b:choice(binary('<',a,b),b,a)
+    smart=fun('branch',[['left',T],['right',T]],T,node(var('left'),var('right'),minimum(field('low',var('left')),field('low',var('right'))),maximum(field('high',var('left')),field('high',var('right'))),combine('sum',field('sum',var('left')),field('sum',var('right'))),combine('count',field('count',var('left')),field('count',var('right'))),binary('+',word_maximum(field('height',var('left')),field('height',var('right'))),{'U64':1})))
     branch=lambda l,r:call(smart,[l,r])
     repair=fun('repair',[['tree',T]],T,match(var('tree'),[([],empty),(['key','row'],leaf(var('key'),var('row'))),(bindings,branch({'SelfCall':[var('left')]},{'SelfCall':[var('right')]}))]),0)
     fix=lambda t:call(repair,[t])
@@ -146,19 +149,19 @@ def definitions(model, *, table_index=0, aggregate_factory=None, layout_only=Fal
     chooseget=fun('first_present',[['first',get_sort],['second',get_sort]],get_sort,match(var('first'),[([],var('second')),(['value'],cons(option,1,[var('value')]))]))
     either=lambda a,b:call(chooseget,[a,b]);get=lambda r:call(table['get'],[r,target])
     a,z=get(cat(var('left'),var('right'))),either(get(var('left')),get(var('right')))
-    getcat=induction('lookup_append',[['left',R],['right',R],['target','U64']],a,z,[([],convert(replace(a,var('left'),nil),replace(z,var('left'),nil))),(['key','row','tail'],derive(replace(a,var('left'),boundrows),replace(z,var('left'),boundrows),objects,[(replace(a,var('left'),var('tail')),replace(z,var('left'),var('tail')))]))])
-    rawget=fun('lookup_unpruned',[['tree',T],['target','U64']],get_sort,match(var('tree'),[([],none),(['key','row'],choice(binary('==',target,var('key')),cons(option,1,[var('row')]),none)),(bindings,either({'SelfCall':[var('left'),target]},{'SelfCall':[var('right'),target]}))]),0)
+    getcat=induction('lookup_append',[['left',R],['right',R],['target',key_sort]],a,z,[([],convert(replace(a,var('left'),nil),replace(z,var('left'),nil))),(['key','row','tail'],derive(replace(a,var('left'),boundrows),replace(z,var('left'),boundrows),objects,[(replace(a,var('left'),var('tail')),replace(z,var('left'),var('tail')))]))])
+    rawget=fun('lookup_unpruned',[['tree',T],['target',key_sort]],get_sort,match(var('tree'),[([],none),(['key','row'],choice(order.equal(target,var('key')),cons(option,1,[var('row')]),none)),(bindings,either({'SelfCall':[var('left'),target]},{'SelfCall':[var('right'),target]}))]),0)
     lookup=lambda t:call(rawget,[t,target]);a,z=lookup(var('tree')),get(logical(var('tree')))
     node_from=get(cat(logical(var('left')),logical(var('right'))));node_to=either(get(logical(var('left'))),get(logical(var('right'))))
-    getproof=induction('lookup_preserves_rows',[['tree',T],['target','U64']],a,z,[(ns,rewrite_derive(replace(a,var('tree'),t),replace(z,var('tree'),t),[(lookup(var('left')),get(logical(var('left')))),(lookup(var('right')),get(logical(var('right'))))] if len(ns)>2 else (),[(node_from,node_to,use(getcat,[logical(var('left')),logical(var('right')),target]))] if len(ns)>2 else ())) for ns,t in treecases])
+    getproof=induction('lookup_preserves_rows',[['tree',T],['target',key_sort]],a,z,[(ns,rewrite_derive(replace(a,var('tree'),t),replace(z,var('tree'),t),[(lookup(var('left')),get(logical(var('left')))),(lookup(var('right')),get(logical(var('right'))))] if len(ns)>2 else (),[(node_from,node_to,use(getcat,[logical(var('left')),logical(var('right')),target]))] if len(ns)>2 else ())) for ns,t in treecases])
     raw_updates={}
     for label in ['remove','replace']:
-        rest=[['target','U64']]+([['new',row]] if label=='replace' else [])
+        rest=[['target',key_sort]]+([['new',row]] if label=='replace' else [])
         args=[target]+([new] if label=='replace' else []);op=lambda r:call(table[label],[r,*args])
         a,z=op(cat(var('left'),var('right'))),cat(op(var('left')),op(var('right')))
         catlaw=induction(label+'_append',[['left',R],['right',R],*rest],a,z,[([],convert(replace(a,var('left'),nil),replace(z,var('left'),nil))),(['key','row','tail'],derive(replace(a,var('left'),boundrows),replace(z,var('left'),boundrows),objects,[(replace(a,var('left'),var('tail')),replace(z,var('left'),var('tail')))]))])
         changed=empty if label=='remove' else leaf(var('key'),new)
-        leafbody=choice(binary('==',target,var('key')),changed,leaf(var('key'),var('row')))
+        leafbody=choice(order.equal(target,var('key')),changed,leaf(var('key'),var('row')))
         rawop=fun(label+'_unpruned',[['tree',T],*rest],T,match(var('tree'),[([],empty),(['key','row'],leafbody),(bindings,branch({'SelfCall':[var('left'),*args]},{'SelfCall':[var('right'),*args]}))]),0)
         raw_updates[label]=rawop
         update=lambda t:call(rawop,[t,*args]);a,z=logical(update(var('tree'))),op(logical(var('tree')))
@@ -183,6 +186,7 @@ def definitions(model, *, table_index=0, aggregate_factory=None, layout_only=Fal
     # Scalar implications are ordinary bounded SAT/RUP theorems, not index rules.
     from producers.bitvector_proofs import certificate
     def scalar(name,params,a,z,conditions=()):
+        if order.kind!='U64':return law(name,params,a,z,order.prove(params,a,z,conditions),conditions)
         goal=dict(params=params,conditions=list(conditions),**{'from':a,'to':z});key=hashlib.sha256(canonical(goal)).hexdigest();cache=Path(__file__).resolve().parents[1]/'build/index-word-laws';cache.mkdir(parents=True,exist_ok=True);cached=cache/(key+'.json')
         if cached.exists():proof=json.loads(cached.read_text())
         else:
@@ -194,13 +198,13 @@ def definitions(model, *, table_index=0, aggregate_factory=None, layout_only=Fal
             cached.write_text(json.dumps(proof)+'\n')
         return law(name,params,a,z,proof,conditions)
     def lifted(p,context):return {'Substitute':dict(variable='prune_hole',context=context,equality=p)}
-    low=lambda t:binary('<',target,field('low',fix(t)));high=lambda t:binary('>',target,field('high',fix(t)))
+    low=lambda t:order.less(target,field('low',fix(t)));high=lambda t:order.greater(target,field('high',fix(t)))
     no_match={};bound_laws={};unequal_laws={}
     for label,guard,op,extreme in [('low',low,'<',minimum),('high',high,'>',maximum)]:
-        x,y,w=map(var,['x','a','b']);truth={'Bool':True};false={'Bool':False};premise=binary(op,x,extreme(y,w))
-        childlaws=[scalar(label+'_bounds_'+side,[['x','U64'],['a','U64'],['b','U64']],binary(op,x,child),truth,[{'from':premise,'to':truth}]) for side,child in [('left',y),('right',w)]]
+        x,y,w=map(var,['x','a','b']);truth={'Bool':True};false={'Bool':False};premise=(order.less if op=='<' else order.greater)(x,extreme(y,w))
+        childlaws=[scalar(label+'_bounds_'+side,[['x',key_sort],['a',key_sort],['b',key_sort]],(order.less if op=='<' else order.greater)(x,child),truth,[{'from':premise,'to':truth}]) for side,child in [('left',y),('right',w)]]
         bound_laws[label]=childlaws
-        unequal=scalar(label+'_excludes_equal',[['x','U64'],['a','U64']],binary('==',x,y),false,[{'from':binary(op,x,y),'to':truth}])
+        unequal=scalar(label+'_excludes_equal',[['x',key_sort],['a',key_sort]],order.equal(x,y),false,[{'from':(order.less if op=='<' else order.greater)(x,y),'to':truth}])
         unequal_laws[label]=unequal
         a,z=choice(guard(var('tree')),lookup(var('tree')),none),none;ps=[]
         for ns,t in treecases:
@@ -216,12 +220,12 @@ def definitions(model, *, table_index=0, aggregate_factory=None, layout_only=Fal
                     children.append(trans(convert(lookup(var(child)),choice(truth,lookup(var(child)),none)),{'Sym':lifted(eq,choice(var('prune_hole'),lookup(var(child)),none))},{'Hypothesis':j}))
                 middle=trans(convert(body,either(lookup(var('left')),lookup(var('right')))),{'Call':dict(function=chooseget,arguments=children)},convert(either(none,none),none))
             else:
-                eq=use(unequal,[target,var('key')],[{'Hypothesis':index}]);cmp=binary('==',target,var('key'))
+                eq=use(unequal,[target,var('key')],[{'Hypothesis':index}]);cmp=order.equal(target,var('key'))
                 middle=trans(convert(body,choice(cmp,cons(option,1,[var('row')]),none)),lifted(eq,choice(var('prune_hole'),cons(option,1,[var('row')]),none)),convert(choice(false,cons(option,1,[var('row')]),none),none))
             false_case=trans(convert(aa,n),lifted({'Hypothesis':index},replace(n,normal(g,objects),var('prune_hole'))),convert(replace(n,normal(g,objects),false),none))
             case={'BoolSplit':dict(condition=g,**{'from':aa,'to':none},on_false=false_case,on_true=trans(first,middle))}
             ps.append((ns,case))
-        no_match[label]=induction(label+'_pruning_safe',[['tree',T],['target','U64']],a,z,ps)
+        no_match[label]=induction(label+'_pruning_safe',[['tree',T],['target',key_sort]],a,z,ps)
     outside=lambda t:binary('||',low(t),high(t));a,z=choice(outside(var('tree')),none,lookup(var('tree'))),lookup(var('tree'))
     def drop_branch(low_true,high_true):
         eqs=[(normal(low(var('tree')),objects),{'Bool':low_true},{'Hypothesis':0}),(normal(high(var('tree')),objects),{'Bool':high_true},{'Hypothesis':1})]
@@ -235,18 +239,18 @@ def definitions(model, *, table_index=0, aggregate_factory=None, layout_only=Fal
         return trans(proof,{'Sym':pruning})
     branches={}
     for low_true in [False,True]:branches['on_true' if low_true else 'on_false']={'BoolSplit':dict(condition=high(var('tree')),**{'from':a,'to':z},on_false=drop_branch(low_true,False),on_true=drop_branch(low_true,True))}
-    drop=law('lookup_drop_pruning',[['tree',T],['target','U64']],a,z,{'BoolSplit':dict(condition=low(var('tree')),**{'from':a,'to':z},**branches)})
+    drop=law('lookup_drop_pruning',[['tree',T],['target',key_sort]],a,z,{'BoolSplit':dict(condition=low(var('tree')),**{'from':a,'to':z},**branches)})
     # Literal indexed lookup inspects cached bounds before descending.
-    raw_outside=lambda t:binary('||',binary('<',target,field('low',t)),binary('>',target,field('high',t)))
-    indexed_get=fun('lookup',[['tree',T],['target','U64']],get_sort,choice(raw_outside(var('tree')),none,match(var('tree'),[([],none),(['key','row'],choice(binary('==',target,var('key')),cons(option,1,[var('row')]),none)),(bindings,either({'SelfCall':[var('left'),target]},{'SelfCall':[var('right'),target]}))])),0)
+    raw_outside=lambda t:binary('||',order.less(target,field('low',t)),order.greater(target,field('high',t)))
+    indexed_get=fun('lookup',[['tree',T],['target',key_sort]],get_sort,choice(raw_outside(var('tree')),none,match(var('tree'),[([],none),(['key','row'],choice(order.equal(target,var('key')),cons(option,1,[var('row')]),none)),(bindings,either({'SelfCall':[var('left'),target]},{'SelfCall':[var('right'),target]}))])),0)
     fast=lambda t:call(indexed_get,[t,target]);a,z=fast(fix(var('tree'))),lookup(var('tree'));ps=[]
     for ns,t in treecases:
         aa,zz=replace(a,var('tree'),t),replace(z,var('tree'),t)
         intermediate=choice(outside(t),none,lookup(t));hyps=[(fast(fix(var('left'))),lookup(var('left'))),(fast(fix(var('right'))),lookup(var('right')))] if len(ns)>2 else ()
         ps.append((ns,trans(derive(aa,intermediate,objects,hyps),use(drop,[t,target]))))
-    induction('indexed_lookup_preserves_rows',[['tree',T],['target','U64']],a,z,ps)
+    induction('indexed_lookup_preserves_rows',[['tree',T],['target',key_sort]],a,z,ps)
     for operation in ['remove','replace']:
-        rest=[['target','U64']]+([['new',row]] if operation=='replace' else []);args=[target]+([new] if operation=='replace' else []);rawop=raw_updates[operation]
+        rest=[['target',key_sort]]+([['new',row]] if operation=='replace' else []);args=[target]+([new] if operation=='replace' else []);rawop=raw_updates[operation]
         update=lambda t:call(rawop,[t,*args]);a,z=fix(update(var('tree'))),update(fix(var('tree')))
         commute=induction(operation+'_repair_commutes',[['tree',T],*rest],a,z,[(ns,derive(replace(a,var('tree'),t),replace(z,var('tree'),t),objects,[(fix(update(var('left'))),update(fix(var('left')))),(fix(update(var('right'))),update(fix(var('right'))))] if len(ns)>2 else ())) for ns,t in treecases])
         unchanged={}
@@ -262,7 +266,8 @@ def definitions(model, *, table_index=0, aggregate_factory=None, layout_only=Fal
                         children.append(trans(convert(child_new,choice({'Bool':True},child_new,child_old)),{'Sym':lifted(eq,choice(var('prune_hole'),child_new,child_old))},{'Hypothesis':j}))
                     middle=trans(convert(body,branch(update(fix(var('left'))),update(fix(var('right'))))),{'Call':dict(function=smart,arguments=children)},convert(branch(fix(var('left')),fix(var('right'))),zz))
                 elif ns:
-                    eq=use(unequal_laws[label],[target,var('key')],[{'Hypothesis':index}]);middle=trans(convert(body,normal(body,objects)),lifted(eq,replace(normal(body,objects),binary('==',target,var('key')),var('prune_hole'))),convert(replace(normal(body,objects),binary('==',target,var('key')),{'Bool':False}),zz))
+                    eq=use(unequal_laws[label],[target,var('key')],[{'Hypothesis':index}]);cmp=normal(order.equal(target,var('key')),objects)
+                    middle=trans(convert(body,normal(body,objects)),lifted(eq,replace(normal(body,objects),cmp,var('prune_hole'))),convert(replace(normal(body,objects),cmp,{'Bool':False}),zz))
                 else:middle=convert(body,zz)
                 false_case=trans(convert(aa,n),lifted({'Hypothesis':index},replace(n,normal(g,objects),var('prune_hole'))),convert(replace(n,normal(g,objects),{'Bool':False}),zz))
                 ps.append((ns,{'BoolSplit':dict(condition=g,**{'from':aa,'to':zz},on_false=false_case,on_true=trans(first,middle))}))
@@ -279,7 +284,7 @@ def definitions(model, *, table_index=0, aggregate_factory=None, layout_only=Fal
         branches={}
         for lo in [False,True]:branches['on_true' if lo else 'on_false']={'BoolSplit':dict(condition=high(var('tree')),**{'from':a,'to':z},on_false=drop_update_branch(lo,False),on_true=drop_update_branch(lo,True))}
         drop=law(operation+'_drop_pruning',[['tree',T],*rest],a,z,{'BoolSplit':dict(condition=low(var('tree')),**{'from':a,'to':z},**branches)})
-        changed=empty if operation=='remove' else leaf(var('key'),new);leafbody=choice(binary('==',target,var('key')),changed,leaf(var('key'),var('row')))
+        changed=empty if operation=='remove' else leaf(var('key'),new);leafbody=choice(order.equal(target,var('key')),changed,leaf(var('key'),var('row')))
         fastop=fun(operation,[['tree',T],*rest],T,choice(raw_outside(var('tree')),var('tree'),match(var('tree'),[([],empty),(['key','row'],leafbody),(bindings,branch({'SelfCall':[var('left'),*args]},{'SelfCall':[var('right'),*args]}))])),0)
         fast=lambda t:call(fastop,[t,*args]);a,z=fast(fix(var('tree'))),update(fix(var('tree')));ps=[]
         for ns,t in treecases:
@@ -372,48 +377,48 @@ def definitions(model, *, table_index=0, aggregate_factory=None, layout_only=Fal
     law('balance_preserves_rows',[['left',T],['right',T]],goal,end,p)
     # The maximum routes insertion to the first subtree containing a greater key.
     # If none exists on the left, the original logical insertion scans the right.
-    greater_rows=fun('greater_rows',[['rows',R],['target','U64']],'Bool',match(var('rows'),[([],{'Bool':False}),(['key','row','tail'],choice(binary('<',target,var('key')),{'Bool':True},{'SelfCall':[var('tail'),target]}))]),0)
-    greater_tree=fun('greater_tree',[['tree',T],['target','U64']],'Bool',match(var('tree'),[([],{'Bool':False}),(['key','row'],binary('<',target,var('key'))),(bindings,choice({'SelfCall':[var('left'),target]},{'Bool':True},{'SelfCall':[var('right'),target]}))]),0)
+    greater_rows=fun('greater_rows',[['rows',R],['target',key_sort]],'Bool',match(var('rows'),[([],{'Bool':False}),(['key','row','tail'],choice(order.less(target,var('key')),{'Bool':True},{'SelfCall':[var('tail'),target]}))]),0)
+    greater_tree=fun('greater_tree',[['tree',T],['target',key_sort]],'Bool',match(var('tree'),[([],{'Bool':False}),(['key','row'],order.less(target,var('key'))),(bindings,choice({'SelfCall':[var('left'),target]},{'Bool':True},{'SelfCall':[var('right'),target]}))]),0)
     gr=lambda r:call(greater_rows,[r,target]);gt=lambda t:call(greater_tree,[t,target]);boolean_or=lambda a,b:choice(a,{'Bool':True},b)
-    x,y,w=map(var,['x','a','b']);maxlaw=scalar('below_maximum',[['x','U64'],['a','U64'],['b','U64']],binary('<',x,maximum(y,w)),boolean_or(binary('<',x,y),binary('<',x,w)))
-    a,z=binary('<',target,field('high',fix(var('tree')))),gt(var('tree'));ps=[]
+    x,y,w=map(var,['x','a','b']);maxlaw=scalar('below_maximum',[['x',key_sort],['a',key_sort],['b',key_sort]],order.less(x,maximum(y,w)),boolean_or(order.less(x,y),order.less(x,w)))
+    a,z=order.less(target,field('high',fix(var('tree')))),gt(var('tree'));ps=[]
     for ns,t in treecases:
         aa,zz=replace(a,var('tree'),t),replace(z,var('tree'),t)
         if len(ns)>2:
-            start=binary('<',target,maximum(field('high',fix(var('left'))),field('high',fix(var('right')))))
-            intermediate=boolean_or(binary('<',target,field('high',fix(var('left')))),binary('<',target,field('high',fix(var('right')))))
+            start=order.less(target,maximum(field('high',fix(var('left'))),field('high',fix(var('right')))))
+            intermediate=boolean_or(order.less(target,field('high',fix(var('left')))),order.less(target,field('high',fix(var('right')))))
             q=use(maxlaw,[target,field('high',fix(var('left'))),field('high',fix(var('right')))])
-            p=trans(convert(aa,start),q,derive(intermediate,zz,objects,[(binary('<',target,field('high',fix(var('left')))),gt(var('left'))),(binary('<',target,field('high',fix(var('right')))),gt(var('right')))]))
+            p=trans(convert(aa,start),q,derive(intermediate,zz,objects,[(order.less(target,field('high',fix(var('left')))),gt(var('left'))),(order.less(target,field('high',fix(var('right')))),gt(var('right')))]))
         elif ns:p=convert(aa,zz)
-        else:p=derive(aa,zz,objects,leaf=lambda a,z:use(scalar('below_zero',[['target','U64']],binary('<',target,{'U64':0}),{'Bool':False}),[target]))
+        else:p=derive(aa,zz,objects,leaf=lambda a,z:use(scalar('below_zero',[['target',key_sort]],order.less(target,order.bottom),{'Bool':False}),[target]))
         ps.append((ns,p))
-    max_tree=induction('maximum_detects_greater',[['tree',T],['target','U64']],a,z,ps)
+    max_tree=induction('maximum_detects_greater',[['tree',T],['target',key_sort]],a,z,ps)
     a,z=gr(cat(var('left'),var('right'))),boolean_or(gr(var('left')),gr(var('right')))
-    greater_append=induction('greater_append',[['left',R],['right',R],['target','U64']],a,z,[([],convert(replace(a,var('left'),nil),replace(z,var('left'),nil))),(['key','row','tail'],derive(replace(a,var('left'),boundrows),replace(z,var('left'),boundrows),objects,[(replace(a,var('left'),var('tail')),replace(z,var('left'),var('tail')))]))])
+    greater_append=induction('greater_append',[['left',R],['right',R],['target',key_sort]],a,z,[([],convert(replace(a,var('left'),nil),replace(z,var('left'),nil))),(['key','row','tail'],derive(replace(a,var('left'),boundrows),replace(z,var('left'),boundrows),objects,[(replace(a,var('left'),var('tail')),replace(z,var('left'),var('tail')))]))])
     a,z=gt(var('tree')),gr(logical(var('tree')))
     rule=(gr(cat(logical(var('left')),logical(var('right')))),boolean_or(gr(logical(var('left'))),gr(logical(var('right')))),use(greater_append,[logical(var('left')),logical(var('right')),target]))
-    greater_logical=induction('greater_preserves_rows',[['tree',T],['target','U64']],a,z,[(ns,derive(replace(a,var('tree'),t),replace(z,var('tree'),t),objects,[(gt(var('left')),gr(logical(var('left')))),(gt(var('right')),gr(logical(var('right'))))] if len(ns)>2 else (),rules=[rule] if len(ns)>2 else ())) for ns,t in treecases])
-    max_logical=law('maximum_matches_rows',[['tree',T],['target','U64']],binary('<',target,field('high',fix(var('tree')))),gr(logical(var('tree'))),trans(use(max_tree,[var('tree'),target]),use(greater_logical,[var('tree'),target])))
+    greater_logical=induction('greater_preserves_rows',[['tree',T],['target',key_sort]],a,z,[(ns,derive(replace(a,var('tree'),t),replace(z,var('tree'),t),objects,[(gt(var('left')),gr(logical(var('left')))),(gt(var('right')),gr(logical(var('right'))))] if len(ns)>2 else (),rules=[rule] if len(ns)>2 else ())) for ns,t in treecases])
+    max_logical=law('maximum_matches_rows',[['tree',T],['target',key_sort]],order.less(target,field('high',fix(var('tree')))),gr(logical(var('tree'))),trans(use(max_tree,[var('tree'),target]),use(greater_logical,[var('tree'),target])))
     insert=lambda r:call(table['insert'],[r,target,new]);a,z=insert(cat(var('left'),var('right'))),choice(gr(var('left')),cat(insert(var('left')),var('right')),cat(var('left'),insert(var('right'))))
-    insert_append=induction('insert_append',[['left',R],['right',R],['target','U64'],['new',row]],a,z,[([],convert(replace(a,var('left'),nil),replace(z,var('left'),nil))),(['key','row','tail'],derive(replace(a,var('left'),boundrows),replace(z,var('left'),boundrows),objects,[(replace(a,var('left'),var('tail')),replace(z,var('left'),var('tail')))]))])
-    insert_tree=fun('insert',[['tree',T],['target','U64'],['new',row]],T,match(var('tree'),[([],leaf(target,new)),(['key','row'],choice(binary('<',target,var('key')),balanced(leaf(target,new),leaf(var('key'),var('row'))),balanced(leaf(var('key'),var('row')),leaf(target,new)))),(bindings,choice(binary('<',target,field('high',var('left'))),balanced({'SelfCall':[var('left'),target,new]},var('right')),balanced(var('left'),{'SelfCall':[var('right'),target,new]})))]),0)
+    insert_append=induction('insert_append',[['left',R],['right',R],['target',key_sort],['new',row]],a,z,[([],convert(replace(a,var('left'),nil),replace(z,var('left'),nil))),(['key','row','tail'],derive(replace(a,var('left'),boundrows),replace(z,var('left'),boundrows),objects,[(replace(a,var('left'),var('tail')),replace(z,var('left'),var('tail')))]))])
+    insert_tree=fun('insert',[['tree',T],['target',key_sort],['new',row]],T,match(var('tree'),[([],leaf(target,new)),(['key','row'],choice(order.less(target,var('key')),balanced(leaf(target,new),leaf(var('key'),var('row'))),balanced(leaf(var('key'),var('row')),leaf(target,new)))),(bindings,choice(order.less(target,field('high',var('left'))),balanced({'SelfCall':[var('left'),target,new]},var('right')),balanced(var('left'),{'SelfCall':[var('right'),target,new]})))]),0)
     fast_insert=lambda t:call(insert_tree,[t,target,new]);a,z=logical(fast_insert(fix(var('tree')))),insert(logical(var('tree')));ps=[]
     for ns,t in treecases:
         aa,zz=replace(a,var('tree'),t),replace(z,var('tree'),t)
         if not ns:p=convert(aa,zz)
         else:
             if len(ns)==2:
-                l,r=leaf(target,new),leaf(var('key'),var('row'));guard=binary('<',target,var('key'));one,two=balanced(l,r),balanced(r,l);first,second=cat(logical(l),logical(r)),cat(logical(r),logical(l))
+                l,r=leaf(target,new),leaf(var('key'),var('row'));guard=order.less(target,var('key'));one,two=balanced(l,r),balanced(r,l);first,second=cat(logical(l),logical(r)),cat(logical(r),logical(l))
                 p1=use(names['balance_preserves_rows'],[l,r]);p2=use(names['balance_preserves_rows'],[r,l]);following=choice(guard,first,second);finish=derive(following,zz,objects)
             else:
-                l,r=fix(var('left')),fix(var('right'));il,ir=fast_insert(l),fast_insert(r);guard=binary('<',target,field('high',l));one,two=balanced(il,r),balanced(l,ir)
+                l,r=fix(var('left')),fix(var('right'));il,ir=fast_insert(l),fast_insert(r);guard=order.less(target,field('high',l));one,two=balanced(il,r),balanced(l,ir)
                 first,second=cat(insert(logical(var('left'))),logical(var('right'))),cat(logical(var('left')),insert(logical(var('right'))))
                 p1=trans(use(names['balance_preserves_rows'],[il,r]),{'Call':dict(function=append,arguments=[{'Hypothesis':0},use(names['repair_preserves_rows'],[var('right')])])})
                 p2=trans(use(names['balance_preserves_rows'],[l,ir]),{'Call':dict(function=append,arguments=[use(names['repair_preserves_rows'],[var('left')]),{'Hypothesis':1}])})
                 following=choice(guard,first,second);replaced_guard=gr(logical(var('left')));finish=trans(lifted(use(max_logical,[var('left'),target]),choice(var('prune_hole'),first,second)),{'Sym':use(insert_append,[logical(var('left')),logical(var('right')),target,new])},convert(insert(cat(logical(var('left')),logical(var('right')))),zz))
             p=trans(convert(aa,logical(choice(guard,one,two))),use(distribute,[guard,one,two]),lifted(p1,choice(guard,var('prune_hole'),logical(two))),lifted(p2,choice(guard,first,var('prune_hole'))),finish)
         ps.append((ns,p))
-    insertion=induction('indexed_insert_preserves_rows',[['tree',T],['target','U64'],['new',row]],a,z,ps)
+    insertion=induction('indexed_insert_preserves_rows',[['tree',T],['target',key_sort],['new',row]],a,z,ps)
     # Factored congruence avoids repeatedly normalising every cached field.
     l,r=var('left'),var('right');a,z=fix(branch(l,r)),branch(l,r)
     branch_valid=law('branch_preserves_metadata',[['left',T],['right',T]],a,z,trans(convert(a,branch(fix(l),fix(r))),{'Call':dict(function=smart,arguments=[{'Hypothesis':0},{'Hypothesis':1}])}),[{'from':fix(l),'to':l},{'from':fix(r),'to':r}])
@@ -439,7 +444,7 @@ def definitions(model, *, table_index=0, aggregate_factory=None, layout_only=Fal
             else:double,p_double=single,p_single
             guard=binary('<',field('height',aa if label=='left' else cc),field('height',middle))
             x,y=replace(goal,bb,t),replace(end,bb,t);p=trans(convert(x,fix(choice(guard,double,single))),valid_choice(guard,double,single,p_double,p_single),convert(choice(guard,double,single),y))
-            sorts=[] if not ns else ['U64',row] if len(ns)==2 else [T,T,'U64','U64',sum_sort,count_sort,'U64']
+            sorts=[] if not ns else [key_sort,row] if len(ns)==2 else [T,T,key_sort,key_sort,sum_sort,count_sort,'U64']
             params=[*zip(ns,sorts),['a',T],['c',T]];conds=[{'from':fix(aa),'to':aa},{'from':fix(cc),'to':cc}]
             lemma=law(None,params,x,y,p,conds);ps.append((ns,use(lemma,[var(n) for n,_ in params],[pa,pc])))
         rotation_valid[label]=induction('rotate_'+label+'_preserves_metadata',[['b',T],['a',T],['c',T]],goal,end,ps,[{'from':fix(aa),'to':aa},{'from':fix(cc),'to':cc}])
@@ -455,7 +460,7 @@ def definitions(model, *, table_index=0, aggregate_factory=None, layout_only=Fal
             else:double,p_double=single,p_single
             guard=heavy(ll,rr) if label=='left' else heavy(rr,ll);x,y=replace(goal,which,t),replace(end,which,t)
             p=trans(convert(x,fix(choice(guard,double,single))),valid_choice(guard,double,single,p_double,p_single),convert(choice(guard,double,single),y))
-            sorts=[] if not ns else ['U64',row] if len(ns)==2 else [T,T,'U64','U64',sum_sort,count_sort,'U64']
+            sorts=[] if not ns else [key_sort,row] if len(ns)==2 else [T,T,key_sort,key_sort,sum_sort,count_sort,'U64']
             params=[*zip(ns,sorts),[('right' if label=='left' else 'left'),T]];lemma=law(None,params,x,y,p);ps.append((ns,use(lemma,[var(n) for n,_ in params])))
         side_valid[label]=induction('balance_'+label+'_preserves_metadata',[[which['Var'],T],[('right' if label=='left' else 'left'),T]],goal,end,ps)
     l,r=map(var,['left','right']);fl,fr=fix(l),fix(r);one,two=call(balance_l,[fl,fr]),call(balance_r,[fl,fr]);guard=heavy(fl,fr)
@@ -468,21 +473,21 @@ def definitions(model, *, table_index=0, aggregate_factory=None, layout_only=Fal
         if not ns:p=convert(aa,zz)
         else:
             if len(ns)==2:
-                l,r=leaf(target,new),leaf(var('key'),var('row'));guard=binary('<',target,var('key'));one,two=balanced(l,r),balanced(r,l)
+                l,r=leaf(target,new),leaf(var('key'),var('row'));guard=order.less(target,var('key'));one,two=balanced(l,r),balanced(r,l)
                 p1=use(balance_valid,[l,r],[convert(fix(l),l),convert(fix(r),r)]);p2=use(balance_valid,[r,l],[convert(fix(r),r),convert(fix(l),l)])
             else:
-                l,r=fix(var('left')),fix(var('right'));il,ir=fast_insert(l),fast_insert(r);guard=binary('<',target,field('high',l));one,two=balanced(il,r),balanced(l,ir)
+                l,r=fix(var('left')),fix(var('right'));il,ir=fast_insert(l),fast_insert(r);guard=order.less(target,field('high',l));one,two=balanced(il,r),balanced(l,ir)
                 p1=use(balance_valid,[il,r],[{'Hypothesis':0},use(names['repair_idempotent'],[var('right')])]);p2=use(balance_valid,[l,ir],[use(names['repair_idempotent'],[var('left')]),{'Hypothesis':1}])
             p=trans(convert(aa,fix(choice(guard,one,two))),use(repair_choice,[guard,one,two]),lifted(p1,choice(guard,var('prune_hole'),fix(two))),lifted(p2,choice(guard,one,var('prune_hole'))),convert(choice(guard,one,two),zz))
-        sorts=[] if not ns else ['U64',row] if len(ns)==2 else [T,T,'U64','U64',sum_sort,count_sort,'U64']
-        params=[*zip(ns,sorts),['target','U64'],['new',row]]
+        sorts=[] if not ns else [key_sort,row] if len(ns)==2 else [T,T,key_sort,key_sort,sum_sort,count_sort,'U64']
+        params=[*zip(ns,sorts),['target',key_sort],['new',row]]
         conditions=[{'from':fix(fast_insert(fix(var(n)))),'to':fast_insert(fix(var(n)))} for n in ['left','right']] if len(ns)>2 else []
         lemma=law(None,params,aa,zz,p,conditions)
         ps.append((ns,use(lemma,[var(n) for n,_ in params],[{'Hypothesis':j} for j in range(len(conditions))])))
-    induction('indexed_insert_preserves_metadata',[['tree',T],['target','U64'],['new',row]],a,z,ps)
+    induction('indexed_insert_preserves_metadata',[['tree',T],['target',key_sort],['new',row]],a,z,ps)
     # Initial encoding builds a balanced ordered sequence without assuming sorted
     # keys or uniqueness. Prepending preserves the complete logical enumeration.
-    k,v=var('prepend_key'),var('prepend_value');prepend=fun('prepend',[['tree',T],['prepend_key','U64'],['prepend_value',row]],T,match(var('tree'),[([],leaf(k,v)),(['old_key','old_row'],balanced(leaf(k,v),leaf(var('old_key'),var('old_row')))),(bindings,balanced({'SelfCall':[var('left'),k,v]},var('right')))]),0)
+    k,v=var('prepend_key'),var('prepend_value');prepend=fun('prepend',[['tree',T],['prepend_key',key_sort],['prepend_value',row]],T,match(var('tree'),[([],leaf(k,v)),(['old_key','old_row'],balanced(leaf(k,v),leaf(var('old_key'),var('old_row')))),(bindings,balanced({'SelfCall':[var('left'),k,v]},var('right')))]),0)
     prep=lambda t:call(prepend,[t,k,v]);prefix=lambda r:cons(rows,1,[k,v,r]);a,z=logical(prep(fix(var('tree')))),prefix(logical(var('tree')));ps=[]
     for ns,t in treecases:
         aa,zz=replace(a,var('tree'),t),replace(z,var('tree'),t)
@@ -493,7 +498,7 @@ def definitions(model, *, table_index=0, aggregate_factory=None, layout_only=Fal
             if len(ns)>2:p=trans(p,{'Call':dict(function=append,arguments=[{'Hypothesis':0},use(names['repair_preserves_rows'],[var('right')])])})
             p=trans(p,convert(cat(logical(l),logical(r)) if len(ns)==2 else cat(prefix(logical(var('left'))),logical(var('right'))),zz))
         ps.append((ns,p))
-    prepend_rows=induction('prepend_preserves_rows',[['tree',T],['prepend_key','U64'],['prepend_value',row]],a,z,ps)
+    prepend_rows=induction('prepend_preserves_rows',[['tree',T],['prepend_key',key_sort],['prepend_value',row]],a,z,ps)
     a,z=fix(prep(fix(var('tree')))),prep(fix(var('tree')));ps=[]
     for ns,t in treecases:
         aa,zz=replace(a,var('tree'),t),replace(z,var('tree'),t)
@@ -503,7 +508,7 @@ def definitions(model, *, table_index=0, aggregate_factory=None, layout_only=Fal
             pl,pr=(convert(fix(l),l),convert(fix(r),r)) if len(ns)==2 else ({'Hypothesis':0},idem(var('right')))
             p=trans(convert(aa,fix(balanced(l,r))),use(balance_valid,[l,r],[pl,pr]),convert(balanced(l,r),zz))
         ps.append((ns,p))
-    prepend_valid=induction('prepend_preserves_metadata',[['tree',T],['prepend_key','U64'],['prepend_value',row]],a,z,ps)
+    prepend_valid=induction('prepend_preserves_metadata',[['tree',T],['prepend_key',key_sort],['prepend_value',row]],a,z,ps)
     encode=fun('encode_rows',[['rows',R]],T,match(var('rows'),[([],empty),(['encode_key','encode_value','encode_tail'],call(prepend,[{'SelfCall':[var('encode_tail')]},var('encode_key'),var('encode_value')]))]),0)
     enc=lambda r:call(encode,[r]);a,z=logical(enc(var('rows'))),var('rows');encoded=enc(var('encode_tail'));ek,ev=var('encode_key'),var('encode_value');b=cons(rows,1,[ek,ev,var('encode_tail')])
     # Both encoding facts are factored: the row theorem may use the previously
@@ -522,31 +527,33 @@ def definitions(model, *, table_index=0, aggregate_factory=None, layout_only=Fal
         proposal(model,objects,names,add,fun,law)
     return objects,names
 
-def publish_checked(staged,root,compiler,source,report):
+def publish_checked(staged,root,compiler,source,report, *, candidate_root=None,publish_implementations=False):
     """Publish only after exact source admission; preserve the compact view pin."""
     import shutil
-    from ink_knowledge.store import read,immutable
+    from ink_knowledge.store import read,immutable,MAX_VIEW_BYTES
     staged=Path(staged);root=Path(root);compiler=Path(compiler).resolve()
     request=staged/'request.json';raw=request.read_bytes()
-    if len(raw)>16_000_000:raise ValueError('representation request byte limit')
+    if len(raw)>MAX_VIEW_BYTES:raise ValueError('representation request byte limit')
     checked=subprocess.run([str(compiler),'check-representation',str(Path(source).resolve()),str(request.resolve())],capture_output=True,text=True,check=True)
     receipt=json.loads(checked.stdout);proposal=json.loads(raw)
     if receipt.get('status')!='checked' or receipt.get('representation')!=proposal['representation'] or receipt.get('source')!=proposal['input_core_sha256']:raise ValueError('admission receipt mismatch')
-    old=Store(root);candidate=Store(staged);previous=old.snapshot_id
-    objects={i:old.object(i) for i in old.members()}
-    objects.update({i:candidate.object(i) for i in candidate.members()})
-    names=read(root/'store/names.json');names.update(read(staged/'store/names.json'))
-    admitted=Store.publish(root,objects.values(),names)
+    old=Store(root);candidate=Store(candidate_root or staged);previous=old.snapshot_id
+    names=read(root/'store/names.json');names.update(read(candidate.root/'store/names.json'))
+    admitted=old.extend((candidate.object(i) for i in candidate.members()),names,leaf_size=2)
     # Immutable compact snapshots are ordinary database history. They keep
     # authenticated views below the existing request bound as the catalog grows.
     for directory in ['trees','snapshots']:
-        for path in (staged/'store'/directory).glob('*.json'):
+        for path in (candidate.root/'store'/directory).glob('*.json'):
             immutable(root/'store'/directory/path.name,read(path))
     pin=root/'store/snapshots'/f'{candidate.snapshot_id}.json'
     pinned=Store(root,snapshot=pin)
     if canonical(pinned.bundle([proposal['representation']]))!=canonical(proposal['knowledge']):raise ValueError('published pin differs from checked view')
-    admitted.rebuild()
-    result=dict(status='checked',source=receipt['source'],representation=receipt['representation'],previous_snapshot=previous,snapshot=admitted.snapshot_id,view_snapshot=candidate.snapshot_id,request_sha256=hashlib.sha256(raw).hexdigest(),obligations=len(receipt['obligations']),entries=read(staged/'store/names.json'))
+    implementations=[]
+    if publish_implementations:
+        from ink_knowledge.implementation_candidates import publish_candidates,identity_selection
+        admitted,implementations=publish_candidates(root,[identity_selection(receipt['source']),proposal],shared_knowledge=True)
+    else:admitted.refresh_index()
+    result=dict(implementations=implementations,status='checked',source=receipt['source'],representation=receipt['representation'],previous_snapshot=previous,snapshot=admitted.snapshot_id,view_snapshot=candidate.snapshot_id,request_sha256=hashlib.sha256(raw).hexdigest(),obligations=len(receipt['obligations']),entries=read(candidate.root/'store/names.json'))
     Path(report).parent.mkdir(parents=True,exist_ok=True);Path(report).write_bytes(canonical(result)+b'\n')
     return result
 
