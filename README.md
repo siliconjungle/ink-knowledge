@@ -336,3 +336,29 @@ Template discovery can abstract a free function applied to distinct local
 variables. It rejects other local dependencies and emits an ordinary adapter
 proof with the exact source endpoint. Template matching remains untrusted: the
 kernel replays the universal law, adapter, source context and dependency closure.
+
+## Composable knowledge and indexed growth
+
+Source algorithm templates can import other snapshot-owned algorithms, bind their
+types, export helper names and reuse their equality proofs. The ordinary producer
+assembles a bounded hygienic dependency closure and the compiler checks every
+definition and proof. `python -m producers.composed_algorithms --root .` publishes
+the partition/filtered-count composition. It reuses two existing families rather
+than copying their implementations and inductions.
+
+Physical recipes now carry bounded structural eligibility selectors and compose
+independent packing/memoisation sites through `definitions: "selected"`. Proposal
+domains and combinations are data; ownership and storage capability checks remain
+in the compiler. Selection still requires comparable profitability evidence.
+
+Disposable SQLite projections index structural template paths and explicit
+observation/family attribution. Indexed discovery retains all possible matches
+and fetches applicable proof dependencies. `ink_knowledge.family_evidence.page`
+checks exact target/workload descriptors and authenticates returned observations;
+it does not infer missing attribution or grant rewrite authority.
+
+`python -m ink_knowledge --root . pack` produces optional packed object transport
+without removing Git objects. Packed reads retain canonical hashes, authenticated
+membership and independent proof replay; corrupt loose files take precedence and
+fail validation. The distribution's `docs/composable-knowledge.md` records the
+scaling curves, strong runtime controls, physical regressions and remaining limits.

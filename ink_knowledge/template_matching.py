@@ -17,7 +17,8 @@ class TemplateSites:
                 self.by_head.setdefault(shape(target),[]).append(site)
     def matches(self,pattern,params,type_parameters):
         from .law_templates import infer
-        head=shape(pattern,params)
+        from .higher_patterns import applied_hole
+        head='*' if applied_hole(pattern,params) else shape(pattern,params)
         for name,path,target in self.sites if head=='*'else self.by_head.get(head,()):
             self.attempts+=1
             if self.attempts>self.limit:raise ValueError('template inference budget')
