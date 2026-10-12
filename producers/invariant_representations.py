@@ -43,9 +43,12 @@ def generate(model,directory,compiler,max_queries=16):
     objects=copy.deepcopy(base['knowledge']['objects']);plan=copy.deepcopy(objects[base['representation']]['payload'])
     tactic=Tactic(objects);physical=plan['physical_state'];logical=plan['logical_state'];changed=[];declined=[]
     physical_decl=objects[physical['Data']]['payload']['declaration']['Datatype']
+    carriers={i for i,o in objects.items()if 'Datatype'in o.get('payload',{}).get('declaration',{})}
     def add(declaration):
         body=next(iter(declaration.values()));payload=dict(declaration=declaration)
-        obj=entry('definition',MATH,payload,refs(payload),parameters=dict(body.get('params',[])),result=body.get('result'))
+        # Match scrutinee/field sorts may occur only in a called function's
+        # signature. Import those source carriers explicitly, as core does.
+        obj=entry('definition',MATH,payload,refs(payload)|carriers,parameters=dict(body.get('params',[])),result=body.get('result'))
         ident=identity(obj);objects[ident]=obj;return ident
     for name,source in sorted(model['actions'].items()):
         if len(changed)>=max_queries:break
