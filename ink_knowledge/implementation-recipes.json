@@ -763,6 +763,67 @@
         "core",
         "model"
       ]
+    },
+    {
+      "id": "graph-resources",
+      "module": "producers.resource_plans",
+      "function": "propose",
+      "parameters": {},
+      "stage": "resources",
+      "requires": [
+        "route"
+      ],
+      "inputs": [
+        "route",
+        "usage_profile"
+      ],
+      "obligations": [
+        "exact checked graph binding",
+        "release only after all consumers",
+        "dynamic admission preserves synchronous capture and order"
+      ]
+    },
+    {
+      "id": "contextual-properties",
+      "module": "producers.contextual_properties",
+      "function": "propose",
+      "parameters": {},
+      "stage": "properties",
+      "requires": [
+        "core"
+      ],
+      "inputs": [
+        "source",
+        "core",
+        "knowledge_snapshot"
+      ],
+      "obligations": [
+        "typed observation of actual source body",
+        "ordinary equality proof under actual function parameters"
+      ]
+    },
+    {
+      "id": "proved-capacities",
+      "module": "producers.capacity_plans",
+      "function": "propose",
+      "parameters": {},
+      "stage": "physical",
+      "requires": [
+        "core",
+        "properties"
+      ],
+      "inputs": [
+        "source",
+        "core",
+        "properties",
+        "physical",
+        "representation"
+      ],
+      "obligations": [
+        "exact integer result bound",
+        "literal collector capability",
+        "preserve evaluation order"
+      ]
     }
   ]
 }
