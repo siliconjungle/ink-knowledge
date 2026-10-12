@@ -12,20 +12,29 @@ from .proposal_views import ProposalViews
 SEMANTICS='ink-source-algorithm-v1'
 EXTENSION='ink-source-extension-v1'
 
-def namespace(value,names):
-    if isinstance(value,list):return [namespace(x,names)for x in value]
+def namespace(value,names,bound=frozenset()):
+    if isinstance(value,list):return [namespace(x,names,bound)for x in value]
     if not isinstance(value,dict):return copy.deepcopy(value)
-    out={k:namespace(v,names)for k,v in value.items()}
+    out={k:namespace(v,names,bound)for k,v in value.items()}
+    if {'params','body','name'}<=set(value):out['body']=namespace(value['body'],names,bound|{n for n,_ in value['params']})
+    if 'Lambda'in value and isinstance(value['Lambda'],list):
+        n,body=value['Lambda'];out['Lambda']=[n,namespace(body,names,bound|{n})]
+    if 'Let'in value:
+        n,annotation,initial,body=value['Let'];out['Let']=[n,namespace(annotation,names,bound),namespace(initial,names,bound),namespace(body,names,bound|{n})]
+    if 'Field'in value:
+        receiver,field=value['Field']
+        if isinstance(receiver,dict)and set(receiver)=={'Var'}and receiver['Var']in names and receiver['Var']not in bound:out['Field'][0]={'Var':names[receiver['Var']]}
     if set(value)=={'Named'}:out['Named']=names.get(value['Named'],value['Named'])
     for key in ['Call','Record']:
         if key in value and isinstance(value[key],list):out[key][0]=names.get(value[key][0],value[key][0])
     for key in ['Var','Enum']:
         if key in value and isinstance(value[key],str)and '.'in value[key]:
             first,rest=value[key].split('.',1)
-            if first in names:out[key]=names[first]+'.'+rest
+            if first in names and first not in bound:out[key]=names[first]+'.'+rest
     if 'Op'in value:
         op=value['Op'][0]
-        if op.startswith('call:') and op[5:]in names:out['Op'][0]='call:'+names[op[5:]]
+        for prefix in ['call:','record:']:
+            if op.startswith(prefix) and op[len(prefix):]in names:out['Op'][0]=prefix+names[op[len(prefix):]]
     return out
 
 def instantiate(payload,bindings,ident):
