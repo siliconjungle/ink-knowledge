@@ -49,10 +49,10 @@ def refresh(store,db):
     rows=list(db.execute("SELECT e.id FROM entries e JOIN members m ON m.entry_id=e.id LEFT JOIN template_heads t ON t.entry_id=e.id WHERE m.snapshot_id=? AND e.kind='definition' AND e.semantics IN (?,?) AND t.entry_id IS NULL",(store.snapshot_id,*SEMANTICS)))
     for (ident,) in rows:insert(db,ident,store._read_object(ident))
 
-def candidates(store,subject,semantics):
+def candidates(store,subject,semantics,sites=None):
     """Union of potentially applicable templates, sorted and snapshot pinned."""
     from .template_matching import TemplateSites
-    sites=TemplateSites(subject)
+    if sites is None:sites=TemplateSites(subject)
     index=store.root/'index.sqlite'
     with closing(sqlite3.connect(index.as_uri()+'?mode=ro',uri=True)) if index.exists() else nullcontext(None) as db:
         if db is not None:

@@ -32,3 +32,31 @@ class TemplateMatching(unittest.TestCase):
         self.assertEqual(index.attempts,1)
         with self.assertRaisesRegex(ValueError,'inference budget'):list(index.matches(x,{'x':u},[]))
         with self.assertRaisesRegex(ValueError,'subject node budget'):TemplateSites(subject,node_limit=20)
+
+    def test_literals_sorts_and_nested_operations_skip_same_head_misses(self):
+        u=value('U32');seq=value({'List':'U32'});x=var(u,'x')
+        subject={'functions':{str(i):op(u,'call:f',dict(sort=u,node={'Word':i}))for i in range(512)}}
+        index=TemplateSites(subject,attempt_limit=1)
+        pattern=op(u,'call:f',dict(sort=u,node={'Word':17}))
+        self.assertEqual(len(list(index.matches(pattern,{},[]))),1)
+        self.assertEqual(index.attempts,1)
+        # Composite constructors contain holes; treating them as literal leaves
+        # would incorrectly discard valid matches.
+        cons=dict(sort=seq,node={'Cons':[x,dict(sort=seq,node='Nil')]})
+        actual=dict(sort=seq,node={'Cons':[dict(sort=u,node={'Word':7}),dict(sort=seq,node='Nil')]})
+        self.assertEqual(len(list(TemplateSites({'functions':{str(i):actual for i in range(32)}}).matches(cons,{'x':u},[]))),32)
+        with self.assertRaisesRegex(ValueError,'structural token budget'):
+            list(TemplateSites(subject,token_limit=1).matches(pattern,{},[]))
+
+    def test_applied_holes_preserve_arbitrary_bodies_and_binding_order(self):
+        from producers.semantic_laws import arrow
+        a=value({'Named':'$A'});u=value('U32');f=var(arrow(a,a),'f')
+        pattern=lam(a,op(a,'apply',f,bound(a,0)))
+        actual=lam(u,op(u,'binary:+',bound(u,0),dict(sort=u,node={'Word':1})))
+        subject={'functions':{str(i):actual for i in range(64)}};sites=TemplateSites(subject)
+        expected=[]
+        for name,root in subject['functions'].items():
+            for path,target in positions(root):
+                bindings={}
+                if infer(pattern,target,{'f':f['sort']},['A'],bindings):expected.append((name,path,target,bindings))
+        self.assertEqual(list(sites.matches(pattern,{'f':f['sort']},['A'])),expected)

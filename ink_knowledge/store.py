@@ -92,7 +92,13 @@ def read(path):
     return _read_canonical(path)[0]
 
 def _read_canonical(path):
-    with path.open('rb') as f: raw=f.read(MAX_VIEW_BYTES+2)
+    with path.open('rb') as f:
+        # Size the allocation from the opened descriptor, not the admission
+        # ceiling. A second read rejects growth rather than ignoring a suffix.
+        size=os.fstat(f.fileno()).st_size
+        if size>MAX_VIEW_BYTES+1:raise ValueError('knowledge object byte limit')
+        raw=f.read(size+1)
+        if len(raw)>size or f.read(1):raise ValueError('knowledge object changed while reading')
     if raw.endswith(b'\n'):raw=raw[:-1]
     if len(raw)>MAX_VIEW_BYTES: raise ValueError('knowledge object byte limit')
     value=json.loads(raw)

@@ -34,7 +34,8 @@ def generate(store,subject,core):
     from .proposals import nominal_types
     from producers.definition_context28 import bind
     from .template_index import candidates
-    templates={};selected=candidates(store,subject,SEMANTICS);pending=list(selected)
+    sites=TemplateSites(subject)
+    templates={};selected=candidates(store,subject,SEMANTICS,sites=sites);pending=list(selected)
     while pending:
         page=pending[:64];pending=pending[64:]
         for ident in page:
@@ -49,14 +50,25 @@ def generate(store,subject,core):
             templates[ident]=payload
             pending.extend(dep for dep in payload['dependencies'].values() if dep not in templates)
         if len(templates)>4096:raise ValueError('law template count budget')
-    objects={};receipts=[];sites=TemplateSites(subject)
-    def instantiate(payload,bindings,active):
+    objects={};receipts=[];instances_cache={};cache_hits=0;adapter_cache={};adapter_hits=0
+    def instantiate(template_id,bindings,active):
+        nonlocal cache_hits
+        from .store import canonical
+        cache_key=(template_id,canonical(bindings))
+        cached=instances_cache.get(cache_key)
+        if cached is not None:
+            ident,height=cached
+            if len(active)+height>16:raise ValueError('law template dependency depth')
+            cache_hits+=1
+            return ident,height
+        payload=templates[template_id]
         if len(active)>16:raise ValueError('law template dependency depth')
-        candidate=substitute_types(payload['law'],bindings);dependencies={}
+        candidate=substitute_types(payload['law'],bindings);dependencies={};height=0
         for label,dep in payload['dependencies'].items():
             if not isinstance(label,str)or not label.startswith('$')or dep in active:raise ValueError('law template dependency cycle or label')
             if dep not in templates:raise ValueError('law template dependency absent from snapshot')
-            dependencies[label]=instantiate(templates[dep],bindings,active|{dep})
+            dependencies[label],child_height=instantiate(dep,bindings,active|{dep})
+            height=max(height,child_height+1)
         def references(v):
             if isinstance(v,dict):return {k:dependencies[x]if k=='law' and isinstance(x,str) and x in dependencies else references(x)for k,x in v.items()}
             if isinstance(v,list):return [references(x)for x in v]
@@ -65,17 +77,23 @@ def generate(store,subject,core):
         if nominal_types(candidate):candidate=bind(candidate,core,subject)
         obj=semantic_entry(candidate);ident=identity(obj);objects[ident]=obj
         if len(objects)>1024:raise ValueError('instantiated law template budget')
-        return ident
+        instances_cache[cache_key]=(ident,height)
+        return ident,height
     for ident in selected:
         payload=templates[ident]
         instances=set();produced=set()
-        before=sites.attempts
+        before=sites.attempts;hits_before=cache_hits;adapters_before=adapter_hits
         for _,_,target,bindings in sites.matches(payload['law']['from'],payload['law']['params'],payload['type_parameters']):
-            base_id=instantiate(payload,bindings,{ident});instances.add(base_id);produced.add(base_id)
+            base_id,_=instantiate(ident,bindings,{ident});instances.add(base_id);produced.add(base_id)
             base=objects[base_id]['payload']
             from ink_planner.semantic_search import match,substitute,children
             args={}
             if match(base['from'],target,base['params'],args):continue
+            from .store import canonical
+            adapter_key=(base_id,canonical(target))
+            if adapter_key in adapter_cache:
+                produced.add(adapter_cache[adapter_key]);adapter_hits+=1
+                continue
             from .higher_patterns import match as higher_match
             args={}
             if not higher_match(base['from'],target,base['params'],[],{},args)or set(args)!=set(base['params']):continue
@@ -102,5 +120,6 @@ def generate(store,subject,core):
             if nominal_types(candidate):candidate=bind(candidate,core,subject)
             obj=semantic_entry(candidate);adapter_id=identity(obj);objects[adapter_id]=obj;produced.add(adapter_id)
             if len(objects)>1024:raise ValueError('instantiated law template budget')
-        receipts.append(dict(template=ident,laws=sorted(produced),instances=len(instances),inference_attempts=sites.attempts-before,subject_nodes=len(sites.sites)))
+            adapter_cache[adapter_key]=adapter_id
+        receipts.append(dict(template=ident,laws=sorted(produced),instances=len(instances),inference_attempts=sites.attempts-before,subject_nodes=len(sites.sites),instantiation_cache_hits=cache_hits-hits_before,adapter_cache_hits=adapter_hits-adapters_before))
     return objects,receipts
