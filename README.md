@@ -336,3 +336,8 @@ Template discovery can abstract a free function applied to distinct local
 variables. It rejects other local dependencies and emits an ordinary adapter
 proof with the exact source endpoint. Template matching remains untrusted: the
 kernel replays the universal law, adapter, source context and dependency closure.
+
+## License
+
+Project code and documentation are [MIT licensed](LICENSE). Third-party dependencies,
+vendored projects and research data retain their own licenses and notices.
