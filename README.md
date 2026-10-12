@@ -362,3 +362,8 @@ without removing Git objects. Packed reads retain canonical hashes, authenticate
 membership and independent proof replay; corrupt loose files take precedence and
 fail validation. The distribution's `docs/composable-knowledge.md` records the
 scaling curves, strong runtime controls, physical regressions and remaining limits.
+
+## License
+
+Project code and documentation are [MIT licensed](LICENSE). Third-party dependencies,
+vendored projects and research data retain their own licenses and notices.
