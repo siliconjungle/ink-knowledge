@@ -346,6 +346,9 @@ class Store:
 
     def query(self, *, kind=None, semantics=None, operation=None, result=None, effect=None, parameter_type=None, condition=None, after=None, limit=1024):
         if not isinstance(limit,int) or not 0<=limit<=1024:raise ValueError('query limit')
+        accelerator=getattr(self,'_discovery_accelerator',None)
+        if accelerator is not None and accelerator.snapshot==self.snapshot_id:
+            return accelerator.query(kind=kind,semantics=semantics,operation=operation,result=result,effect=effect,parameter_type=parameter_type,condition=condition,after=after,limit=limit)
         index=self.root/'index.sqlite'
         constraints=(kind,semantics,operation,result,effect,parameter_type,condition,after,limit)
         if not index.exists():

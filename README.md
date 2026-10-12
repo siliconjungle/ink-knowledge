@@ -267,3 +267,22 @@ interpretations. They do not admit an arbitrary observed read trace, implement a
 runtime scheduler or automatically select a source replacement. Mathematical
 admission and the preserved old/new snapshot IDs are recorded in the distribution's
 `docs/evidence/signals-state/reactive-laws.json`.
+
+## Disposable search accelerators and untrusted learning evidence
+
+`ink_knowledge.discovery_accelerator.enable(store)` authenticates the pinned
+canonical catalogue before deriving typed token buckets, a Bloom filter and
+a bounded piecewise linear integer-position hint. Bloom negatives skip impossible
+queries. Learned positions use exact local binary search, verify global neighbours
+and fall back to full binary search if a hint is invalid. Query filtering and
+paging remain exact, including old immutable pins. Object retrieval and proof
+export continue to authenticate canonical bytes. Setup and memory are additional
+costs; the ordinary SQLite path remains the default.
+
+`ink_knowledge.search_artifacts` stores immutable observations and fitted models
+in `store/search-artifacts`, outside mathematical object kinds and discovery.
+Models authenticate referenced observations; their hashes and measurements grant
+no rewrite authority. Planner's optional HNSW structural sketch likewise supplies
+ordering hints, leaving exact membership, matching and proof replay in place.
+The distribution's probabilistic-planner report retains warm index gains, setup
+costs, approximate recall and the cases where learned positions lose to C bisect.
