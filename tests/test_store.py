@@ -278,4 +278,24 @@ class StoreTests(unittest.TestCase):
         (self.root/'store/observations'/f'{oid}.json').write_text(json.dumps({**obs,'plan':'3'*64}))
         with self.assertRaisesRegex(ValueError,'hash mismatch'):
             self.store.observations('1'*64,['3'*64],obs['target'],obs['workload'])
+    def test_evidence_pages_cover_large_candidate_pools_and_all_repetitions(self):
+        self.store.rebuild();program='1'*64
+        target=dict(hardware='test',driver='test',toolchain='test',backend='cpu',bridge='host')
+        workload=dict(shape=[48],distribution='test',concurrency=1,residency='host')
+        plans=[identity({'plan':n})for n in range(1200)]
+        expected=set()
+        for n in range(2400):
+            obs=dict(schema=1,program=program,entries=[],plan=plans[n%1200],target=target,workload=workload,
+                metrics=dict(complete_call_ns=[str(n)],peak_bytes=100))
+            expected.add(self.store.observe(obs))
+        actual=list(self.store.iter_observations(program,plans,target,workload,page_size=37))
+        self.assertEqual({identity(o)for o in actual},expected);self.assertEqual(len(actual),2400)
+        # Filtering a forged disposable index row must not terminate paging.
+        wanted=plans[:1];rows=self.store.observations(program,wanted,target,workload);rows.sort(key=identity)
+        first=identity(rows[0])
+        with closing(sqlite3.connect(self.root/'index.sqlite'))as db,db:
+            db.execute('UPDATE observations SET plan_id=? WHERE id=?',(plans[1],first))
+        actual=list(self.store.iter_observations(program,plans[1:2],target,workload,page_size=1))
+        self.assertEqual(len(actual),2)
+
 if __name__=='__main__':unittest.main()

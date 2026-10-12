@@ -13,8 +13,8 @@ def main():
     p.add_argument('--package', type=Path, action='append', default=[])
     a = p.parse_args()
     packages = [identity_selection(i) for i in a.identity_source] + [read(f) for f in a.package]
-    if not 1 <= len(packages) <= 32:
-        raise ValueError('publication requires 1..32 candidates')
+    if not 1 <= len(packages) <= 4096:
+        raise ValueError('publication requires 1..4096 candidates')
     store, candidates = publish_candidates(a.knowledge_root, packages)
     print(json.dumps(dict(snapshot=store.snapshot_id, candidates=candidates,
                          scope='publication only; every package must be checked before emission')))
