@@ -79,7 +79,7 @@ python3 -m unittest discover -s tests -v
 
 `producers/` holds untrusted authoring/import tools. `research/` quarantines historical experiment formats, fixtures and Lean work; production discovery does not scan it or depend on experiment directory names. Research tools can still reproduce their original mathematical experiments. These formats are not compatibility aliases for the canonical API.
 
-The merged main snapshot contains 2845 canonical entries and 4517 discovery names.
+The earlier merged snapshot contained 2845 canonical entries and 4517 discovery names.
 It combines the independently developed main catalogue with the web
 performance catalogue and the owned-collection/point-query additions, preserving both sets of immutable proofs, observations
 and historical snapshots. SQLite remains a rebuilt disposable index. Frozen web
@@ -255,3 +255,15 @@ list 512 direct dependencies; other entries retain the 128 dependency bound.
 Scalar proof templates in `producers/data/word-ring.json.gz` are ordinary checked
 certificates, so cold proposal generation does not require a SAT installation.
 Stored names, templates and proposal discovery never grant proof authority.
+
+## Reactive dependency laws
+
+`producers/reactive_dependencies.py` publishes three parametric theorems and their
+nineteen-entry closure under `reactive-dependencies/` discovery names. They cover
+observation reuse through proved dependency factorisation, downstream reuse after
+exact value equality, and active-branch reuse with selector/dependency equality.
+All abstract assumptions and site conditions must be discharged by concrete
+interpretations. They do not admit an arbitrary observed read trace, implement a
+runtime scheduler or automatically select a source replacement. Mathematical
+admission and the preserved old/new snapshot IDs are recorded in the distribution's
+`docs/evidence/signals-state/reactive-laws.json`.

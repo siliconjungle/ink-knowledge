@@ -51,3 +51,10 @@ retains a compact immutable view pin. `state_laws.py` publishes parametric field
 frame/dependency laws and grouped edits preserving intermediate and final rows.
 `representation_bridge.py --via-logical` uses each target relation's checked
 initialisation theorem, supporting multi-relation decode/encode migrations.
+
+`reactive_dependencies.py` proposes dependency-factorisation, equal-value downstream
+reuse and branch-sensitive dependency laws. Concrete instances must discharge
+factorisation assumptions, exact dependency equality and selector equality. Read
+traces and profiles cannot discharge them. `--publish` stages mathematical
+admission before adding the immutable entries and retains the old snapshot.
+The distribution's `docs/signals-state-performance.md` records scope and replay.
