@@ -1,0 +1,1 @@
+{"dependencies":[],"interface":{"conditions":[],"effects":[],"operations":[],"parameters":{},"result":null},"kind":"theorem","payload":{"declaration":{"Theorem":{"conditions":[],"from":{"Bool":true},"params":[],"proof":{"Convert":{"from":{"Bool":true},"to":{"Bool":true}}},"to":{"Bool":true}}}},"schema":1,"semantics":"first-order-inductive-equality-v1"}

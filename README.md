@@ -296,7 +296,7 @@ canonical entries plus source-bound `ink-contracts-v1` evidence. Static clauses,
 meanings; producers cannot assign their own interpretation.
 
 The database includes `contracts.zero-map-u64`, `contracts.identity-map-u32` and
-`contracts.sorted-identity-u64`: two list-induction laws and a conditional sort
+`contracts.sorted-identity-u64`, and `contracts.unique-id-check-erasure`: two list-induction laws, a conditional uniqueness law and a conditional sort
 law. Their definition contexts contain no exact helper bodies. The
 `contract-witnesses` recipe proposes specification witnesses, checks the complete
 selected module, and publishes ordinary implementation candidates. Contracts can
@@ -308,3 +308,10 @@ proofs remain available through the existing kernels. Compiler admission checks
 every proof regardless of database membership. Performance measurements are
 separate immutable observations, never theorem authority. See the distribution's
 `docs/source-contracts.md` and `tools/bench_contracts.py`.
+
+The `contract-laws/` source library publishes six checked collection laws.
+The `contracts.state-list.*` entries prove initial uniqueness, guarded replacement,
+clearing and postconditions for the distribution’s private-list example. Generated
+traversal equivalence and data equality reflexivity are ordinary induction proofs
+in those dependency closures. Search may weaken premises to prove a stronger
+theorem; it never assumes the resulting theorem without kernel replay.
