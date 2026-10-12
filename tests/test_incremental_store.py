@@ -61,7 +61,8 @@ class AppendPublication(unittest.TestCase):
             old=Store.publish(root,[first],{'first':a});pin=old.snapshot_id
             second=entry('definition','test-v1',{'body':2},[a]);b=identity(second)
             with patch.object(Store,'object',side_effect=AssertionError('reopened old proof body')):
-                new=old.extend([second],{'first':a,'second':b})
+                new=old.extend([second],{'second':b})
+            self.assertEqual(json.loads((root/'store/names.json').read_text()),{'first':a,'second':b})
             self.assertEqual(set(new.bundle([b])['objects']),{a,b})
             self.assertEqual(set(Store(root,root/'store/snapshots'/(pin+'.json')).members()),{a})
             (root/'store/objects'/(a+'.json')).write_text(json.dumps({**first,'payload':{'body':99}}))

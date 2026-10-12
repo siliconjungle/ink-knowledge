@@ -79,7 +79,7 @@ python3 -m unittest discover -s tests -v
 
 `producers/` holds untrusted authoring/import tools. `research/` quarantines historical experiment formats, fixtures and Lean work; production discovery does not scan it or depend on experiment directory names. Research tools can still reproduce their original mathematical experiments. These formats are not compatibility aliases for the canonical API.
 
-The merged main snapshot contains 2845 canonical entries and 4517 discovery names.
+The earlier merged snapshot contained 2845 canonical entries and 4517 discovery names.
 It combines the independently developed main catalogue with the web
 performance catalogue and the owned-collection/point-query additions, preserving both sets of immutable proofs, observations
 and historical snapshots. SQLite remains a rebuilt disposable index. Frozen web
@@ -255,3 +255,63 @@ list 512 direct dependencies; other entries retain the 128 dependency bound.
 Scalar proof templates in `producers/data/word-ring.json.gz` are ordinary checked
 certificates, so cold proposal generation does not require a SAT installation.
 Stored names, templates and proposal discovery never grant proof authority.
+
+## Reactive dependency laws
+
+`producers/reactive_dependencies.py` publishes three parametric theorems and their
+nineteen-entry closure under `reactive-dependencies/` discovery names. They cover
+observation reuse through proved dependency factorisation, downstream reuse after
+exact value equality, and active-branch reuse with selector/dependency equality.
+All abstract assumptions and site conditions must be discharged by concrete
+interpretations. They do not admit an arbitrary observed read trace, implement a
+runtime scheduler or automatically select a source replacement. Mathematical
+admission and the preserved old/new snapshot IDs are recorded in the distribution's
+`docs/evidence/signals-state/reactive-laws.json`.
+
+## Disposable search accelerators and untrusted learning evidence
+
+`ink_knowledge.discovery_accelerator.enable(store)` authenticates the pinned
+canonical catalogue before deriving typed token buckets, a Bloom filter and
+a bounded piecewise linear integer-position hint. Bloom negatives skip impossible
+queries. Learned positions use exact local binary search, verify global neighbours
+and fall back to full binary search if a hint is invalid. Query filtering and
+paging remain exact, including old immutable pins. Object retrieval and proof
+export continue to authenticate canonical bytes. Setup and memory are additional
+costs; the ordinary SQLite path remains the default.
+
+`ink_knowledge.search_artifacts` stores immutable observations and fitted models
+in `store/search-artifacts`, outside mathematical object kinds and discovery.
+Models authenticate referenced observations; their hashes and measurements grant
+no rewrite authority. Planner's optional HNSW structural sketch likewise supplies
+ordering hints, leaving exact membership, matching and proof replay in place.
+The distribution's probabilistic-planner report retains warm index gains, setup
+costs, approximate recall and the cases where learned positions lose to C bisect.
+
+## Source contract knowledge
+
+`producers.contract_proofs` derives ordinary pure laws and first-order state
+proofs from `ink emit-contract-obligations`, replays each proposal, and publishes
+canonical entries plus source-bound `ink-contracts-v1` evidence. Static clauses,
+`before`, invariants, finite bag observations and uniqueness are checked source
+meanings; producers cannot assign their own interpretation.
+
+The database includes `contracts.zero-map-u64`, `contracts.identity-map-u32` and
+`contracts.sorted-identity-u64`, and `contracts.unique-id-check-erasure`: two list-induction laws, a conditional uniqueness law and a conditional sort
+law. Their definition contexts contain no exact helper bodies. The
+`contract-witnesses` recipe proposes specification witnesses, checks the complete
+selected module, and publishes ordinary implementation candidates. Contracts can
+permit more than one value; refinement is distinct from equality rewriting.
+
+Use `python -m producers.contract_candidates SOURCE OUTPUT --compiler ink` to
+publish examples. This bounded producer is deliberately incomplete; explicit
+proofs remain available through the existing kernels. Compiler admission checks
+every proof regardless of database membership. Performance measurements are
+separate immutable observations, never theorem authority. See the distribution's
+`docs/source-contracts.md` and `tools/bench_contracts.py`.
+
+The `contract-laws/` source library publishes six checked collection laws.
+The `contracts.state-list.*` entries prove initial uniqueness, guarded replacement,
+clearing and postconditions for the distribution’s private-list example. Generated
+traversal equivalence and data equality reflexivity are ordinary induction proofs
+in those dependency closures. Search may weaken premises to prove a stronger
+theorem; it never assumes the resulting theorem without kernel replay.

@@ -131,7 +131,7 @@ class Store:
         for obj in added:
             if not set(obj['dependencies'])<=known:raise ValueError('dependency absent from snapshot')
         if Store(self.root).snapshot_id!=self.snapshot_id:raise ValueError('publication changed during extension')
-        if names is None:names=read(self.data/'names.json')
+        names={**read(self.data/'names.json'),**(names or {})}
         return self._publish_ids(self.root,known,names,leaf_size)
     @classmethod
     def _publish_ids(cls, root, ids, names, leaf_size):
@@ -361,6 +361,9 @@ class Store:
 
     def query(self, *, kind=None, semantics=None, operation=None, result=None, effect=None, parameter_type=None, condition=None, after=None, limit=1024):
         if not isinstance(limit,int) or not 0<=limit<=1024:raise ValueError('query limit')
+        accelerator=getattr(self,'_discovery_accelerator',None)
+        if accelerator is not None and accelerator.snapshot==self.snapshot_id:
+            return accelerator.query(kind=kind,semantics=semantics,operation=operation,result=result,effect=effect,parameter_type=parameter_type,condition=condition,after=after,limit=limit)
         index=self.root/'index.sqlite'
         constraints=(kind,semantics,operation,result,effect,parameter_type,condition,after,limit)
         if not index.exists():

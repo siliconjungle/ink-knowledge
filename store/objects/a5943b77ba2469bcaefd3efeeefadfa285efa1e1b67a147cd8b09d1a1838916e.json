@@ -1,0 +1,1 @@
+{"dependencies":["4f806856575fce05998a9e259cf06621ce67e245f1f29bcb834d43796d94e420"],"interface":{"conditions":[],"effects":[],"operations":[],"parameters":{},"result":null},"kind":"definition","payload":{"declaration":{"Datatype":{"constructors":[{"fields":["U64","U64"],"name":"Job"}]}}},"schema":1,"semantics":"first-order-inductive-equality-v1"}
