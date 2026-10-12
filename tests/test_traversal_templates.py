@@ -45,3 +45,17 @@ class TraversalTemplates(unittest.TestCase):
    # Force dependencies to be cached before the deepest parent is visited.
    with patch('ink_knowledge.template_index.candidates',return_value=[identity(o)for o in rows]):
     with self.assertRaisesRegex(ValueError,'dependency depth'):generate(st,{'functions':{'f':var(value('U32'),'actual')}},{})
+
+ def test_descriptor_sized_reads_preserve_limits_and_reject_growth(self):
+  import tracemalloc
+  from types import SimpleNamespace
+  from ink_knowledge.store import _read_canonical
+  with tempfile.TemporaryDirectory()as directory:
+   path=Path(directory)/'object.json';path.write_bytes(b'{}\n')
+   tracemalloc.start();self.assertEqual(_read_canonical(path),({},b'{}'));_,peak=tracemalloc.get_traced_memory();tracemalloc.stop()
+   self.assertLess(peak,1_000_000)
+   with patch('ink_knowledge.store.MAX_VIEW_BYTES',2):self.assertEqual(_read_canonical(path),({},b'{}'))
+   with patch('ink_knowledge.store.MAX_VIEW_BYTES',1):
+    with self.assertRaisesRegex(ValueError,'byte limit'):_read_canonical(path)
+   with patch('ink_knowledge.store.os.fstat',return_value=SimpleNamespace(st_size=1)):
+    with self.assertRaisesRegex(ValueError,'changed while reading'):_read_canonical(path)
