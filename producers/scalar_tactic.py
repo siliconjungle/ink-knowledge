@@ -3,15 +3,19 @@
 Opaque calls are typed parameters, never axioms about those calls. Instantiation
 uses the kernel's ordinary Use rule and the exact supplied premise proofs.
 """
-import hashlib,json,os,subprocess,tempfile
+import hashlib,json,subprocess,tempfile
 from pathlib import Path
 from producers.action_replacement import var
 from producers.bitvector_proofs import certificate
+from producers.workspace import compiler_path
 
 class Scalar:
     def __init__(self,add,sort,normal):
         self.add,self.sort,self.normal=add,sort,normal
-        self.compiler=Path(os.environ.get('INK_COMPILER','target/debug/ink')).resolve()
+        self.compiler=compiler_path()
+        # Cached circuits belong to the exact checker that normalized the goal.
+        # They remain untrusted and are replayed when the proposal is admitted.
+        self.compiler_sha256=hashlib.sha256(self.compiler.read_bytes()).hexdigest()
         self.memo={}
     def prove(self,a,z,env,facts=()):
         for words in (False,True):
@@ -49,7 +53,7 @@ class Scalar:
         if key in self.memo and self.memo[key] is None:raise ValueError('previous scalar counterexample')
         if key not in self.memo:
             cache=Path(__file__).resolve().parents[1]/'build/scalar-laws';cache.mkdir(parents=True,exist_ok=True)
-            file=cache/(hashlib.sha256(key.encode()).hexdigest()+'.json')
+            file=cache/(hashlib.sha256((self.compiler_sha256+':'+key).encode()).hexdigest()+'.json')
             if file.exists():proof=json.loads(file.read_text())
             else:
                 with tempfile.TemporaryDirectory(prefix='ink-scalar-')as d:
