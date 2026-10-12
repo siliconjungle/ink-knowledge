@@ -374,7 +374,10 @@ def lexical_reads(program):
                             if isinstance(nested,dict):visit(nested,env)
     for f in program['functions']:visit(f['body'],dict(f['params']),f['result'])
     return result
-def physical(context, source_strategies, definition_strategies):
+def physical(context, source_strategies, definition_strategies, composition_limit=256):
+    from ink_knowledge.selectors import matches
+    from itertools import product
+    if type(composition_limit)is not int or not 1<=composition_limit<=4096:raise ValueError('physical composition budget')
     program=context['core']['program'];current=context.get('representation')
     reads=lexical_reads(program);rows=set();tables={s['name']for s in program['states']}
     for node in walk(program):
@@ -391,25 +394,36 @@ def physical(context, source_strategies, definition_strategies):
                 if base[1]in {'values','get'}and base[0].get('Var')in tables:rows.add(identity(node))
     base=dict(tables='ordered',buffers='scoped',definitions='shared',borrow_reads=[],borrow_rows=[],packed_datatypes=[],memo_functions=[],reservations=(context.get('physical')or{}).get('reservations',[]))
     strategies=[base];target=context.get('emit_target','rust')
-    if current is None and target in {'rust','rust-wasm'}:
+    if current is None:
         for strategy in source_strategies:
-            if strategy['tables']=='indexed_slots'and not tables:continue
+            if target not in strategy.get('targets',[]):continue
+            if strategy.get('requires_tables',False)and not tables:continue
             strategies.append(dict(base,buffers=strategy.get('buffers','scoped'),tables=strategy['tables'],borrow_reads=sorted(reads)if strategy['borrow']else[],
                 borrow_rows=sorted(rows)if strategy['borrow']else[]))
-    if current is not None and target in {'rust','rust-wasm'}:
-        ds=context.get('definitions',{});eligible={'packed':[],'memo':[]}
-        for ident,declaration in ds.items():
-            if 'Datatype'in declaration:
-                cs=declaration['Datatype']['constructors']
-                if len(cs)==2 and not cs[0]['fields']and 2<=len(cs[1]['fields'])<=17 and cs[1]['fields'][-1]=='SelfType'and all(s in ['Bool','U64']or isinstance(s,dict)and 'Data'in s for s in cs[1]['fields'][:-1]):eligible['packed'].append(ident)
-            if 'Function'in declaration:
-                f=declaration['Function'];sorts=[s for _,s in f['params']]
-                if f['result']in ['Bool','U64']and len(sorts)<=5 and all(s in ['Bool','U64']or isinstance(s,dict)and 'Data'in s for s in sorts)and sum(isinstance(s,dict)and 'Data'in s for s in sorts)==1:eligible['memo'].append(ident)
+    if current is not None:
+        ds=context.get('definitions',{});axes={}
         for strategy in definition_strategies:
-            sites=sorted(eligible[strategy['definitions']])
+            if target not in strategy.get('targets',[]):continue
+            field=strategy['site_field']
+            if field not in {'packed_datatypes','memo_functions'}:raise ValueError('physical capability field')
+            sites=sorted(ident for ident,declaration in ds.items()if matches(strategy['eligible'],declaration))
             groups=([sites]if strategy['sites']=='all'else[[i]for i in sites])if sites else[]
             for group in groups:
-                strategies.append(dict(base,definitions=strategy['definitions'],**{strategy['site_field']:group}))
+                axes.setdefault(field,[]).append(group)
+        # Capabilities compose independently. Candidate creation is bounded;
+        # every complete composition still receives ordinary compiler checking.
+        fields=sorted(axes);groups={f:list({tuple(g):g for g in axes[f]}.values())for f in fields}
+        def singles(field):
+            for group in groups[field]:yield {field:group}
+        streams=[singles(f)for f in fields]
+        if len(fields)>1:streams.append((dict(zip(fields,combination))for combination in product(*(groups[f]for f in fields))))
+        count=0
+        for batch in itertools.zip_longest(*streams):
+            for choice in batch:
+                if choice is None:continue
+                if count>=composition_limit:break
+                strategies.append(dict(base,definitions='selected',**choice));count+=1
+            if count>=composition_limit:break
     seen=set()
     for strategy in strategies:
         plan=dict(schema=1,semantics='ink-physical-plan-v1',input_core_sha256=context['source'],**strategy)

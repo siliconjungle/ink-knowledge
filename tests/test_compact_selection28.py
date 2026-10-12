@@ -9,6 +9,8 @@ compact=importlib.util.module_from_spec(spec);spec.loader.exec_module(compact)
 R=ROOT/'reports/web-engine-28-2026-10-11'
 COMPILER=ROOT.parent/'toolchain/ink-web-engine-28-rc1'
 MODEL=ROOT/'reports/web-stack-proofs-27-2026-10-11/cpu-cost-model.json'
+@unittest.skipUnless((R/'context/candidate-view.json').is_file()and COMPILER.is_file()and MODEL.is_file(),
+ 'requires the archived web-engine-28 benchmark fixture and frozen compiler')
 class CompactContexts(unittest.TestCase):
  def test_mixed_valid_contexts_do_not_poison_admission(self):
   store=Store(R/'context/candidate-store')

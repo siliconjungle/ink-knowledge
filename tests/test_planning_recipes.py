@@ -51,7 +51,8 @@ class RegistryCoverage(unittest.TestCase):
     def test_physical_strategy_domains_are_published_as_data(self):
         registry,_=load();recipe=next(r for r in registry['recipes']if r['function']=='physical')
         self.assertEqual({r['tables']for r in recipe['parameters']['source_strategies']},{'ordered','indexed_slots'})
-        self.assertEqual({r['definitions']for r in recipe['parameters']['definition_strategies']},{'packed','memo'})
+        self.assertEqual({r['site_field']for r in recipe['parameters']['definition_strategies']},{'packed_datatypes','memo_functions'})
+        self.assertTrue(all('eligible'in r for r in recipe['parameters']['definition_strategies']))
         self.assertEqual({r['buffers']for r in recipe['parameters']['source_strategies']},{'scoped','direct'})
         self.assertTrue(any(r['id']=='source-capabilities'for r in registry['recipes']))
 

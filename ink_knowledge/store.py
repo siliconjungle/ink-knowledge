@@ -92,7 +92,13 @@ def read(path):
     return _read_canonical(path)[0]
 
 def _read_canonical(path):
-    with path.open('rb') as f: raw=f.read(MAX_VIEW_BYTES+2)
+    with path.open('rb') as f:
+        # Size the allocation from the opened descriptor, not the admission
+        # ceiling. A second read rejects growth rather than ignoring a suffix.
+        size=os.fstat(f.fileno()).st_size
+        if size>MAX_VIEW_BYTES+1:raise ValueError('knowledge object byte limit')
+        raw=f.read(size+1)
+        if len(raw)>size or f.read(1):raise ValueError('knowledge object changed while reading')
     if raw.endswith(b'\n'):raw=raw[:-1]
     if len(raw)>MAX_VIEW_BYTES: raise ValueError('knowledge object byte limit')
     value=json.loads(raw)
@@ -229,12 +235,13 @@ class Store:
         hash_id(i)
         self.witness(i)
         return self._read_object(i)
-    def _read_object(self,i):
+    def _read_object(self,i,pack_db=None):
         # Parse, validate canonical values, and serialize once. The exact same
         # bytes establish the size limit and content identity; no cached receipt
         # or unverified on-disk hash substitutes for either check.
         hash_id(i)
-        obj,encoded=_read_canonical(self.data/'objects'/f'{i}.json')
+        from .object_pack import read as read_object
+        obj,encoded=read_object(self,i,pack_db)
         _entry_fields(obj);_entry_size(obj,len(encoded))
         if hashlib.sha256(encoded).hexdigest()!=i:raise ValueError('entry content mismatch')
         return obj
@@ -242,7 +249,8 @@ class Store:
         roots=sorted(set(roots));objects={};active=set();membership={};verified=set()
         index=self.root/'index.sqlite'
         indexed=bool(roots) and self._members is None and index.exists()
-        with closing(sqlite3.connect(index.as_uri()+'?mode=ro',uri=True)) if indexed else nullcontext(None) as db:
+        from .object_pack import reader as pack_reader
+        with pack_reader(self) as pack_db, closing(sqlite3.connect(index.as_uri()+'?mode=ro',uri=True)) if indexed else nullcontext(None) as db:
             # Keep one SQLite read snapshot even if another process rebuilds or
             # writes the disposable index during traversal.
             if db is not None:db.execute('BEGIN')
@@ -256,7 +264,7 @@ class Store:
                 if depth>64 or i in active or len(objects)+len(active)>=MAX_VIEW_ENTRIES:raise ValueError('active dependency closure limit')
                 hash_id(i);active.add(i)
                 membership[i]=self._indexed_witness(i,proof_db,verified) if proof_db is not None else self.witness(i)
-                obj=self._read_object(i)
+                obj=self._read_object(i,pack_db) if pack_db is not None else self._read_object(i)
                 object_bytes+=len(canonical(obj))
                 if object_bytes>MAX_VIEW_BYTES:raise ValueError('active dependency byte limit')
                 for d in obj['dependencies']:visit(d,depth+1)
@@ -271,6 +279,10 @@ class Store:
         try:
             with closing(sqlite3.connect(tmp,uri=True)) as db, db:
                 db.executescript(Path(__file__).with_name("index.sql").read_text())
+                from .template_index import SCHEMA as template_schema, insert as insert_template
+                db.executescript(template_schema)
+                from .family_evidence import SCHEMA as attribution_schema, insert as insert_attribution
+                db.executescript(attribution_schema)
 
                 db.execute('INSERT INTO snapshots(id,root) VALUES(?,?)',(self.snapshot_id,self.snapshot['root']))
                 objects=self.members();witness_cache={}
@@ -281,6 +293,7 @@ class Store:
                     db.execute('INSERT INTO entries VALUES(?,?,?,?,?,?)',(i,obj['kind'],obj['semantics'],encode(iface['result']),encode(iface['parameters']),encode(iface['conditions'])))
                     from .pattern_index import insert as insert_pattern
                     insert_pattern(db,i,obj)
+                    insert_template(db,i,obj)
                     index_member(db,self.snapshot_id,i,self.members()[i],witness_cache)
                     db.execute('INSERT INTO types VALUES(?,?,?,?)',(i,'result','',encode(iface['result'])))
                     db.executemany('INSERT INTO types VALUES(?,?,?,?)',[(i,'parameter',n,encode(t)) for n,t in iface['parameters'].items()])
@@ -293,6 +306,7 @@ class Store:
                     obj=read(p);self.validate_observation(obj)
                     if identity(obj)!=p.stem:raise ValueError('observation content mismatch')
                     db.execute('INSERT INTO observations VALUES(?,?,?,?,?,?)',(p.stem,obj['program'],obj['plan'],canonical(obj['target']).decode(),canonical(obj['workload']).decode(),canonical(obj['metrics']).decode()))
+                    insert_attribution(db,p.stem,obj)
             os.replace(tmp,target)
         finally:
             if Path(tmp).exists():Path(tmp).unlink()
@@ -312,7 +326,7 @@ class Store:
                     columns={r[1]for r in db.execute('PRAGMA table_info(members)')}
                     from .index_cache import INDEXES
                     indexes={r[0]for r in db.execute("SELECT name FROM sqlite_master WHERE type='index'")}
-                    if {'snapshots','entries','members','witnesses','pattern_roots','pattern_targets','observations'}<=tables and 'witness_id'in columns and set(INDEXES)<=indexes:
+                    if {'snapshots','entries','members','witnesses','pattern_roots','pattern_targets','template_heads','template_tokens','observations','observation_entries','observation_attribution'}<=tables and 'witness_id'in columns and set(INDEXES)<=indexes:
                         found=db.execute('SELECT root FROM snapshots WHERE id=?',(self.snapshot_id,)).fetchone()
                         if found and found[0]==self.snapshot['root']:return False
             except sqlite3.DatabaseError:pass
@@ -335,6 +349,10 @@ class Store:
                 db.execute('PRAGMA foreign_keys=ON')
                 from .pattern_index import SCHEMA as pattern_schema
                 db.executescript(pattern_schema)
+                from .template_index import SCHEMA as template_schema
+                db.executescript(template_schema)
+                from .family_evidence import SCHEMA as attribution_schema,insert as insert_attribution
+                db.executescript(attribution_schema)
                 with db:
                     db.execute('INSERT OR IGNORE INTO snapshots(id,root) VALUES(?,?)',(self.snapshot_id,self.snapshot['root']))
                     members=self.members();encode=lambda x:canonical(x).decode();witness_cache={}
@@ -347,6 +365,8 @@ class Store:
                             db.execute('INSERT INTO entries VALUES(?,?,?,?,?,?)',(i,obj['kind'],obj['semantics'],encode(iface['result']),encode(iface['parameters']),encode(iface['conditions'])))
                             from .pattern_index import insert as insert_pattern
                             insert_pattern(db,i,obj)
+                            from .template_index import insert as insert_template
+                            insert_template(db,i,obj)
                             db.execute('INSERT INTO types VALUES(?,?,?,?)',(i,'result','',encode(iface['result'])))
                             db.executemany('INSERT INTO types VALUES(?,?,?,?)',[(i,'parameter',n,encode(t)) for n,t in iface['parameters'].items()])
                             db.executemany('INSERT INTO applicability VALUES(?,?,?)',[(i,n,encode(c)) for n,c in enumerate(iface['conditions'])])
@@ -360,11 +380,16 @@ class Store:
                         if i in members:db.execute('INSERT INTO names VALUES(?,?)',(name,i))
                     from .pattern_index import refresh as refresh_patterns
                     refresh_patterns(self,db)
+                    from .template_index import refresh as refresh_templates
+                    refresh_templates(self,db)
                     for p in sorted((self.data/'observations').glob('*.json')):
                         if db.execute('SELECT 1 FROM observations WHERE id=?',(p.stem,)).fetchone():continue
                         obj=read(p);self.validate_observation(obj)
                         if identity(obj)!=p.stem:raise ValueError('observation content mismatch')
                         db.execute('INSERT INTO observations VALUES(?,?,?,?,?,?)',(p.stem,obj['program'],obj['plan'],encode(obj['target']),encode(obj['workload']),encode(obj['metrics'])))
+                        insert_attribution(db,p.stem,obj)
+                    from .family_evidence import refresh as refresh_attribution
+                    refresh_attribution(self,db)
             os.replace(tmp,target)
         finally:
             if Path(tmp).exists():Path(tmp).unlink()
@@ -444,7 +469,10 @@ class Store:
         index=self.root/'index.sqlite'
         if index.exists():
             with closing(sqlite3.connect(index)) as db,db:
+                from .family_evidence import SCHEMA as attribution_schema,insert as insert_attribution
+                db.executescript(attribution_schema)
                 db.execute('INSERT OR IGNORE INTO observations VALUES(?,?,?,?,?,?)',(i,obj['program'],obj['plan'],canonical(obj['target']).decode(),canonical(obj['workload']).decode(),canonical(obj['metrics']).decode()))
+                insert_attribution(db,i,obj)
         return i
     def _observation_page(self,program,plans,target,workload,limit=1024,after=None):
         hash_id(program)
