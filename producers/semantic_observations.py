@@ -84,7 +84,7 @@ def proposals(goal,store,context,rounds=8):
     from ink_knowledge.law_templates import generate
     from ink_planner.semantic_search import positions,key
     definitions=context['definitions']
-    core={'program':dict(functions=[dict(name=n,params=d['definition']['params'],result=d['definition']['result'])for n,d in definitions.items()],records=context['records'],enums=context['enums'])}
+    core={'program':dict(functions=[dict(name=n,params=d['definition']['params'],result=d['definition']['result'])for n,d in definitions.items()],records=context['records'],enums=context['enums'],ids=context.get('ids',[]))}
     bodies={n:d['definition']['body']for n,d in definitions.items()}
     current=goal['goal']['from'];proof='Normalize';objects={};roots=set();cache={};seen=set()
     def closure(ids):
