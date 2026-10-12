@@ -34,12 +34,16 @@ CREATE TABLE members (
 ) STRICT;
 
 CREATE INDEX membership_witness_lookup ON members(witness_id);
+CREATE INDEX membership_entry_lookup ON members(entry_id,snapshot_id);
 
 CREATE TABLE dependencies (
     entry_id TEXT REFERENCES entries (id),
     dependency_id TEXT REFERENCES entries (id) DEFERRABLE INITIALLY DEFERRED,
     PRIMARY KEY (entry_id, dependency_id)
 ) STRICT;
+-- Deferred parent insertion checks need the reverse edge too. Without this
+-- index each newly inserted proof may scan the complete dependency relation.
+CREATE INDEX dependency_parent_lookup ON dependencies(dependency_id,entry_id);
 
 CREATE TABLE types (
     entry_id TEXT REFERENCES entries (id),

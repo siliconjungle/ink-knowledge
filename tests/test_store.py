@@ -49,6 +49,34 @@ class StoreTests(unittest.TestCase):
         self.assertEqual(set(prior.bundle([identity(self.b)])['objects']),{identity(self.a),identity(self.b)})
         self.assertNotIn(identity(c),prior.query(kind='definition'))
 
+    def test_reverse_dependency_index_migrates_atomically_without_changing_exports(self):
+        self.store.rebuild();original=Store(self.root).bundle([identity(self.b)])
+        with closing(sqlite3.connect(self.root/'index.sqlite'))as db,db:
+            db.execute('DROP INDEX dependency_parent_lookup');db.execute('DROP INDEX membership_entry_lookup')
+        store=Store(self.root);self.assertTrue(store.ensure_index());self.assertFalse(store.ensure_index())
+        self.assertEqual(canonical(Store(self.root).bundle([identity(self.b)])),canonical(original))
+        with closing(sqlite3.connect(self.root/'index.sqlite'))as db:
+            plan=list(db.execute('EXPLAIN QUERY PLAN SELECT entry_id FROM dependencies WHERE dependency_id=?',(identity(self.a),)))
+            self.assertTrue(any('dependency_parent_lookup'in row[3]for row in plan))
+            self.assertEqual(list(db.execute('PRAGMA foreign_key_check')),[])
+
+    def test_single_canonical_read_preserves_validation_and_noncanonical_json(self):
+        key=identity(self.a);path=self.root/'store/objects'/f'{key}.json'
+        # Content identities describe canonical JSON, not whitespace/key order.
+        path.write_text(json.dumps(self.a,indent=2,sort_keys=False))
+        self.assertEqual(Store(self.root).object(key),self.a)
+        for bad in [dict(self.a,schema=True),dict(self.a,payload={'bad':1.5}),
+                    dict(self.a,payload={'bad':1<<65}),dict(self.a,dependencies=['x'])]:
+            path.write_text(json.dumps(bad))
+            with self.assertRaises(ValueError):Store(self.root).object(key)
+        path.write_text(json.dumps(self.a))
+        with patch('ink_knowledge.store.MAX_ENTRY_BYTES',100):
+            with self.assertRaisesRegex(ValueError,'byte limit'):Store(self.root).object(key)
+        # Re-read on every export; a valid earlier receipt cannot mask tampering.
+        self.assertEqual(Store(self.root).object(key),self.a)
+        path.write_text(json.dumps(dict(self.a,semantics='forged')))
+        with self.assertRaisesRegex(ValueError,'content mismatch'):Store(self.root).object(key)
+
     def test_canonical_identity_is_key_order_independent_and_rejects_floats(self):
         self.assertEqual(identity({'b':2,'a':1}),identity({'a':1,'b':2}))
         self.assertEqual(canonical({'a':True}),b'{"a":true}')
@@ -62,9 +90,9 @@ class StoreTests(unittest.TestCase):
         (self.root/'index.sqlite').unlink();self.assertEqual(self.store.query(kind='theorem'),[identity(self.b)])
     def test_bundle_reuses_one_connection_and_leaf_authentication_with_exact_output(self):
         self.store.rebuild();fresh=Store(self.root)
-        from ink_knowledge.store import read
+        from ink_knowledge.store import _read_canonical
         with patch('ink_knowledge.store.sqlite3.connect',wraps=sqlite3.connect) as connects, \
-             patch('ink_knowledge.store.read',wraps=read) as reads, \
+             patch('ink_knowledge.store._read_canonical',wraps=_read_canonical) as reads, \
              patch('ink_knowledge.store.identity',wraps=identity) as hashes:
             view=fresh.bundle([identity(self.b),identity(self.b)])
         self.assertEqual(connects.call_count,1)
@@ -245,8 +273,8 @@ class StoreTests(unittest.TestCase):
             value=copy.deepcopy(obs);value['plan']=identity({'candidate':number})
             records.append((self.store.observe(value),value))
         records.sort(key=lambda record:record[0]);selected=records[-1][1]
-        from ink_knowledge.store import read
-        with patch('ink_knowledge.store.read',wraps=read) as reads:
+        from ink_knowledge.store import _read_canonical
+        with patch('ink_knowledge.store._read_canonical',wraps=_read_canonical) as reads:
             self.assertEqual(self.store.observations(obs['program'],[selected['plan']],obs['target'],obs['workload'],limit=1),[selected])
             self.assertEqual(reads.call_count,1)
         wanted=[records[0][1]['plan'],selected['plan']]
