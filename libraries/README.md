@@ -13,6 +13,12 @@ contract for syntax, ordering, wire shapes and limitations. Generic templates ar
 checked when instantiated. These libraries require that foundation's core and
 backend revisions.
 
+`invariant-values.ink` defines abstract unique collections, sorted words, bounded
+indices and indices tied to an immutable sequence. Construction and operations
+carry ordinary checked predicates; callers use the public observers. It requires
+the distribution's value-invariant and abstract-record source machinery. Source
+opacity does not remove public input validation or establish faster execution.
+
 The set and join algorithms deliberately expose a baseline for comparison; no
 speedup claim is established by their presence in this repository. The external
 finite-list producer separately supplies locally checked work-skipping laws.
