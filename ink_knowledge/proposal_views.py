@@ -10,6 +10,16 @@ class ProposalViews:
         # Unused discovery bodies are never copied or treated as admitted laws.
         self.transport=Store._publish_ids(self.directory,objects.keys(),{},64)
         self.members=self.transport.members()
+    def update(self,extra):
+        """Extend proposal transport; every new closure still needs kernel admission."""
+        changed=False
+        for ident,obj in extra.items():
+            if identity(obj)!=ident:raise ValueError('proposal object content mismatch')
+            if ident not in self.objects:self.objects[ident]=obj;changed=True
+        if changed:
+            self.transport=Store._publish_ids(self.directory,self.objects.keys(),{},64)
+            self.members=self.transport.members()
+            self.views.clear();self.bytes=0
     def bundle(self,roots):
         roots=tuple(sorted(set(roots)))
         if roots in self.views:return self.views[roots]
