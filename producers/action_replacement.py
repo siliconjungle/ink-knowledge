@@ -96,6 +96,8 @@ def produce(before,after,selected,directory,knowledge_root=None,snapshot=None):
     if before['semantics']!='ink-action-transition-v1' or after['semantics']!=before['semantics']:raise ValueError('incompatible projection')
     if before['state']!=after['state'] or before['events']!=after['events']:raise ValueError('transition representation changed')
     objects={**before['objects'],**after['objects']};proofs={};laws={}
+    from producers.definition_bridges import bridges
+    bridge,bridge_roots=bridges(before['objects'],after['objects'],objects)
     database=Store(Path(knowledge_root) if knowledge_root else Path(__file__).resolve().parents[1],snapshot)
     names=read(database.data/'names.json')
     roles={n:names['action-laws/'+n] for n in ['StateRow','WordRows','remove','remove_idempotence']}
@@ -231,8 +233,12 @@ def produce(before,after,selected,directory,knowledge_root=None,snapshot=None):
         # Convert rechecks the final complete observation, including hygienic
         # binder changes caused by removing a statement. Syntactic identity is
         # unnecessarily strict here; this proposal gains no authority from it.
+        current,bridge_steps=bridge(current)
+        steps.extend(bridge_steps)
         current,left_steps=canonical(current)
-        end_canonical,right_steps=canonical(end)
+        end_bridged,bridge_right_steps=bridge(end)
+        end_canonical,right_steps=canonical(end_bridged)
+        right_steps=[*bridge_right_steps,*right_steps]
         if right_steps:
             tail=trans(guarded_equality(current,end_canonical,objects),{'Sym':trans(*right_steps)},convert(end,new))
         else:
@@ -240,7 +246,7 @@ def produce(before,after,selected,directory,knowledge_root=None,snapshot=None):
         case=trans(convert(old,start),*steps,*left_steps,tail)
         args=[var(n) for n,_ in a['params']]
         proofs[name]={'Induction':dict(variable='initial',**{'from':call(a['function'],args),'to':call(z['function'],args)},cases=[dict(bindings=a['case']['bindings'],proof=case)])}
-    roots=sorted({a['function'] for a in before['actions'].values()}|{a['function'] for a in after['actions'].values()}|{law['theorem'] for law in laws.values()}|{law['theorem'] for _,_,law in coalescing}|used_commuting)
+    roots=sorted({a['function'] for a in before['actions'].values()}|{a['function'] for a in after['actions'].values()}|{law['theorem'] for law in laws.values()}|{law['theorem'] for _,_,law in coalescing}|used_commuting|bridge_roots)
     store=Store.publish(directory,list(objects.values()))
     return dict(schema=1,semantics='ink-evidence-v1',input_core_sha256=before['source'],knowledge=store.bundle(roots),applications=[],action_replacement=dict(selected=selected,proofs=proofs))
 

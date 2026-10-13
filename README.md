@@ -433,3 +433,9 @@ certificates. It requires a compiler supporting the explicit circuit mode. Use
 `--compiler /path/to/ink --output /private/candidate/store`; publication does not
 select a source or backend representation. `tests/test_tagged_word_codecs.py`
 checks all widths, false proposals, statement/mode changes and corrupt hints.
+
+Maintained folds can additionally author checked scalar update and contribution
+choices. `producers.cell_actions` and `producers.early_return` propose complete
+action simplifications, admitted only through whole-action equality. Generated
+helper names are bridged with ordinary induction theorems rather than hash-based
+equality. See the distribution's `docs/maintained-folds.md` for trust boundaries.
