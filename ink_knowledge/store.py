@@ -461,11 +461,11 @@ class Store:
             for column,value in [('kind',kind),('semantics',semantics),('result',None if result is None else canonical(result).decode())]:
                 if value is not None:where.append('e.'+column+'=?');args.append(value)
             for table,column,value in [('operations','operation',operation),('effects','effect',effect)]:
-                if value is not None:where.append(f'EXISTS(SELECT 1 FROM {table} x WHERE x.entry_id=e.id AND x.{column}=?)');args.append(value)
+                if value is not None:where.append(f'e.id IN (SELECT entry_id FROM {table} WHERE {column}=?)');args.append(value)
             if parameter_type is not None:
-                where.append("EXISTS(SELECT 1 FROM types t WHERE t.entry_id=e.id AND t.role='parameter' AND t.type=?)");args.append(canonical(parameter_type).decode())
+                where.append("e.id IN (SELECT entry_id FROM types WHERE role='parameter' AND type=?)");args.append(canonical(parameter_type).decode())
             if condition is not None:
-                where.append('EXISTS(SELECT 1 FROM applicability a WHERE a.entry_id=e.id AND a.condition=?)');args.append(canonical(condition).decode())
+                where.append('e.id IN (SELECT entry_id FROM applicability WHERE condition=?)');args.append(canonical(condition).decode())
             if after is not None:where.append('e.id>?');args.append(hash_id(after))
             args.append(limit)
             return [r[0] for r in db.execute('SELECT e.id FROM entries e JOIN members m ON m.entry_id=e.id WHERE '+' AND '.join(where)+' ORDER BY e.id LIMIT ?',args)]

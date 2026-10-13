@@ -11,3 +11,5 @@ __pycache__/
 /research/**/index.sqlite
 
 /compiled-cache/
+/index-published.json
+/.ink-published-*

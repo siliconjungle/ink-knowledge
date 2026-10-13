@@ -426,3 +426,10 @@ source codecs. Current emission is JavaScript only.
 
 See the distribution's `docs/maintained-folds.md` for trusted runtime/controller
 limits, ownership, rollback, restore and subscription contracts.
+
+`producers/tagged_word_codecs.py` publishes bounded 1–12-bit tagged-word equations
+with explicit payload/tag premises and independently replayed `shared-v2` RUP
+certificates. It requires a compiler supporting the explicit circuit mode. Use
+`--compiler /path/to/ink --output /private/candidate/store`; publication does not
+select a source or backend representation. `tests/test_tagged_word_codecs.py`
+checks all widths, false proposals, statement/mode changes and corrupt hints.

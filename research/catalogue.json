@@ -3,6 +3,14 @@
   "kind": "ink-knowledge-discovery",
   "packages": [
     {
+      "name": "action-laws",
+      "lock": "action-laws/lock.json",
+      "lock_sha256": "2ea857960621d36cec25c0b9711c0a1126b1300ade4d795cfad33fd6b3c40802",
+      "semantics": "first-order-inductive-equality-v1",
+      "checker_command": "verify-library",
+      "roots": 4
+    },
+    {
       "name": "bitvector",
       "lock": "bitvector/lock.json",
       "lock_sha256": "98ccdb00a4123418682fb7ff764f806e1bd209bc5884256d5addf0da4a5e3094",
@@ -213,7 +221,7 @@
     {
       "name": "source-row-ledger/reversible",
       "lock": "source-row-ledger/reversible/lock.json",
-      "lock_sha256": "16e59d6f8a5fbad7b5fcec0085fb0a82b320c5df35052587afbba80454c38676",
+      "lock_sha256": "b5a07b105458fcc5c073b5c6c067bf24d114ba43b9d23ea1a913f760a52926ff",
       "semantics": "first-order-inductive-equality-v1",
       "checker_command": "verify-library",
       "roots": 102
@@ -221,7 +229,7 @@
     {
       "name": "source-row-ledger/snapshot",
       "lock": "source-row-ledger/snapshot/lock.json",
-      "lock_sha256": "4b60cd0b38aadee85f008d964979ba300f480058fb01748e471739a932a55bc9",
+      "lock_sha256": "54e5fd76a62c396f6ca6b23ea9365ebdd916f8ef4735c44d3cf7952f0722223d",
       "semantics": "first-order-inductive-equality-v1",
       "checker_command": "verify-library",
       "roots": 102
@@ -229,7 +237,7 @@
     {
       "name": "source-row-undo/reversible",
       "lock": "source-row-undo/reversible/lock.json",
-      "lock_sha256": "80f156164fd0859f378999f67319565cab303e48052e6ea591d65a465c741ada",
+      "lock_sha256": "6498e75863b72906dddb4b2a6b52ef1c9e9f3e92c7f43ecdc0e50e26faea3dd9",
       "semantics": "first-order-inductive-equality-v1",
       "checker_command": "verify-library",
       "roots": 105
@@ -237,7 +245,7 @@
     {
       "name": "source-row-undo/snapshot",
       "lock": "source-row-undo/snapshot/lock.json",
-      "lock_sha256": "3435cffedde3387314a93b4c0723fcc3d81149fb2b074de62a1e0462305253ef",
+      "lock_sha256": "25d803ab424f19c05d9928b8738ea59fb392fa012c7a0e0b500e68f25a45d479",
       "semantics": "first-order-inductive-equality-v1",
       "checker_command": "verify-library",
       "roots": 105
@@ -285,7 +293,7 @@
     {
       "name": "table-undo",
       "lock": "table-undo/lock.json",
-      "lock_sha256": "cb3c95d2749ae724f6ccfa7a61542d050f88f1e990f177e01ac271599352a227",
+      "lock_sha256": "dec3d4c11c267f71010151a4bcafcc0b444e9a3a6eb6952fe36f53c4e807346f",
       "semantics": "first-order-inductive-equality-v1",
       "checker_command": "verify-library",
       "roots": 96
@@ -293,7 +301,7 @@
     {
       "name": "table-undo-snapshot",
       "lock": "table-undo-snapshot/lock.json",
-      "lock_sha256": "af4e4edbf80901da45fe723f3108b1264282a54e83791b618980c558403a10fb",
+      "lock_sha256": "3ed9f19d2707ccff2cdc78d50ecdacff4e649dd23fbfec9dbfc46a128a425510",
       "semantics": "first-order-inductive-equality-v1",
       "checker_command": "verify-library",
       "roots": 96
