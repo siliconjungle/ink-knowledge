@@ -261,6 +261,37 @@ def _state_proof(objects,a,z,params,hyp=(),depth=0,serial=None,aliases=None,scal
                 use={'Use':dict(theorem=boolean_ids[label],arguments=[branch['condition'],branch['on_true']],premises=[proof])}
                 facts.append((value,{'Bool':True},use))
     expand_boolean_facts()
+    def expand_constructor_facts():
+        # Elimination of a matched result can hide the state expression that
+        # produced its payload. Recover field equalities by ordinary congruence
+        # through a total Match projection; constructor identity is checked data.
+        def bindings(i,constructor):
+            result=[]
+            for j in range(len(constructor['fields'])):
+                name=f'contract_project_{i}_{j}'
+                while name in params or name in result:name+='_'
+                result.append(name)
+            return result
+        for x,y,proof in list(facts):
+            if 'Construct' not in x or 'Construct' not in y:continue
+            a=x['Construct'];b=y['Construct']
+            if a['datatype']!=b['datatype']:continue
+            constructors=objects[a['datatype']]['payload']['declaration']['Datatype']['constructors']
+            if a['constructor']!=b['constructor']:
+                branches=[dict(bindings=bindings(i,c),body={'Bool':i==a['constructor']}) for i,c in enumerate(constructors)]
+                projected=lift(proof,{'Match':dict(scrutinee=var('delta_hole'),branches=branches)})
+                facts.append(({'Bool':True},{'Bool':False},projected));continue
+            for field,(left,right) in enumerate(zip(a['arguments'],b['arguments'])):
+                if left==right:continue
+                branches=[]
+                for i,c in enumerate(constructors):
+                    names=bindings(i,c)
+                    branches.append(dict(bindings=names,body=var(names[field]) if i==a['constructor'] else left))
+                projected=lift(proof,{'Match':dict(scrutinee=var('delta_hole'),branches=branches)})
+                if 'Var' in right and 'Var' not in left:left,right,projected=right,left,{'Sym':projected}
+                if not any(alpha(left)==alpha(a) and alpha(right)==alpha(b) for a,b,_ in facts):
+                    facts.append((left,right,projected))
+    expand_constructor_facts()
     def contradiction():
         for x,y,proof in facts:
             if 'Bool' in x and 'Bool' in y and x!=y:
@@ -291,6 +322,7 @@ def _state_proof(objects,a,z,params,hyp=(),depth=0,serial=None,aliases=None,scal
             if impossible:return impossible
         if not updated:break
         expand_boolean_facts()
+        expand_constructor_facts()
     na,pa=simplify(a,facts);nz,pz=simplify(z,facts)
     def nodes(t):
         if isinstance(t,dict):
@@ -304,6 +336,45 @@ def _state_proof(objects,a,z,params,hyp=(),depth=0,serial=None,aliases=None,scal
     if scalar is not None:
         try:return trans(pa,scalar.prove(na,nz,params,facts),{'Sym':pz})
         except ValueError:pass
+    # A recursive observation can have a concrete result after preceding writes,
+    # even when embedded in a traversal over an independent collection. Propose
+    # a closed equality first, replay it as a separate ordinary theorem, then
+    # transport that fact by congruence. Literal/constructor candidates are search
+    # data; their names or shape never grant admission.
+    if strengthen and scalar is not None and len(lemma_attempts)<16:
+        literals=[]
+        pending=[na,nz]
+        while pending:
+            term=pending.pop()
+            if isinstance(term,dict):
+                if set(term)=={'U64'} and term not in literals:literals.append(term)
+                pending.extend(term.values())
+            elif isinstance(term,list):pending.extend(term)
+        literals=literals[:8]
+        for term in nodes([na,nz]):
+            if 'Call' not in term or not free_variables(term)<=params.keys():continue
+            declaration=objects[term['Call']['function']]['payload']['declaration'].get('Function')
+            sort=declaration and declaration['result']
+            if not isinstance(sort,dict) or 'Data' not in sort:continue
+            constructors=objects[sort['Data']]['payload']['declaration'].get('Datatype',{}).get('constructors',[])
+            for ordinal,constructor in enumerate(constructors):
+                fields=constructor['fields']
+                if len(fields)>1 or any(t not in ('Bool','U64') for t in fields):continue
+                candidates=[[]] if not fields else ([[v] for v in literals] if fields[0]=='U64' else [[{'Bool':False}],[{'Bool':True}]])
+                for arguments in candidates:
+                    if len(lemma_attempts)>=16:break
+                    value=cons(sort['Data'],ordinal,arguments)
+                    marker=json.dumps(['observation',term,value],sort_keys=True,separators=(',',':'))
+                    if marker in lemma_attempts:continue
+                    lemma_attempts.add(marker)
+                    local={n:t for n,t in params.items() if n in free_variables(term)}
+                    try:proof=state_proof(objects,term,value,local,(),0,serial,aliases,scalar,lemma_attempts,False)
+                    except ValueError:continue
+                    theorem=scalar.add({'Theorem':dict(params=list(local.items()),conditions=[],**{'from':term,'to':value},proof=proof)})
+                    use={'Use':dict(theorem=theorem,arguments=[var(n) for n in local],premises=[])}
+                    following=replace(na,term,value)
+                    proof=state_proof(objects,following,nz,params,hyp,depth+1,serial,aliases,scalar,lemma_attempts,strengthen)
+                    return trans(pa,lift(use,replace(na,term,var('delta_hole'))),proof,{'Sym':pz})
     # A whole-action induction hypothesis can be too weak for a recursive helper
     # reached through a different branch. Propose a stronger, separately proved
     # conditional lemma about the residual computation itself. Dependent outer
@@ -385,6 +456,15 @@ def _state_proof(objects,a,z,params,hyp=(),depth=0,serial=None,aliases=None,scal
             cases.append(dict(bindings=names,proof=proof))
         return trans(pa,{'Cases':dict(scrutinee=scrutinee,**{'from':na,'to':nz},cases=cases)},{'Sym':pz})
     free=free_variables(na)|free_variables(nz)
+    # Relevant relational premises may contain the origin of a scalar payload
+    # after the goal itself no longer mentions that origin. Case analysis must
+    # retain this dependency rather than treating the payload as unconstrained.
+    while True:
+        before=len(free)
+        for x,y,_ in facts:
+            variables=free_variables(x)|free_variables(y)
+            if variables&free:free.update(variables)
+        if len(free)==before:break
     preferred=[]
     for node in nodes([na,nz]):
         if 'Match' in node and 'Var' in node['Match']['scrutinee']:
