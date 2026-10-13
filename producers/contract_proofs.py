@@ -25,21 +25,52 @@ def pure_proposals(goal):
     for i in range(len(goal['conditions'])):yield {'Linear':dict(premises=[[i,1]])}
     if len(goal['conditions'])>1:yield {'Linear':dict(premises=[[i,1]for i in range(len(goal['conditions']))])}
     from ink_planner.semantic_search import children
-    conditions=[];seen=set()
+    conditions=[];seen=set();guards=[];guard_seen=set()
+    def closed(term,binders=0):
+        node=term.get('node')
+        if isinstance(node,dict) and 'Bound' in node:return node['Bound']<binders
+        nested=binders+int(isinstance(node,dict) and 'Lambda' in node)
+        return all(closed(child,nested) for child in children(term))
     def visit(term,depth=0):
         if depth>64:return
         node=term.get('node')
         if isinstance(node,dict)and 'Lambda'in node:return
         if term.get('sort')=={'Value':'Bool'}:
             data=json.dumps(term,sort_keys=True)
-            if '"Bound"'not in data and data not in seen:
+            if closed(term) and data not in seen:
                 seen.add(data);conditions.append(term)
+        if isinstance(node,dict) and node.get('Op',[None])[0]=='call:choose':
+            guard=node['Op'][1][0]
+            # Splitting p also decides p == false/true, and leaves the useful
+            # positive predicate available to result-validity normalization.
+            comparison=guard['node'].get('Op') if isinstance(guard['node'],dict) else None
+            if comparison and comparison[0] in ('binary:==','binary:!='):
+                left,right=comparison[1]
+                if left['sort']=={'Value':'Bool'} and isinstance(right['node'],dict) and 'Bool'in right['node']:guard=left
+                elif right['sort']=={'Value':'Bool'} and isinstance(left['node'],dict) and 'Bool'in left['node']:guard=right
+            data=json.dumps(guard,sort_keys=True)
+            if closed(guard) and data not in guard_seen:
+                guard_seen.add(data);guards.append(guard)
         for child in children(term):visit(child,depth+1)
-    for term in [goal['goal']['from'],goal['goal']['to']]:visit(term)
+    for term in [goal['goal']['from'],goal['goal']['to']]:
+        # Surface let/loop elaboration can leave branch guards behind known
+        # callback applications. Normalize their binders before proposing cases;
+        # the kernel still checks each original closed obligation.
+        try:visit(beta_normalize(term,budget=100000))
+        except ValueError:pass
+        visit(term)
     for name,sort in goal['params'].items():
         if sort=={'Value':'Bool'}:
             term=dict(sort=sort,node={'Free':name})
             if term not in conditions:conditions.append(term)
+    # Branch guards select the result before its observer runs. Prioritize them
+    # over the entire Boolean goal, including closed guards with local callbacks.
+    # This is bounded untrusted search; each leaf still proves the original goal.
+    guards=[c for c in guards if not isinstance(c['node'],dict) or 'Bool'not in c['node']][:4]
+    if guards:
+        proof='Normalize'
+        for guard in reversed(guards):proof={'Cases':dict(condition=guard,on_false=proof,on_true=proof)}
+        yield proof
     conditions=[c for c in conditions if not isinstance(c['node'],dict)or 'Bool'not in c['node']][:12]
     for condition in conditions:
         yield {'Cases':dict(condition=condition,on_false='Normalize',on_true='Normalize')}
