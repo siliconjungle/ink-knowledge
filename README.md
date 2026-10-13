@@ -4,6 +4,16 @@ Immutable knowledge data for [Ink](https://github.com/siliconjungle/ink-lang), w
 
 ## Storage contract
 
+`ink_knowledge/automatic-selection.json` owns bounded pure-call probe sizes,
+distributions, measurement controls and the required profitability margin.
+`selection_probes.create(core)` authors probes from supported exact typed
+signatures and source constants; it does not use function names or theorem IDs
+to choose behaviour. Recursive/unsupported transfers and state/action/event
+lifecycles decline. Synthetic probes are workload proposals, not observed user
+usage or correctness evidence. Planner measurement and proof checking remain
+separate. `ProposalViews.update` refreshes authenticated proposal membership for
+intermediate search states; membership still grants no theorem authority.
+
 `store/objects/<sha256>.json` contains canonical entries. Every entry has exactly these fields:
 
 ```json
