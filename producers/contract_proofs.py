@@ -581,6 +581,11 @@ def author_obligations(compiler,source,directory,bodies,options,goals,session):
     for g in goals['pure']:
         proof=next((p for p in pure_proposals(g) if check(g,p)),None);dependencies=[]
         if proof is None:
+            from producers.owned_fold_contracts import proposals as owned_proposals
+            for candidate,bundle in owned_proposals(g,installed,goals['definition_context']):
+                if check(g,candidate,bundle):
+                    proof=candidate;dependencies=bundle['roots'];pure_objects.update(bundle['objects']);break
+        if proof is None:
             from producers.semantic_observations import proposals
             for candidate,bundle in proposals(g,installed,goals['definition_context']):
                 if check(g,candidate,bundle):
@@ -595,12 +600,16 @@ def author_obligations(compiler,source,directory,bodies,options,goals,session):
         proofs[g['name']]={'Use':dict(law=i,arguments={n:dict(sort=t,node={'Free':n}) for n,t in g['params'].items()},premises=[{'Hypothesis':j} for j in range(len(g['conditions']))])}
     def add(declaration):
         from producers.proof_composition import balance_transitivity
-        declaration={**declaration,'Theorem':{**declaration['Theorem'],'proof':balance_transitivity(declaration['Theorem']['proof'])}}
-        d=declaration['Theorem'];deps=references(declaration);pending=list(deps)
+        if 'Theorem' in declaration:
+            declaration={**declaration,'Theorem':{**declaration['Theorem'],'proof':balance_transitivity(declaration['Theorem']['proof'])}}
+        d=next(iter(declaration.values()));deps=references(declaration);pending=list(deps)
         while pending:
             for dep in state_objects[pending.pop()]['dependencies']:
                 if dep not in deps:deps.add(dep);pending.append(dep)
-        obj=entry('theorem',MATH,dict(declaration=declaration),deps,parameters=dict(d['params']),conditions=d['conditions']);i=identity(obj);state_objects[i]=obj;return i
+        metadata=dict(parameters=dict(d.get('params',[])))
+        if 'Theorem' in declaration:metadata['conditions']=d['conditions']
+        if 'Function' in declaration:metadata['result']=d['result']
+        obj=entry('theorem' if 'Theorem' in declaration else 'definition',MATH,dict(declaration=declaration),deps,**metadata);i=identity(obj);state_objects[i]=obj;return i
     from producers.tree_proofs import Tactic as TypedTactic
     from producers.scalar_tactic import Scalar
     typed=TypedTactic(state_objects,add)
@@ -642,6 +651,9 @@ def author_obligations(compiler,source,directory,bodies,options,goals,session):
         except ValueError:continue
         theorem=add({'Theorem':dict(params=params,conditions=[],**{'from':a,'to':z},proof=proof)})
         aliases[i]=(None,theorem)
+    from producers.owned_fold_state import propose as owned_state_proposals
+    aliases.update(owned_state_proposals(state_objects,add,state_proof))
+    (directory/'derived-aliases.json').write_text(json.dumps(aliases,sort_keys=True))
     for number,g in enumerate((goals['state'] or {}).get('obligations',[])):
         (directory/'progress.json').write_text(json.dumps(dict(phase='state-obligation',name=g['name'])))
         from producers.point_delta import free_variables

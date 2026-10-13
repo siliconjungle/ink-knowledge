@@ -36,6 +36,7 @@ class GeneralContracts(unittest.TestCase):
  def test_general_laws_and_invariant_representations_are_discoverable(self):
   self.assertEqual(role(entry('rewrite','ink-general-laws-v1',{})),'general-proof-dependency')
   self.assertEqual(role(entry('representation','ink-source-representation-v2',{})),'representation-search')
+  self.assertEqual(role(entry('definition','ink-source-termination-v1',{})),'source-proof-dependency')
  def test_contract_variants_are_proposals_with_fresh_payloads(self):
   from producers.contract_proofs import pure_proposals,proof_semantics
   scalar=value('U32');x=term(scalar,{'Free':'contract_payload_0'})

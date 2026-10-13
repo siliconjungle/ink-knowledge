@@ -91,3 +91,41 @@ law group_count_append<E>(xs: List<E>, ys: List<E>, key: fn(E) -> u64, sign: fn(
          + foldr(ys, no_groups(), fn(e, m) => m.set(key(e), m.get_or(key(e), 0) + sign(e))).get_or(k, 0);
     proof by use group_sum_append(xs, ys, key, sign, k);
 }
+
+// Both inputs can change in one maintenance boundary. The delta-delta term is
+// required even when both original inputs are empty. Signed contributions give
+// the same equation for insertions, deletions and replacements.
+law join_sum_both_deltas<L,R>(xs:List<L>,dx:List<L>,ys:List<R>,dy:List<R>,
+ lk:fn(L)->u64,rk:fn(R)->u64,w:fn(L,R)->Int) {
+ foldr(xs.concat(dx),Int(0),fn(x,acc)=>foldr(ys.concat(dy),Int(0),fn(y,a)=>choose(lk(x)==rk(y),w(x,y),0)+a)+acc)
+ ==foldr(xs,Int(0),fn(x,acc)=>foldr(ys,Int(0),fn(y,a)=>choose(lk(x)==rk(y),w(x,y),0)+a)+acc)
+  +foldr(dx,Int(0),fn(x,acc)=>foldr(ys,Int(0),fn(y,a)=>choose(lk(x)==rk(y),w(x,y),0)+a)+acc)
+  +foldr(xs,Int(0),fn(x,acc)=>foldr(dy,Int(0),fn(y,a)=>choose(lk(x)==rk(y),w(x,y),0)+a)+acc)
+  +foldr(dx,Int(0),fn(x,acc)=>foldr(dy,Int(0),fn(y,a)=>choose(lk(x)==rk(y),w(x,y),0)+a)+acc);
+ proof by calc {
+  _==foldr(xs,Int(0),fn(x,acc)=>foldr(ys.concat(dy),Int(0),fn(y,a)=>choose(lk(x)==rk(y),w(x,y),0)+a)+acc)
+    +foldr(dx,Int(0),fn(x,acc)=>foldr(ys.concat(dy),Int(0),fn(y,a)=>choose(lk(x)==rk(y),w(x,y),0)+a)+acc)
+   by use join_sum_append_left<L,R>(xs,dx,ys.concat(dy),lk,rk,w);
+  ==(foldr(xs,Int(0),fn(x,acc)=>foldr(ys,Int(0),fn(y,a)=>choose(lk(x)==rk(y),w(x,y),0)+a)+acc)
+     +foldr(xs,Int(0),fn(x,acc)=>foldr(dy,Int(0),fn(y,a)=>choose(lk(x)==rk(y),w(x,y),0)+a)+acc))
+    +(foldr(dx,Int(0),fn(x,acc)=>foldr(ys,Int(0),fn(y,a)=>choose(lk(x)==rk(y),w(x,y),0)+a)+acc)
+     +foldr(dx,Int(0),fn(x,acc)=>foldr(dy,Int(0),fn(y,a)=>choose(lk(x)==rk(y),w(x,y),0)+a)+acc))
+   by congruence(use join_sum_append_right<L,R>(xs,ys,dy,lk,rk,w),use join_sum_append_right<L,R>(dx,ys,dy,lk,rk,w));
+  ==_ by normalize;
+ };
+}
+
+law exact_zero_fold<E>(changes:List<E>) {
+ foldr(changes,Int(0),fn(item,acc)=>Int(0)+acc)==Int(0);
+ proof by induction changes;
+}
+law weighted_deletion_cancels<E>(changes:List<E>,weight:fn(E)->Int) {
+ foldr(changes,Int(0),fn(item,acc)=>weight(item)+acc)
+  +foldr(changes,Int(0),fn(item,acc)=>-weight(item)+acc)==Int(0);
+ proof by calc {
+  _==foldr(changes,Int(0),fn(item,acc)=>(weight(item)+(-weight(item)))+acc)
+   by symmetry(use sum_split<E>(changes,weight,fn(item)=>-weight(item)));
+  ==foldr(changes,Int(0),fn(item,acc)=>Int(0)+acc) by normalize;
+  ==_ by use exact_zero_fold<E>(changes);
+ };
+}

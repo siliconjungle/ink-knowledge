@@ -73,3 +73,19 @@ checked per-step assumption, plus list and owned-buffer instances. Its theorem
 is reusable across element/state types; an instance must establish its own step
 relation. These are ordinary canonical laws and do not establish an arena or
 chunked-sequence codec relation merely by naming that representation.
+
+`owned-values.ink` exercises generic Buffer-backed refined-element copying.
+`local-relations.ink` supplies checked frame, simulation and conditional relation
+laws for ordered folds. `buffer-views.ink` uses scoped read-only clipped ranges;
+`buffer-view-laws.ink` checks their logical slice observations. Algorithms remain
+source, and every use of a law still proves its assumptions.
+
+`recursive-trees.ink` supplies a generic finite tree with ordered leaf traversal,
+leaf counting and mirroring. Source admission checks proper immutable subvalue
+descent; execution does not confer an induction or representation certificate.
+`producers/termination_measures.py` separately proposes source-bound unsigned and
+lexicographic decreasing-measure certificates, replayed by the core RUP checker.
+
+The incremental library retains the both-input join cross term and exact signed
+deletion cancellation. These algebraic laws alone do not admit an executable
+maintained representation or establish profitability.
