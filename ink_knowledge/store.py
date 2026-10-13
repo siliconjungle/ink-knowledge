@@ -328,7 +328,10 @@ class Store:
                     indexes={r[0]for r in db.execute("SELECT name FROM sqlite_master WHERE type='index'")}
                     if {'snapshots','entries','members','witnesses','pattern_roots','pattern_targets','template_heads','template_tokens','observations','observation_entries','observation_attribution'}<=tables and 'witness_id'in columns and set(INDEXES)<=indexes:
                         found=db.execute('SELECT root FROM snapshots WHERE id=?',(self.snapshot_id,)).fetchone()
-                        if found and found[0]==self.snapshot['root']:return False
+                        if found and found[0]==self.snapshot['root']:
+                            from .index_cache import touch
+                            touch(index,self.snapshot_id)
+                            return False
             except sqlite3.DatabaseError:pass
         self.refresh_index();return True
 

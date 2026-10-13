@@ -7,6 +7,18 @@ INDEXES=('membership_entry_lookup','dependency_parent_lookup')
 INDEX_SCHEMA='''CREATE INDEX IF NOT EXISTS membership_entry_lookup ON members(entry_id,snapshot_id);
 CREATE INDEX IF NOT EXISTS dependency_parent_lookup ON dependencies(dependency_id,entry_id);'''
 
+def touch(path,snapshot):
+    """Best-effort recency hint; no canonical bytes or membership are changed."""
+    import sqlite3
+    from contextlib import closing
+    try:
+        with closing(sqlite3.connect(path,timeout=.1)) as db,db:
+            db.execute('UPDATE snapshots SET touched=max(touched,?) WHERE id=?',(time.time_ns(),snapshot))
+    except sqlite3.DatabaseError:
+        # A concurrent reader/writer or atomic refresh may win. Missing this
+        # hint can cost a later rebuild, never admit a proof or change a pin.
+        pass
+
 def copy(source,target,db):
     columns={r[1]for r in source.execute('PRAGMA table_info(members)')}
     if 'witness_id'in columns:
