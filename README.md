@@ -434,8 +434,19 @@ certificates. It requires a compiler supporting the explicit circuit mode. Use
 select a source or backend representation. `tests/test_tagged_word_codecs.py`
 checks all widths, false proposals, statement/mode changes and corrupt hints.
 
+<<<<<<< HEAD
 Maintained folds can additionally author checked scalar update and contribution
 choices. `producers.cell_actions` and `producers.early_return` propose complete
 action simplifications, admitted only through whole-action equality. Generated
 helper names are bridged with ordinary induction theorems rather than hash-based
 equality. See the distribution's `docs/maintained-folds.md` for trust boundaries.
+=======
+`producers.sum_flatten` authors ordinary bidirectional case/conversion proofs for
+source-derived right-associated sum codecs. The `private-sum-spines` recipe
+proposes individual and combined JavaScript layouts, preserving existing physical
+choices. It has no JSON matcher and leaves recursive leaves and exact numbers
+opaque. The compiler checks source correspondence and both proof roots; backend
+ownership, resources and bytes have independent executable conformance tests.
+Proof availability does not select a layout without comparable lifecycle costs.
+See the distribution's `docs/private-sum-layouts.md` for capability and trust limits.
+>>>>>>> origin/main
