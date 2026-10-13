@@ -17,8 +17,8 @@ def insert(db,ident,obj):
     db.executemany('INSERT OR IGNORE INTO observation_entries VALUES(?,?)',[(ident,i)for i in obj['entries']])
     db.execute('INSERT OR IGNORE INTO observation_attribution VALUES(?)',(ident,))
 
-def refresh(store,db):
-    db.executescript(SCHEMA)
+def refresh(store,db,*,schema_ready=False):
+    if not schema_ready:db.executescript(SCHEMA)
     # Empty attribution is valid, so record migration completion explicitly.
     db.execute('CREATE TABLE IF NOT EXISTS observation_attribution(id TEXT PRIMARY KEY REFERENCES observations(id)) STRICT')
     for (ident,)in list(db.execute('SELECT id FROM observations WHERE id NOT IN (SELECT id FROM observation_attribution)')):
