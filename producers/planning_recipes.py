@@ -45,6 +45,7 @@ def published(context):
                     if package['semantics']=='ink-compiled-plan-v1':yield dict(status='plan',label='published/'+ident,package=package)
                     elif package['semantics']=='ink-evidence-v1':yield row('rewrite',package,'published/'+ident)
                     elif package['semantics']in ('ink-source-representation-v1','ink-source-representation-v2'):yield row('representation',package,'published/'+ident)
+                    elif package['semantics']=='ink-maintained-fold-v1':yield row('maintained',package,'published/'+ident)
                     else:yield decline('published/'+ident,'unsupported package protocol '+package['semantics'])
             if len(page)<256:break
             after=page[-1]

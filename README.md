@@ -402,3 +402,27 @@ replay. Larger operation-head buckets use necessary structural, literal and
 concrete-sort constraints; small buckets match directly. Applied higher-order
 holes remain unrestricted. See the distribution's `docs/discovery-reuse.md` for
 ablation curves and the cases where index construction adds overhead.
+
+## Maintained source folds
+
+`python3 -m producers.maintained_folds SOURCE --compiler INK -o DIRECTORY`
+authors an ordinary compiled-plan packet for factorised U64 source keeps. It
+proposes row contributions, group operations and eight independently regenerated
+proof obligations per keep: exact source factorisation, identity, associativity,
+commutativity, cancellation, insertion, deletion and replacement. Arithmetic
+covers all 64 bits, including wrapping. Filtered counts, sums and weighted mapped
+contributions compose across independent tables.
+Use `--publish KNOWLEDGE_ROOT` to extend an existing canonical snapshot with its
+proof definitions and source-bound maintenance candidate. Published candidates
+are discovered through the normal catalogue and still replay every obligation.
+
+`--dense-capacity N` adds bounded-prefix storage with exact map fallback for every
+out-of-prefix key. The registered recipe offers map and dense alternatives; the
+planner ranks them using supplied state lifecycle evidence and held-out histories.
+Producer patterns and measurements never grant equality authority. The installed
+tactic currently handles U64 keys/groups; unsupported authoring domains decline.
+The capability itself admits other valid U64/Bool group proofs with supported
+source codecs. Current emission is JavaScript only.
+
+See the distribution's `docs/maintained-folds.md` for trusted runtime/controller
+limits, ownership, rollback, restore and subscription contracts.
