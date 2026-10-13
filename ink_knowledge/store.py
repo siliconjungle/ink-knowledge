@@ -145,7 +145,10 @@ class Store:
         for obj in added:
             if not set(obj['dependencies'])<=known:raise ValueError('dependency absent from snapshot')
         if Store(self.root).snapshot_id!=self.snapshot_id:raise ValueError('publication changed during extension')
-        names={**read(self.data/'names.json'),**(names or {})}
+        old_names=read(self.data/'names.json')
+        names={**old_names,**(names or {})}
+        if known==set(members) and names==old_names and all(len(w['entries'])<=leaf_size for w in members.values()):
+            return self
         return self._publish_ids(self.root,known,names,leaf_size)
     @classmethod
     def _publish_ids(cls, root, ids, names, leaf_size):
@@ -157,8 +160,9 @@ class Store:
         bits=((max(1,len(ids))-1)//leaf_size).bit_length()
         buckets=[[] for _ in range(1<<bits)]
         for i in ids:buckets[int(i[:16],16)>>(64-bits) if bits else 0].append(i)
+        constructed={}
         def node(value):
-            i=identity(value);immutable(data/'trees'/f'{i}.json',value);return i
+            i=identity(value);immutable(data/'trees'/f'{i}.json',value);constructed[i]=value;return i
         def leaf(items):
             if len(items)<=leaf_size:return node(dict(schema=1,entries=items))
             middle=len(items)//2
@@ -175,21 +179,31 @@ class Store:
                 os.replace(tmp,data/name)
             finally:
                 if Path(tmp).exists():Path(tmp).unlink()
-        return cls(root)
+        result=cls(root)
+        # These exact nodes were constructed, hashed and collision-checked above.
+        # Reuse them for immediate indexing; later Store instances read/authenticate
+        # canonical files afresh, and exported objects/proofs still replay.
+        result._constructed_trees=constructed
+        result.members()
+        del result._constructed_trees
+        return result
     def members(self):
         if self._members is not None:return self._members
         members={};active=set()
         def walk(i,path,depth):
             if depth>64 or i in active:raise ValueError('invalid snapshot tree')
-            active.add(i);node=read(self.data/'trees'/f'{hash_id(i)}.json')
+            active.add(i);hash_id(i)
+            constructed=getattr(self,'_constructed_trees',None)
+            node=constructed[i] if constructed is not None else read(self.data/'trees'/f'{i}.json')
             if identity(node)!=i or node['schema']!=1:raise ValueError('tree content mismatch')
             if 'entries' in node:
                 fields(node,('schema','entries'));entries=node['entries']
                 if len(entries)>64 or entries!=sorted(set(entries)):raise ValueError('invalid snapshot leaf')
+                witness=dict(entries=entries,path=list(reversed(path)))
                 for item in entries:
                     hash_id(item)
                     if item in members:raise ValueError('duplicate snapshot member')
-                    members[item]=dict(entries=entries,path=list(reversed(path)))
+                    members[item]=witness
             else:
                 fields(node,('schema','left','right'))
                 walk(node['left'],path+[dict(sibling=node['right'],left=False)],depth+1)
@@ -336,66 +350,75 @@ class Store:
         self.refresh_index();return True
 
     def refresh_index(self):
-        """Incrementally refresh a disposable index with atomic publication.
+        """Refresh modern disposable caches in one atomic SQLite transaction.
 
-        Unchanged discovery rows are reused, never as proof authority. Export
-        still reads/hashes objects and authenticates witnesses independently.
-        Rebuild remains the repair operation for a missing/corrupt index.
+        Historical pins remain concurrent read snapshots. Modern schemas need
+        no whole-database backup; legacy migration still publishes a replacement.
+        Every exported object/witness authenticates independently of this cache.
         """
         target=self.root/'index.sqlite'
         if not target.exists():return self.rebuild()
+        with closing(sqlite3.connect(target.as_uri()+'?mode=rw',uri=True))as db:
+            tables={r[0]for r in db.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+            columns={r[1]for r in db.execute('PRAGMA table_info(members)')}
+            from .index_cache import INDEXES
+            indexes={r[0]for r in db.execute("SELECT name FROM sqlite_master WHERE type='index'")}
+            modern={'snapshots','entries','members','witnesses','pattern_roots','pattern_targets','template_heads','template_tokens','observations','observation_entries','observation_attribution'}<=tables and 'witness_id'in columns and set(INDEXES)<=indexes
+            if modern:
+                db.execute('PRAGMA foreign_keys=ON')
+                with db:return self._refresh_rows(db)
         fd,tmp=tempfile.mkstemp(prefix='.ink-index-',dir=self.root);os.close(fd)
         try:
-            with closing(sqlite3.connect(target.as_uri()+'?mode=ro',uri=True)) as source, closing(sqlite3.connect(tmp,uri=True)) as db:
+            with closing(sqlite3.connect(target.as_uri()+'?mode=ro',uri=True))as source,closing(sqlite3.connect(tmp))as db:
                 from .index_cache import copy as copy_index
-                copy_index(source,target,db)
-                db.execute('PRAGMA foreign_keys=ON')
+                copy_index(source,target,db);db.execute('PRAGMA foreign_keys=ON')
                 from .pattern_index import SCHEMA as pattern_schema
-                db.executescript(pattern_schema)
                 from .template_index import SCHEMA as template_schema
-                db.executescript(template_schema)
-                from .family_evidence import SCHEMA as attribution_schema,insert as insert_attribution
-                db.executescript(attribution_schema)
-                with db:
-                    db.execute('INSERT OR IGNORE INTO snapshots(id,root) VALUES(?,?)',(self.snapshot_id,self.snapshot['root']))
-                    members=self.members();encode=lambda x:canonical(x).decode();witness_cache={}
-                    from .index_cache import member as index_member,prune as prune_index
-                    indexed={r[0] for r in db.execute('SELECT id FROM entries')}
-                    added=0
-                    for i in members:
-                        if i not in indexed:
-                            obj=self._read_object(i);iface=obj['interface'];added+=1
-                            db.execute('INSERT INTO entries VALUES(?,?,?,?,?,?)',(i,obj['kind'],obj['semantics'],encode(iface['result']),encode(iface['parameters']),encode(iface['conditions'])))
-                            from .pattern_index import insert as insert_pattern
-                            insert_pattern(db,i,obj)
-                            from .template_index import insert as insert_template
-                            insert_template(db,i,obj)
-                            db.execute('INSERT INTO types VALUES(?,?,?,?)',(i,'result','',encode(iface['result'])))
-                            db.executemany('INSERT INTO types VALUES(?,?,?,?)',[(i,'parameter',n,encode(t)) for n,t in iface['parameters'].items()])
-                            db.executemany('INSERT INTO applicability VALUES(?,?,?)',[(i,n,encode(c)) for n,c in enumerate(iface['conditions'])])
-                            db.executemany('INSERT INTO operations VALUES(?,?)',[(i,x) for x in iface['operations']])
-                            db.executemany('INSERT INTO effects VALUES(?,?)',[(i,x) for x in iface['effects']])
-                            db.executemany('INSERT INTO dependencies VALUES(?,?)',[(i,d) for d in obj['dependencies']])
-                        index_member(db,self.snapshot_id,i,members[i],witness_cache)
-                    prune_index(db,self.snapshot_id)
-                    db.execute('DELETE FROM names')
-                    for name,i in read(self.data/'names.json').items():
-                        if i in members:db.execute('INSERT INTO names VALUES(?,?)',(name,i))
-                    from .pattern_index import refresh as refresh_patterns
-                    refresh_patterns(self,db)
-                    from .template_index import refresh as refresh_templates
-                    refresh_templates(self,db)
-                    for p in sorted((self.data/'observations').glob('*.json')):
-                        if db.execute('SELECT 1 FROM observations WHERE id=?',(p.stem,)).fetchone():continue
-                        obj=read(p);self.validate_observation(obj)
-                        if identity(obj)!=p.stem:raise ValueError('observation content mismatch')
-                        db.execute('INSERT INTO observations VALUES(?,?,?,?,?,?)',(p.stem,obj['program'],obj['plan'],encode(obj['target']),encode(obj['workload']),encode(obj['metrics'])))
-                        insert_attribution(db,p.stem,obj)
-                    from .family_evidence import refresh as refresh_attribution
-                    refresh_attribution(self,db)
+                from .family_evidence import SCHEMA as attribution_schema
+                db.executescript(pattern_schema+template_schema+attribution_schema)
+                with db:added=self._refresh_rows(db)
             os.replace(tmp,target)
         finally:
             if Path(tmp).exists():Path(tmp).unlink()
+        return added
+    def _refresh_rows(self,db):
+        from .family_evidence import insert as insert_attribution
+        db.execute('INSERT OR IGNORE INTO snapshots(id,root) VALUES(?,?)',(self.snapshot_id,self.snapshot['root']))
+        members=self.members();encode=lambda x:canonical(x).decode();witness_cache={}
+        from .index_cache import member as index_member,prune as prune_index
+        indexed={r[0] for r in db.execute('SELECT id FROM entries')}
+        added=0
+        for i in members:
+            if i not in indexed:
+                obj=self._read_object(i);iface=obj['interface'];added+=1
+                db.execute('INSERT INTO entries VALUES(?,?,?,?,?,?)',(i,obj['kind'],obj['semantics'],encode(iface['result']),encode(iface['parameters']),encode(iface['conditions'])))
+                from .pattern_index import insert as insert_pattern
+                insert_pattern(db,i,obj)
+                from .template_index import insert as insert_template
+                insert_template(db,i,obj)
+                db.execute('INSERT INTO types VALUES(?,?,?,?)',(i,'result','',encode(iface['result'])))
+                db.executemany('INSERT INTO types VALUES(?,?,?,?)',[(i,'parameter',n,encode(t)) for n,t in iface['parameters'].items()])
+                db.executemany('INSERT INTO applicability VALUES(?,?,?)',[(i,n,encode(c)) for n,c in enumerate(iface['conditions'])])
+                db.executemany('INSERT INTO operations VALUES(?,?)',[(i,x) for x in iface['operations']])
+                db.executemany('INSERT INTO effects VALUES(?,?)',[(i,x) for x in iface['effects']])
+                db.executemany('INSERT INTO dependencies VALUES(?,?)',[(i,d) for d in obj['dependencies']])
+            index_member(db,self.snapshot_id,i,members[i],witness_cache)
+        prune_index(db,self.snapshot_id)
+        db.execute('DELETE FROM names')
+        for name,i in read(self.data/'names.json').items():
+            if i in members:db.execute('INSERT INTO names VALUES(?,?)',(name,i))
+        from .pattern_index import refresh as refresh_patterns
+        refresh_patterns(self,db,schema_ready=True)
+        from .template_index import refresh as refresh_templates
+        refresh_templates(self,db,schema_ready=True)
+        for p in sorted((self.data/'observations').glob('*.json')):
+            if db.execute('SELECT 1 FROM observations WHERE id=?',(p.stem,)).fetchone():continue
+            obj=read(p);self.validate_observation(obj)
+            if identity(obj)!=p.stem:raise ValueError('observation content mismatch')
+            db.execute('INSERT INTO observations VALUES(?,?,?,?,?,?)',(p.stem,obj['program'],obj['plan'],encode(obj['target']),encode(obj['workload']),encode(obj['metrics'])))
+            insert_attribution(db,p.stem,obj)
+        from .family_evidence import refresh as refresh_attribution
+        refresh_attribution(self,db,schema_ready=True)
         return added
     def _canonical_query(self,kind,semantics,operation,result,effect,parameter_type,condition,after,limit):
         # Explicit immutable pins can coexist with the active disposable index.

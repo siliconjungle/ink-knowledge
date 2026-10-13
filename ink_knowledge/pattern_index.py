@@ -31,12 +31,12 @@ def insert(db,ident,obj):
     db.execute('INSERT OR REPLACE INTO pattern_roots VALUES(?,?,?)',(ident,canonical(source['sort']).decode(),shape(source,p.get('params',{}))))
     db.executemany('INSERT OR IGNORE INTO pattern_targets VALUES(?,?,?)',[(ident,s,h)for s,h in sorted(heads(target))])
 
-def refresh(store,db):
-    db.executescript(SCHEMA)
+def refresh(store,db,*,schema_ready=False):
+    if not schema_ready:db.executescript(SCHEMA)
     # This is a one-time migration for older disposable indexes, plus newly
     # published semantic laws. Authentic object bytes supply metadata; selected
     # mathematical dependency closures still replay independently.
-    missing=[r[0]for r in db.execute("SELECT e.id FROM entries e JOIN members m ON m.entry_id=e.id LEFT JOIN pattern_roots p ON p.entry_id=e.id WHERE m.snapshot_id=? AND e.kind='rewrite' AND e.semantics='ink-conditional-laws-v1' AND p.entry_id IS NULL",(store.snapshot_id,))]
+    missing=[r[0]for r in db.execute("SELECT e.id FROM entries e WHERE e.kind='rewrite' AND e.semantics='ink-conditional-laws-v1' AND NOT EXISTS(SELECT 1 FROM pattern_roots p WHERE p.entry_id=e.id) AND EXISTS(SELECT 1 FROM members m WHERE m.entry_id=e.id AND m.snapshot_id=?)",(store.snapshot_id,))]
     for ident in missing:insert(db,ident,store._read_object(ident))
 
 def candidates(store,sort,head,after=None,limit=1024):
