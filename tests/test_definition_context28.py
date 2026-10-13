@@ -24,6 +24,12 @@ class DefinitionContexts(unittest.TestCase):
         equation = law({'x': s}, subject['functions']['entry'], subject['functions']['leaf'])
         return dict(program=program), subject, equation
 
+    def test_missing_semantic_callee_fails_closed_without_key_error(self):
+        core,subject,equation=self.fixture()
+        del subject['functions']['leaf']
+        with self.assertRaisesRegex(ValueError,'supported semantic body'):
+            bind(equation,core,subject)
+
     def test_content_closure_storage_and_transitive_prefilter(self):
         core, subject, equation = self.fixture()
         equation = bind(equation, core, subject)
