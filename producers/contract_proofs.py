@@ -141,10 +141,11 @@ def context_for(context,goal):
         name=next(iter(types-seen_types));seen_types.add(name);scan(context['records'].get(name,[]))
     return dict(schema=1,definitions={n:context['definitions'][n] for n in sorted(functions)},records={n:t for n,t in context['records'].items() if n in types},enums={n:t for n,t in context['enums'].items() if n in types},**({'ids':[n for n in context.get('ids',[]) if n in types]} if any(n in types for n in context.get('ids',[])) else {}))
 
-def state_proof(objects,a,z,params,hyp=(),depth=0,serial=None,aliases=None):
+def state_proof(objects,a,z,params,hyp=(),depth=0,serial=None,aliases=None,scalar=None,lemma_attempts=None,strengthen=True):
     """Bounded ordinary constructor induction and Boolean case proof search."""
     if depth>18:raise ValueError('contract proof search depth')
     serial=serial if serial is not None else [0,0]
+    lemma_attempts=lemma_attempts if lemma_attempts is not None else set()
     serial[1]+=1
     if serial[1]>100000:raise ValueError("contract proof search node budget")
     class ContractTactic(Tactic):
@@ -202,6 +203,20 @@ def state_proof(objects,a,z,params,hyp=(),depth=0,serial=None,aliases=None):
     for x,y,i in hyp:
         xx,px=canonical(x);yy,py=canonical(y)
         facts.append((xx,yy,trans({'Sym':px},{'Hypothesis':i},py)))
+    from producers.conditional_induction import boolean_library
+    boolean_objects,boolean_ids=boolean_library();objects.update(boolean_objects)
+    def expand_boolean_facts():
+        index=0
+        while index<len(facts):
+            if len(facts)>256:raise ValueError('contract Boolean fact budget')
+            x,y,proof=facts[index];index+=1
+            branch=x.get('If') if isinstance(x,dict) else None
+            if y!={'Bool':True} or branch is None or branch['on_false']!={'Bool':False}:continue
+            for label,value in [('left',branch['condition']),('right',branch['on_true'])]:
+                if value=={'Bool':True} or any(alpha(value)==alpha(a) and b=={'Bool':True} for a,b,_ in facts):continue
+                use={'Use':dict(theorem=boolean_ids[label],arguments=[branch['condition'],branch['on_true']],premises=[proof])}
+                facts.append((value,{'Bool':True},use))
+    expand_boolean_facts()
     def contradiction():
         for x,y,proof in facts:
             if 'Bool' in x and 'Bool' in y and x!=y:
@@ -231,6 +246,7 @@ def state_proof(objects,a,z,params,hyp=(),depth=0,serial=None,aliases=None):
             impossible=contradiction()
             if impossible:return impossible
         if not updated:break
+        expand_boolean_facts()
     na,pa=simplify(a,facts);nz,pz=simplify(z,facts)
     def nodes(t):
         if isinstance(t,dict):
@@ -241,13 +257,65 @@ def state_proof(objects,a,z,params,hyp=(),depth=0,serial=None,aliases=None):
             for x in t:yield from nodes(x)
     if na==nz or ('Binary' in na and na['Binary']['op']=='==' and na['Binary']['left']==na['Binary']['right'] and nz=={'Bool':True}):
         return trans(pa,convert(na,nz),{'Sym':pz})
+    if scalar is not None:
+        try:return trans(pa,scalar.prove(na,nz,params,facts),{'Sym':pz})
+        except ValueError:pass
+    # A whole-action induction hypothesis can be too weak for a recursive helper
+    # reached through a different branch. Propose a stronger, separately proved
+    # conditional lemma about the residual computation itself. Dependent outer
+    # premises never become tail assumptions: they are quantified inside the
+    # new proposition, and only independent premises enter its proof context.
+    if strengthen and scalar is not None and len(lemma_attempts)<16:
+        target_variables=free_variables(na)|free_variables(nz)
+        for variable,sort in params.items():
+            if variable not in target_variables or not isinstance(sort,dict) or 'Data' not in sort:continue
+            declaration=objects[sort['Data']]['payload']['declaration'].get('Datatype',{})
+            if not any('SelfType' in constructor['fields'] for constructor in declaration.get('constructors',[])):continue
+            if not any(variable in free_variables(x)|free_variables(y) for x,y,_ in hyp):continue
+            independent=[(x,y,p) for x,y,p in facts if variable not in free_variables(x)|free_variables(y)
+                and (free_variables(x)|free_variables(y))&target_variables and x!=y]
+            for predicate,truth,predicate_proof in facts:
+                if len(lemma_attempts)>=16:break
+                if truth!={'Bool':True} or 'Call' not in predicate or variable not in free_variables(predicate):continue
+                statement={'If':dict(condition=predicate,on_true=na,on_false=nz)}
+                marker=json.dumps([statement,nz,[[x,y] for x,y,_ in independent]],sort_keys=True,separators=(',',':'))
+                if marker in lemma_attempts:continue
+                lemma_attempts.add(marker)
+                premises=[(x,y,i) for i,(x,y,_) in enumerate(independent)]
+                try:
+                    proof=state_proof(objects,statement,nz,params,premises,0,serial,aliases,scalar,lemma_attempts,False)
+                except ValueError:continue
+                conditions=[dict(**{'from':x,'to':y}) for x,y,_ in independent]
+                theorem=scalar.add({'Theorem':dict(params=list(params.items()),conditions=conditions,
+                    **{'from':statement,'to':nz},proof=proof)})
+                use={'Use':dict(theorem=theorem,arguments=[var(n) for n in params],premises=[p for _,_,p in independent])}
+                context={'If':dict(condition=var('delta_hole'),on_true=na,on_false=nz)}
+                return trans(pa,convert(na,sub(context,{'delta_hole':{'Bool':True}})),
+                    {'Sym':lift(predicate_proof,context)},use,{'Sym':pz})
     from producers.point_delta import free_variables
-    for t in nodes([na,nz]):
-        if 'If' in t and not any(n in free_variables(t['If']['condition']) and isinstance(sort,dict) and 'Data' in sort and all(n not in free_variables(x)|free_variables(y) for x,y,_ in hyp) for n,sort in params.items()):
-            condition=t['If']['condition'];cases={}
-            for field,flag in [('on_false',False),('on_true',True)]:
-                cases[field]=state_proof(objects,a,z,params,[*hyp,(condition,{'Bool':flag},len(hyp))],depth+1,serial,aliases)
-            return {'BoolSplit':dict(condition=condition,**{'from':a,'to':z},**cases)}
+    # An inconsistent branch can reduce the goal to false=true while retaining
+    # a conditional selector in its premises. Split those selectors too; every
+    # resulting branch is ordinary evidence, never an assumed contradiction.
+    selectors={}
+    for t in nodes([na,nz,*[value for x,y,_ in facts for value in (x,y)]]):
+        if 'If' not in t:continue
+        condition=t['If']['condition'];variables=free_variables(condition)
+        if not variables<=params.keys():continue
+        if any(n in variables and isinstance(sort,dict) and 'Data' in sort
+            and all(n not in free_variables(x)|free_variables(y) for x,y,_ in hyp)
+            for n,sort in params.items()):continue
+        reduced,_=simplify(condition,facts)
+        if 'Bool' in reduced:continue
+        # Splitting an already established selector spends depth without learning
+        # anything. Prefer small scalar selectors inside compound premises, so
+        # an impossible outer condition is exposed by its actual branch choices.
+        fingerprint=json.dumps(alpha(reduced),sort_keys=True,separators=(',',':'))
+        selectors.setdefault(fingerprint,reduced)
+    for fingerprint,condition in sorted(selectors.items(),key=lambda item:(len(item[0]),item[0])):
+        cases={}
+        for field,flag in [('on_false',False),('on_true',True)]:
+            cases[field]=state_proof(objects,na,nz,params,[*hyp,(condition,{'Bool':flag},len(hyp))],depth+1,serial,aliases,scalar,lemma_attempts,strengthen)
+        return trans(pa,{'BoolSplit':dict(condition=condition,**{'from':na,'to':nz},**cases)},{'Sym':pz})
     from producers.point_delta import free_variables
     # Eliminate an observed constructor shared with a premise without inventing
     # an induction hypothesis for that premise.
@@ -269,9 +337,9 @@ def state_proof(objects,a,z,params,hyp=(),depth=0,serial=None,aliases=None):
             serial[0]+=1;names=[f'contract_observed_{serial[0]}_{j}' for j in range(len(c['fields']))]
             fields=[sort if t=='SelfType' else t for t in c['fields']];local={**params,**dict(zip(names,fields))}
             value=cons(datatype,i,[var(n) for n in names])
-            proof=state_proof(objects,a,z,local,[*hyp,(scrutinee,value,len(hyp))],depth+1,serial,aliases)
+            proof=state_proof(objects,na,nz,local,[*hyp,(scrutinee,value,len(hyp))],depth+1,serial,aliases,scalar,lemma_attempts,strengthen)
             cases.append(dict(bindings=names,proof=proof))
-        return {'Cases':dict(scrutinee=scrutinee,**{'from':a,'to':z},cases=cases)}
+        return trans(pa,{'Cases':dict(scrutinee=scrutinee,**{'from':na,'to':nz},cases=cases)},{'Sym':pz})
     free=free_variables(na)|free_variables(nz)
     preferred=[]
     for node in nodes([na,nz]):
@@ -297,10 +365,10 @@ def state_proof(objects,a,z,params,hyp=(),depth=0,serial=None,aliases=None):
             premises=list(hyp) if induct else [(sub(x,binding),sub(y,binding),j) for x,y,j in hyp]
             if induct:
                 for name,field in zip(names,fields):
-                    if field==sort:premises.append((sub(a,{variable:var(name)}),sub(z,{variable:var(name)}),len(premises)))
-            proof=state_proof(objects,sub(a,binding),sub(z,binding),local,premises,depth+1,serial,aliases)
+                    if field==sort:premises.append((sub(na,{variable:var(name)}),sub(nz,{variable:var(name)}),len(premises)))
+            proof=state_proof(objects,sub(na,binding),sub(nz,binding),local,premises,depth+1,serial,aliases,scalar,lemma_attempts,strengthen)
             cases.append(dict(bindings=names,proof=proof))
-        return {('Induction' if induct else 'Cases'):dict(variable=variable,**{'from':a,'to':z},cases=cases)}
+        return trans(pa,{('Induction' if induct else 'Cases'):dict(variable=variable,**{'from':na,'to':nz},cases=cases)},{'Sym':pz})
     raise ValueError('unclosed contract state goal '+str((na,nz))[:600])
 
 def author(compiler,source,directory,bodies=None,source_evidence=None):
@@ -339,6 +407,10 @@ def author(compiler,source,directory,bodies=None,source_evidence=None):
             for dep in state_objects[pending.pop()]['dependencies']:
                 if dep not in deps:deps.add(dep);pending.append(dep)
         obj=entry('theorem',MATH,dict(declaration=declaration),deps,parameters=dict(d['params']),conditions=d['conditions']);i=identity(obj);state_objects[i]=obj;return i
+    from producers.tree_proofs import Tactic as TypedTactic
+    from producers.scalar_tactic import Scalar
+    typed=TypedTactic(state_objects,add)
+    scalar=Scalar(add,typed.sort,lambda term,env:term,compiler=compiler)
     # Alpha-equivalent generated traversals still have independent canonical IDs.
     # Propose ordinary induction theorems between them; never identify their
     # meanings merely from names or syntax in the trusted kernel.
@@ -359,7 +431,7 @@ def author(compiler,source,directory,bodies=None,source_evidence=None):
             target=classes[key];args=[var(n) for n,_ in params]
             a={'Call':dict(function=i,arguments=args)};z={'Call':dict(function=target,arguments=args)}
             (directory/'progress.json').write_text(json.dumps(dict(phase="traversal-equivalence",function=i,target=target)))
-            try:proof=state_proof(state_objects,a,z,dict(params),aliases=aliases)
+            try:proof=state_proof(state_objects,a,z,dict(params),aliases=aliases,scalar=scalar)
             except ValueError:continue
             theorem=add({'Theorem':dict(params=params,conditions=[],**{'from':a,'to':z},proof=proof)})
             aliases[i]=(target,theorem)
@@ -372,7 +444,7 @@ def author(compiler,source,directory,bodies=None,source_evidence=None):
         if sort!=d['params'][1][1] or not isinstance(sort,dict) or 'Data' not in sort:continue
         params=[('contract_reflexive',sort)];argument=var(params[0][0])
         a={'Call':dict(function=i,arguments=[argument,argument])};z={'Bool':True}
-        try:proof=state_proof(state_objects,a,z,dict(params),aliases=aliases)
+        try:proof=state_proof(state_objects,a,z,dict(params),aliases=aliases,scalar=scalar)
         except ValueError:continue
         theorem=add({'Theorem':dict(params=params,conditions=[],**{'from':a,'to':z},proof=proof)})
         aliases[i]=(None,theorem)
@@ -391,7 +463,7 @@ def author(compiler,source,directory,bodies=None,source_evidence=None):
             (directory/'progress.json').write_text(json.dumps(dict(phase='state-obligation',name=g['name'],conditions=indices)))
             conditions=[all_conditions[i] for i in indices];hyp=[(c['from'],c['to'],i) for i,c in enumerate(conditions)]
             try:
-                proof=direct if direct is not None else state_proof(state_objects,a,z,dict(g['params']),hyp,aliases=aliases if indices else {})
+                proof=direct if direct is not None else state_proof(state_objects,a,z,dict(g['params']),hyp,aliases=aliases if indices else {},scalar=scalar)
             except ValueError as error:errors.append(str(error));continue
             i=add({'Theorem':dict(params=g['params'],conditions=conditions,**g['goal'],proof=proof)})
             trial=Store.publish(directory/'trials'/f'{number}-{attempt}',state_objects.values())
@@ -399,6 +471,20 @@ def author(compiler,source,directory,bodies=None,source_evidence=None):
             if check(g,use,trial.bundle([i])):
                 state_roots.append(i);names['contract.'+g['name']]=i;state_proofs[g['name']]=use;success=True;break
             state_objects.pop(i)
+        if not success:
+            from producers.conditional_induction import guarded_goal,apply_guarded
+            guarded=guarded_goal(g)
+            if guarded is not None:
+                guard,guard_proof,statement=guarded
+                try:
+                    proof=state_proof(state_objects,statement,z,dict(g['params']),aliases=aliases,scalar=scalar)
+                    i=add({'Theorem':dict(params=g['params'],conditions=[],**{'from':statement,'to':z},proof=proof)})
+                    trial=Store.publish(directory/'trials'/f'{number}-guarded',state_objects.values())
+                    use=apply_guarded(g,guard,guard_proof,i)
+                    if check(g,use,trial.bundle([i])):
+                        state_roots.append(i);names['contract.'+g['name']]=i;state_proofs[g['name']]=use;success=True
+                    else:state_objects.pop(i)
+                except ValueError as error:errors.append(str(error))
         if not success:raise ValueError('no checked state proof for '+g['name']+': '+'; '.join(errors)[-1200:])
     store=Store.publish(directory,[*pure_objects.values(),*state_objects.values()],names)
     evidence=dict(schema=1,semantics=goals['semantics'],source_sha256=goals['source_sha256'],proofs=proofs,state_proofs=state_proofs,knowledge=store.bundle(pure_roots) if pure_roots else None,state_knowledge=store.bundle(state_roots) if state_roots else None)

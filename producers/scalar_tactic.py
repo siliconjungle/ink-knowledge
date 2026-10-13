@@ -10,9 +10,9 @@ from producers.bitvector_proofs import certificate
 from producers.workspace import compiler_path
 
 class Scalar:
-    def __init__(self,add,sort,normal):
+    def __init__(self,add,sort,normal,compiler=None):
         self.add,self.sort,self.normal=add,sort,normal
-        self.compiler=compiler_path()
+        self.compiler=Path(compiler).resolve() if compiler is not None else compiler_path()
         # Cached circuits belong to the exact checker that normalized the goal.
         # They remain untrusted and are replayed when the proposal is admitted.
         self.compiler_sha256=hashlib.sha256(self.compiler.read_bytes()).hexdigest()
