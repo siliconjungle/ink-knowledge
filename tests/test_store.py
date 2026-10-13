@@ -5,6 +5,32 @@ from pathlib import Path
 from ink_knowledge import Store,entry,identity,canonical
 from ink_knowledge.store import MAX_VIEW_ENTRIES
 class StoreTests(unittest.TestCase):
+    def test_selective_queries_preserve_combined_filters_paging_and_snapshot_membership(self):
+        objects=[entry('definition','query-v1',{'node':{'Op':['call:rare' if i%13==0 else 'call:common',[]]},'i':i},
+                       parameters={'x':'U32','y':'U32' if i%3==0 else 'Bool'},result='U32',
+                       effects=['read'] if i%5==0 else [],conditions=[{'from':1,'to':1}] if i%7==0 else []) for i in range(100)]
+        store=Store.publish(self.root/'filters',objects)
+        store.rebuild()
+        historical=Store(store.root,store.data/'snapshots'/f'{store.snapshot_id}.json')
+        store.extend([entry('definition','query-v1',{'node':{'Op':['call:rare',[]]},'i':101},parameters={'x':'U32'})]).ensure_index()
+        for filters in [dict(operation='call:rare'),dict(operation='call:common',effect='read'),
+                        dict(parameter_type='U32'),dict(parameter_type='Bool',condition={'from':1,'to':1}),
+                        dict(operation='missing'),dict(operation='call:rare',kind='theorem')]:
+            def matches(obj):
+                iface=obj['interface']
+                available={'operation':iface['operations'],'effect':iface['effects'],
+                           'parameter_type':iface['parameters'].values(),'condition':iface['conditions'],'kind':[obj['kind']]}
+                return all(value in available[name] for name,value in filters.items())
+            expected=sorted(identity(obj) for obj in objects if matches(obj))
+            actual=[];after=None
+            while True:
+                page=historical.query(**filters,after=after,limit=3)
+                actual.extend(page)
+                if len(page)<3:break
+                after=page[-1]
+            self.assertEqual(actual,expected)
+            self.assertEqual(historical.query(**filters,limit=0),[])
+
     def setUp(self):
         self.temp=tempfile.TemporaryDirectory();self.root=Path(self.temp.name)
         self.a=entry('definition','test-v1',dict(body='a'),parameters={'x':'U32'},result='U32')
