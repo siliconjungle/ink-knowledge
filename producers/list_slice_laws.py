@@ -78,7 +78,13 @@ def specialize(subject,core):
     # Generic endpoints and whole-source transports are proposals, never trusted
     # facts. The ordinary checker admits each selected dependency closure.
     rows=list(generic)
-    rows.extend((n,bind(v,core,subject)) for n,v in derive(subject,generic))
+    for name,candidate in derive(subject,generic):
+        try: rows.append((name,bind(candidate,core,subject)))
+        except ValueError:
+            # A supported outer body can call a function outside the admitted
+            # semantic domain. It cannot carry this definition proof; retain
+            # the other generic endpoints and independently supported sites.
+            continue
     return rows
 
 

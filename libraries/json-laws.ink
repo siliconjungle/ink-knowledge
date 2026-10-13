@@ -37,3 +37,20 @@ law projection_string_idempotent(xs:List<String>,keep:fn(String)->Bool) {
  xs.filter(keep).filter(keep) == xs.filter(keep);
  proof by use projection_idempotent(xs,keep);
 }
+
+// First-match reads can stop at the winning row. The proof holds for arbitrary
+// item and result types, including duplicate members with first-wins semantics.
+law lookup_early_exit<A,B>(xs:List<A>,matches:fn(A)->Bool,convert:fn(A)->B,empty:Option<B>) {
+ foldr(xs,empty,fn(row)=>fn(rest)=>choose(matches(row),Some(convert(row)),rest)) ==
+ fold_until(xs,empty,fn(row)=>fn(rest)=>matches(row),fn(row)=>fn(rest)=>choose(matches(row),Some(convert(row)),rest));
+ proof by induction xs {
+  nil=>normalize;
+  cons(h,t)=>cases matches(h) {true=>normalize;false=>normalize;};
+ };
+}
+
+law lookup_string_early_exit(xs:List<String>,key:String,empty:Option<String>) {
+ foldr(xs,empty,fn(row)=>fn(rest)=>choose(row==key,Some(row),rest)) ==
+ fold_until(xs,empty,fn(row)=>fn(rest)=>row==key,fn(row)=>fn(rest)=>choose(row==key,Some(row),rest));
+ proof by use lookup_early_exit(xs,fn(row)=>row==key,fn(row)=>row,empty);
+}

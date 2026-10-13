@@ -38,6 +38,8 @@ def capture(core, subject, roots):
             raise ValueError('cyclic definition context')
         if len(active) >= 64 or len(active) + len(definitions) >= 128:
             raise ValueError('definition context closure limit')
+        if name not in functions or name not in subject['functions']:
+            raise ValueError('definition context requires a supported semantic body: '+name)
         function = functions[name]
         body = subject['functions'][name]
         callees = calls(body, functions)
