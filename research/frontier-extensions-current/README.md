@@ -1,4 +1,4 @@
-# Current checked Frontier-inspired representations
+# Current checked incremental state representations
 
 These packets were regenerated against the integrated executable core and producers. Each manifest binds its exact source, model, representation requests and migration proofs. Every representation and both migration directions were checked locally.
 

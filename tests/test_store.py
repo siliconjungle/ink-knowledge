@@ -60,6 +60,25 @@ class StoreTests(unittest.TestCase):
             self.assertTrue(any('dependency_parent_lookup'in row[3]for row in plan))
             self.assertEqual(list(db.execute('PRAGMA foreign_key_check')),[])
 
+    def test_frequently_used_pinned_snapshot_survives_publication_churn(self):
+        from ink_knowledge.index_cache import MAX_SNAPSHOTS
+        self.store.rebuild();pin=self.store.data/'snapshots'/f'{self.store.snapshot_id}.json'
+        original=canonical(self.store.bundle([identity(self.b)]))
+        active=self.store
+        for i in range(MAX_SNAPSHOTS+3):
+            active=active.extend([entry('definition','test-v1',dict(body=i))])
+            active.ensure_index()
+            self.assertFalse(Store(self.root,pin).ensure_index())
+        self.assertEqual(canonical(Store(self.root,pin).bundle([identity(self.b)])),original)
+        with closing(sqlite3.connect(self.root/'index.sqlite')) as db:
+            self.assertLessEqual(db.execute('SELECT count(*) FROM snapshots').fetchone()[0],MAX_SNAPSHOTS)
+
+    def test_recency_hint_never_creates_a_missing_disposable_index(self):
+        from ink_knowledge.index_cache import touch
+        path=self.root/'absent.sqlite'
+        touch(path,self.store.snapshot_id)
+        self.assertFalse(path.exists())
+
     def test_single_canonical_read_preserves_validation_and_noncanonical_json(self):
         key=identity(self.a);path=self.root/'store/objects'/f'{key}.json'
         # Content identities describe canonical JSON, not whitespace/key order.
