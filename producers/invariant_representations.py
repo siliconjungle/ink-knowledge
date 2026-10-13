@@ -7,7 +7,7 @@ It never adds an ambient assumption to a nested source call.
 import argparse,copy,json,subprocess
 from pathlib import Path
 from ink_knowledge import Store,entry,identity
-from producers.representations import generate as baseline,refs,match,subst,unchanged_query
+from producers.representations import generate as baseline,refs,match,subst
 from producers.action_replacement import var,call,cons,trans
 from producers.contract_proofs import state_proof
 from producers.equational import Tactic
@@ -16,12 +16,33 @@ from producers.point_delta import sub
 SEMANTICS='ink-source-representation-v2'
 MATH='first-order-inductive-equality-v1'
 
+def boundary_conditions(model,name,args):
+    conditions=copy.deepcopy(model['source_domain'])
+    guard=model.get('source_preconditions',{}).get(name)
+    if guard:
+        # Exactly the condition exported and independently reconstructed by core.
+        conditions.append({'from':{'Match':dict(scrutinee=call(model['actions'][guard]['function'],args),branches=[
+            dict(bindings=['__domain_reply','__domain_commit','__domain_version','__domain_state','__domain_events'],body=var('__domain_reply')),
+            dict(bindings=['__domain_error','__domain_error_version','__domain_error_state'],body={'Bool':False})])},'to':{'Bool':True}})
+    return conditions
+
 def size(value):
     if isinstance(value,dict):return 1+sum(size(v)for v in value.values())
     if isinstance(value,list):return sum(size(v)for v in value)
     return 1
 
 def simplify(value,facts):
+    # Propose eliminating Boolean wrappers in a normalized boundary fact.
+    # Only the original equations enter the proof environment; state_proof
+    # must derive every such smaller predicate through ordinary case proofs.
+    facts=list(facts)
+    for a,z in list(facts):
+        if 'If' in a and z in ({'Bool':True},{'Bool':False}):
+            branch=a['If']
+            if branch['on_true']=={'Bool':True} and branch['on_false']=={'Bool':False}:
+                facts.append((branch['condition'],z))
+            elif branch['on_true']=={'Bool':False} and branch['on_false']=={'Bool':True}:
+                facts.append((branch['condition'],{'Bool':not z['Bool']}))
     def visit(term,depth=0):
         if depth>64:raise ValueError('invariant simplification depth')
         if isinstance(term,list):term=[visit(x,depth+1)for x in term]
@@ -37,7 +58,7 @@ def simplify(value,facts):
 
 def generate(model,directory,compiler,max_queries=16):
     if not model.get('source_domain'):return dict(requests=[],declined=['no checked source invariants'])
-    if not 1<=max_queries<=64:raise ValueError('invariant query budget')
+    if not 1<=max_queries<=64:raise ValueError('invariant action budget')
     directory=Path(directory);directory.mkdir(parents=True,exist_ok=True)
     base=baseline(model,directory/'baseline',source_domain=True)['requests'][0]
     objects=copy.deepcopy(base['knowledge']['objects']);plan=copy.deepcopy(objects[base['representation']]['payload'])
@@ -52,19 +73,19 @@ def generate(model,directory,compiler,max_queries=16):
         ident=identity(obj);objects[ident]=obj;return ident
     for name,source in sorted(model['actions'].items()):
         if len(changed)>=max_queries:break
-        if not unchanged_query(model,source):continue
         original=plan['actions'][name];signature=objects[original['execute']]['payload']['declaration']['Function'];params=signature['params'];args=[var(n)for n,_ in params];branches=[];improved=False
+        domain=boundary_conditions(model,name,[var('logical'),*args[1:]])
         for index,constructor in enumerate(physical_decl['constructors']):
             names=[f'__invariant_field_{index}_{i}'for i in range(len(constructor['fields']))]
             if any(n in dict(params)for n in names):raise ValueError('invariant field capture')
             bound=cons(physical['Data'],index,[var(n)for n in names]);decoded=tactic.norm(call(plan['decode'],[bound]))
-            facts=[(tactic.norm(sub(e['from'],{'logical':decoded})),tactic.norm(sub(e['to'],{'logical':decoded})))for e in model['source_domain']]
-            before=tactic.norm(call(original['execute'],[bound,*args[1:]]));after=simplify(before,facts)
+            facts=[(tactic.norm(sub(e['from'],{'logical':decoded})),tactic.norm(sub(e['to'],{'logical':decoded})))for e in domain]
+            before=tactic.norm(call(original['execute'],[bound,*args[1:]]));after=tactic.norm(simplify(before,facts))
             improved|=size(after)<size(before);branches.append((names,after))
         if not improved:continue
         execute=add({'Function':dict(params=params,result=signature['result'],body=match(var(params[0][0]),branches),recursive=None)})
         conditions=[dict(**{'from':call(r['left'],[var('physical'),var('logical')]),'to':call(r['right'],[var('physical'),var('logical')])})for r in plan['relations']]
-        conditions.extend(model['source_domain']);env={'physical':physical,'logical':logical,**dict(params[1:])}
+        conditions.extend(domain);env={'physical':physical,'logical':logical,**dict(params[1:])}
         execution_args=[var('physical'),*args[1:]]
         new=call(execute,execution_args);old=call(original['execute'],execution_args)
         try:

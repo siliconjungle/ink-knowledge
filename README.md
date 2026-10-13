@@ -305,6 +305,16 @@ canonical entries plus source-bound `ink-contracts-v1` evidence. Static clauses,
 `before`, invariants, finite bag observations and uniqueness are checked source
 meanings; producers cannot assign their own interpretation.
 
+`producers.invariant_representations` also proposes action guard simplifications
+from the exact exported source invariant and action precondition equations.
+Boolean wrapper elimination is an authoring heuristic; only the original
+boundary equations enter the proof environment. Each replacement requires
+ordinary complete observation and future-state preservation proofs. Public
+preconditions and restore invariant checks remain, and nested actions retain
+their original intermediate-state behavior. `performance/source-precondition-guards`
+publishes a checked example closure; source binding, not its name, makes it
+applicable. `--max-queries` retains its CLI name but bounds all changed actions.
+
 The database includes `contracts.zero-map-u64`, `contracts.identity-map-u32` and
 `contracts.sorted-identity-u64`, and `contracts.unique-id-check-erasure`: two list-induction laws, a conditional uniqueness law and a conditional sort
 law. Their definition contexts contain no exact helper bodies. The
