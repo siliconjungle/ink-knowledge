@@ -29,6 +29,61 @@ def publish(plan,root):
     store=Store(root).extend([*objects.values(),candidate])
     return dict(entry=identity(candidate),snapshot=store.snapshot_id,roots=len(roots))
 
+def contribution_choice(contribution,subject,delta,add,objects):
+    """Author ordinary word simplifications and prove the complete row function.
+
+    Case elimination exposes source fields; arbitrary word laws, never sampled
+    row values, discharge the scalar goals. Unsupported carriers simply decline.
+    """
+    from producers.point_delta import normal,sub
+    original=call(contribution,[var('key'),var('row')])
+    changed=False
+    def simplify(t,depth=0):
+        nonlocal changed
+        if depth>48:raise ValueError('contribution simplification depth')
+        t=normal(t,objects)
+        if isinstance(t,list):return [simplify(x,depth+1)for x in t]
+        if not isinstance(t,dict):return t
+        t={k:simplify(x,depth+1)for k,x in t.items()}
+        if 'Binary'in t:
+            x=t['Binary'];a,b=x['left'],x['right'];op=x['op'];z={'U64':0};one={'U64':1}
+            replacement=None
+            if op=='*'and(a==z or b==z):replacement=z
+            elif op=='*'and a==one:replacement=b
+            elif op=='*'and b==one:replacement=a
+            elif op in ['+','-']and b==z:replacement=a
+            elif op=='+'and a==z:replacement=b
+            if replacement is not None:changed=True;return replacement
+        return t
+    body=simplify(original)
+    if not changed:return None
+    function=add({'Function':dict(params=[['key',subject['key']],['row',subject['row']]],result=subject['result'],body=body,recursive=None)})
+    optimized=call(function,[var('key'),var('row')])
+    def prove(a,b,params,depth=0):
+        if depth>12:raise ValueError('contribution proof case depth')
+        left,right=normal(a,objects),normal(b,objects)
+        if left==right:return convert(a,b)
+        # Decompose only variables with actual matches in the goal. Binder names
+        # introduced by a deeper Match become parameters only after its case.
+        def matched(t):
+            if isinstance(t,dict):
+                if 'Match'in t and 'Var'in t['Match']['scrutinee']:yield t['Match']['scrutinee']['Var']
+                for x in t.values():yield from matched(x)
+            elif isinstance(t,list):
+                for x in t:yield from matched(x)
+        names=set(matched(left))|set(matched(right))
+        candidate=next(((n,s)for n,s in params if n in names and isinstance(s,dict)and'Data'in s),None)
+        if candidate:
+            name,sort=candidate;datatype=sort['Data'];constructors=objects[datatype]['payload']['declaration']['Datatype']['constructors'];cases=[]
+            for i,c in enumerate(constructors):
+                bindings=['contrib_case_'+str(depth)+'_'+str(i)+'_'+str(j)for j in range(len(c['fields']))]
+                node=cons(datatype,i,[var(n)for n in bindings]);mapping={name:node}
+                cases.append(dict(bindings=bindings,proof=prove(sub(a,mapping),sub(b,mapping),[(n,s)for n,s in params if n!=name]+list(zip(bindings,c['fields'])),depth+1)))
+            return {'Cases':dict(variable=name,**{'from':a,'to':b},cases=cases)}
+        return delta['prove_equality'](a,b)
+    proof=prove(original,optimized,[('key',subject['key']),('row',subject['row'])])
+    return dict(function=function,proof=proof)
+
 def produce(source,compiler,directory,keeps=None,capacity=0,source_core=False):
     source=Path(source).resolve();compiler=Path(compiler).resolve();directory=Path(directory);directory.mkdir(parents=True,exist_ok=True)
     flags=['--core']if source_core else []
@@ -47,6 +102,8 @@ def produce(source,compiler,directory,keeps=None,capacity=0,source_core=False):
         combine=add({'Function':dict(params=[['a','U64'],['b','U64']],result='U64',body=binary('+',var('a'),var('b')),recursive=None)})
         inverse=add({'Function':dict(params=[['a','U64']],result='U64',body=binary('-',{'U64':0},var('a')),recursive=None)})
         zero={'U64':0}
+        update=add({'Function':dict(params=[['total','U64'],['old','U64'],['new','U64']],result='U64',
+            body=binary('+',binary('-',var('total'),var('old')),var('new')),recursive=None)})
         # Ordinary checked word laws include all 64 bits and wrapping arithmetic.
         c=lambda a,b:call(combine,[a,b])
         def scalar(left,right,proof):
@@ -56,6 +113,10 @@ def produce(source,compiler,directory,keeps=None,capacity=0,source_core=False):
             associativity=scalar(c(c(var('a'),var('b')),var('c')),c(var('a'),c(var('b'),var('c'))),ring.law('assoc',[var('a'),var('b'),var('c')])),
             commutativity=scalar(c(var('a'),var('b')),c(var('b'),var('a')),ring.law('commute',[var('a'),var('b')])),
             cancellation=scalar(c(call(inverse,[var('a')]),var('a')),zero,ring.prove(binary('+',binary('-',zero,var('a')),var('a')),zero)))
+        update_left=c(c(var('total'),call(inverse,[var('old')])),var('new'))
+        update_right=call(update,[var('total'),var('old'),var('new')])
+        from producers.point_delta import normal
+        update_proof=scalar(update_left,update_right,ring.prove(normal(update_left,objects),normal(update_right,objects)))
         from producers.aggregate_delta import setup
         for subject in subjects['subjects']:
             if keeps is not None and subject['keep']not in keeps:continue
@@ -97,7 +158,8 @@ def produce(source,compiler,directory,keeps=None,capacity=0,source_core=False):
                     deletion=mutation(c(total(node(var('row'))),neg),total(var('tail'))),
                     replacement=mutation(c(total(node(var('row'))),c(neg,row_contribution(var('new')))),total(node(var('new'))))
                 )
-                views.append(dict(keep=subject['keep'],table=subject['table'],contribution=contribution,combine=combine,inverse=inverse,zero=zero,factorisation=factorisation,**group,**mutations))
+                choice=contribution_choice(contribution,subject,delta,add,objects)
+                views.append(dict(keep=subject['keep'],table=subject['table'],contribution=contribution,combine=combine,inverse=inverse,zero=zero,factorisation=factorisation,update=dict(function=update,proof=update_proof),**({'contribution_choice':choice}if choice else{}),**group,**mutations))
             except (ValueError,KeyError)as e:
                 if os.environ.get('INK_PROOF_DEBUG'):raise
                 declined.append(dict(keep=subject['keep'],reason=str(e)))

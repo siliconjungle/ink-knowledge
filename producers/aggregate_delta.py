@@ -122,4 +122,4 @@ def setup(model,cache,add,objects,specialized=False):
         use={'Use':dict(theorem=updates[name],arguments=args,premises=[])}
         delta=contrib(args[2])if name=='insert'else call(delta_functions[name],args)
         return trans(use,lift(query_equality(args[row_argument[name]],bindings),binary('+',var('delta_hole'),delta)))
-    return dict(action=action,recipe=recipe,equality=query_equality,index=0,fused=total(var(binding)),fusion_proof=lambda root:{'Use':dict(theorem=fusion,arguments=[root],premises=[])},contribution=contribution,fold=fold,fusion=fusion,updates=updates,delta_functions=delta_functions,prove_arithmetic=arithmetic)
+    return dict(action=action,recipe=recipe,equality=query_equality,index=0,fused=total(var(binding)),fusion_proof=lambda root:{'Use':dict(theorem=fusion,arguments=[root],premises=[])},contribution=contribution,fold=fold,fusion=fusion,updates=updates,delta_functions=delta_functions,prove_arithmetic=arithmetic,prove_equality=equality)

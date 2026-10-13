@@ -92,10 +92,12 @@ def guarded_equality(a,z,objects,index=0,depth=0):
         branches['on_true'if flag else 'on_false']=trans(convert(a,a0),lift(h,ca),guarded_equality(na,nz,objects,index+1,depth+1),{'Sym':lift(h,cz)},convert(z0,z))
     return {'BoolSplit':dict(condition=guard,**{'from':a,'to':z},**branches)}
 
-def produce(before,after,selected,directory,knowledge_root=None,snapshot=None):
+def produce(before,after,selected,directory,knowledge_root=None,snapshot=None,sorted_tables=None):
     if before['semantics']!='ink-action-transition-v1' or after['semantics']!=before['semantics']:raise ValueError('incompatible projection')
     if before['state']!=after['state'] or before['events']!=after['events']:raise ValueError('transition representation changed')
     objects={**before['objects'],**after['objects']};proofs={};laws={}
+    from producers.definition_bridges import bridges
+    bridge,bridge_roots=bridges(before['objects'],after['objects'],objects)
     database=Store(Path(knowledge_root) if knowledge_root else Path(__file__).resolve().parents[1],snapshot)
     names=read(database.data/'names.json')
     roles={n:names['action-laws/'+n] for n in ['StateRow','WordRows','remove','remove_idempotence']}
@@ -231,8 +233,12 @@ def produce(before,after,selected,directory,knowledge_root=None,snapshot=None):
         # Convert rechecks the final complete observation, including hygienic
         # binder changes caused by removing a statement. Syntactic identity is
         # unnecessarily strict here; this proposal gains no authority from it.
+        current,bridge_steps=bridge(current)
+        steps.extend(bridge_steps)
         current,left_steps=canonical(current)
-        end_canonical,right_steps=canonical(end)
+        end_bridged,bridge_right_steps=bridge(end)
+        end_canonical,right_steps=canonical(end_bridged)
+        right_steps=[*bridge_right_steps,*right_steps]
         if right_steps:
             tail=trans(guarded_equality(current,end_canonical,objects),{'Sym':trans(*right_steps)},convert(end,new))
         else:
@@ -240,13 +246,25 @@ def produce(before,after,selected,directory,knowledge_root=None,snapshot=None):
         case=trans(convert(old,start),*steps,*left_steps,tail)
         args=[var(n) for n,_ in a['params']]
         proofs[name]={'Induction':dict(variable='initial',**{'from':call(a['function'],args),'to':call(z['function'],args)},cases=[dict(bindings=a['case']['bindings'],proof=case)])}
-    roots=sorted({a['function'] for a in before['actions'].values()}|{a['function'] for a in after['actions'].values()}|{law['theorem'] for law in laws.values()}|{law['theorem'] for _,_,law in coalescing}|used_commuting)
+    invariant={};sorted_roots=set()
+    if sorted_tables is not None:
+        # Prove the original actions keep every table strictly sorted, then
+        # prove changed transitions equal under that checked invariant.
+        from producers.sorted_rows import action_proofs
+        library=database.bundle(sorted(i for n,i in names.items() if n.startswith('state-calculus/')))['objects']
+        objects.update(library);objects.update(sorted_tables['objects'])
+        preservation,equalities,used=action_proofs(before,after,sorted_tables,objects,names)
+        proofs.update(equalities);invariant=dict(sorted_tables=dict(actions=preservation))
+        sorted_roots=set(sorted_tables['objects'])|used
+    roots=sorted({a['function'] for a in before['actions'].values()}|{a['function'] for a in after['actions'].values()}|{law['theorem'] for law in laws.values()}|{law['theorem'] for _,_,law in coalescing}|used_commuting|bridge_roots|sorted_roots)
     store=Store.publish(directory,list(objects.values()))
-    return dict(schema=1,semantics='ink-evidence-v1',input_core_sha256=before['source'],knowledge=store.bundle(roots),applications=[],action_replacement=dict(selected=selected,proofs=proofs))
+    return dict(schema=1,semantics='ink-evidence-v1',input_core_sha256=before['source'],knowledge=store.bundle(roots),applications=[],action_replacement=dict(selected=selected,proofs=proofs,**invariant))
 
 def main():
     p=argparse.ArgumentParser(description=__doc__);p.add_argument('before');p.add_argument('after');p.add_argument('selected');p.add_argument('-o','--output',required=True);p.add_argument('--knowledge',type=Path);p.add_argument('--snapshot',type=Path)
+    p.add_argument('--sorted-tables',type=Path,help='the original module\'s derived sortedness predicates (emit-action-model --sorted-tables); prove and assume them')
     a=p.parse_args();out=Path(a.output);out.parent.mkdir(parents=True,exist_ok=True)
-    result=produce(read(Path(a.before)),read(Path(a.after)),read(Path(a.selected)),out.parent/'database',a.knowledge,a.snapshot)
-    out.write_text(json.dumps(result,indent=2)+'\n');print(json.dumps(dict(status='proposed',authority='requires compiler checking')))
+    result=produce(read(Path(a.before)),read(Path(a.after)),read(Path(a.selected)),out.parent/'database',a.knowledge,a.snapshot,
+                   json.loads(a.sorted_tables.read_text()) if a.sorted_tables else None)
+    out.write_text(json.dumps(result,separators=(',',':'))+'\n');print(json.dumps(dict(status='proposed',authority='requires compiler checking')))
 if __name__=='__main__':main()
