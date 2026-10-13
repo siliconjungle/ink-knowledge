@@ -534,13 +534,50 @@ def author(compiler,source,directory,bodies=None,source_evidence=None):
     if bodies:options += ['--refinement-bodies',str(Path(bodies).resolve())]
     export=directory/'obligations.json'
     subprocess.run([compiler,'emit-contract-obligations',source,'-o',str(export),*options],check=True,capture_output=True,text=True)
-    goals=json.loads(export.read_text());pure_objects={};state_objects=dict((goals['state'] or {}).get('objects',{}));pure_roots=[];state_roots=[]
+    goals=json.loads(export.read_text())
+    with ProofSession(compiler,source,options,goals['source_sha256']) as session:
+        return author_obligations(compiler,source,directory,bodies,options,goals,session)
+
+class ProofSession:
+    """Reuse source derivation, never a previous proof verdict."""
+    def __init__(self,compiler,source,options,expected):
+        self.arguments=[compiler,'check-contract-proof-stream',source,*options]
+        self.expected=expected;self.process=None
+    def __enter__(self):
+        self.process=subprocess.Popen(self.arguments,stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True)
+        try:
+            ready=self.read()
+            if ready!={'status':'ready','source_sha256':self.expected}:raise ValueError('proof session source identity differs from export')
+        except BaseException:
+            self.__exit__(None,None,None);raise
+        return self
+    def read(self):
+        line=self.process.stdout.readline()
+        if not line:raise ValueError('proof checker ended: '+self.process.stderr.read()[-1200:])
+        return json.loads(line)
+    def check(self,name,proof,bundle):
+        self.process.stdin.write(json.dumps(dict(name=name,proof=proof,knowledge=bundle),separators=(',',':'))+'\n')
+        self.process.stdin.flush();answer=self.read()
+        if answer.get('status') not in ('checked','rejected'):raise ValueError('unknown proof checker verdict')
+        # Transport/schema rejection may precede decoding the obligation name.
+        # It is a failed proposal, never a checked verdict or a reusable fact.
+        if answer.get('name')!=name and not(answer['status']=='rejected' and 'name'not in answer and isinstance(answer.get('error'),str)):
+            raise ValueError('proof checker response obligation differs')
+        return answer
+    def __exit__(self,*unused):
+        if self.process is not None:
+            self.process.stdin.close();self.process.wait()
+            self.process.stdout.close();self.process.stderr.close()
+
+
+def author_obligations(compiler,source,directory,bodies,options,goals,session):
+    pure_objects={};state_objects=dict((goals['state'] or {}).get('objects',{}));pure_roots=[];state_roots=[]
     proofs={};state_proofs={};names={};installed=Store(Path(__file__).resolve().parents[1])
     def check(g,proof,bundle=None):
         path=directory/'trial.json';path.write_text(json.dumps(dict(proof=proof,knowledge=bundle)))
-        trial=subprocess.run([compiler,'check-contract-proof',source,g['name'],str(path),*options],capture_output=True,text=True)
-        if trial.returncode:(directory/"last-check-error.txt").write_text(trial.stderr)
-        return trial.returncode==0
+        answer=session.check(g['name'],proof,bundle)
+        if answer['status']=='rejected':(directory/"last-check-error.txt").write_text(answer['error'])
+        return answer['status']=='checked'
     for g in goals['pure']:
         proof=next((p for p in pure_proposals(g) if check(g,p)),None);dependencies=[]
         if proof is None:

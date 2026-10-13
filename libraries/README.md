@@ -58,12 +58,18 @@ dependencies into the active snapshot and `json-view.json`. Conditional premises
 must be proved at use sites. These laws concern source list/value semantics;
 the operational Rust/JavaScript binary codecs remain trusted and tested.
 
-`storage-regions.ink` and `chunked-sequences.ink` are abstract word-storage
+`storage-regions.ink` and `chunked-sequences.ink` are abstract generic storage
 interfaces implemented with ordinary owned buffers and nested finite loops.
 The arena stores variable-size rows in one payload sequence with checked relative
 spans. Chunk construction retains complete and final partial chunks. Successful
 values carry range/width invariants; raw ingress still validates them. Handles
 are relative coordinates without allocation provenance. Result-validity evidence
-is ordinary canonical contract laws; universal codec round trips, generic element
-families, direct borrowed views and profitability measurements remain work in
+is ordinary canonical contract laws; universal codec round trips, broader refined element/owner proofs, direct borrowed views and profitability measurements remain work in
 progress. See the distribution's `docs/storage-regions-foundation.md`.
+
+
+`storage-observations.ink` proves a general observation law for left folds with a
+checked per-step assumption, plus list and owned-buffer instances. Its theorem
+is reusable across element/state types; an instance must establish its own step
+relation. These are ordinary canonical laws and do not establish an arena or
+chunked-sequence codec relation merely by naming that representation.
