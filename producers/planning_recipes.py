@@ -103,7 +103,7 @@ def author(context,parameters,generate):
                 result=generate(context['model'],Path(temporary),options)
                 for i,request in enumerate(requests(result)):
                     yield row('representation',request,label+'/'+str(i))
-        except (ValueError,KeyError,TypeError,NotImplementedError,subprocess.CalledProcessError)as error:
+        except (ValueError,KeyError,TypeError,NotImplementedError,ImportError,subprocess.CalledProcessError)as error:
             yield decline(label,error)
 
 def representations(context,**parameters):
