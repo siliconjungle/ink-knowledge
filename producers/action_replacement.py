@@ -120,6 +120,59 @@ def produce(before,after,selected,directory,knowledge_root=None,snapshot=None):
                 option=objects[t['get']]['payload']['declaration']['Function']['result']['Data']
                 law['definitions'][names['state-calculus/RowOption']]=option
             coalescing.append((t,rule,law))
+    # Two-key commutation (state-calculus/key_commutation): both sides are put
+    # in one canonical order, removals innermost and in key order. Each step is
+    # an instance the compiler replays; the order is only a search convention.
+    commuting=[]
+    if all('state-calculus/'+n in names for n in ('remove_remove_commute','remove_replace_commute')):
+        for t in before['tables']:
+            ty=json.dumps(t['value_type'],sort_keys=True,separators=(',',':'));sort=before['types'][ty]
+            rows_role,remove_role,replace_role=names['state-calculus/WordRows'],names['state-calculus/remove'],names['state-calculus/replace']
+            for rule in ('remove_remove_commute','remove_replace_commute'):
+                definitions={rows_role:t['datatype'],remove_role:t['remove']}
+                if rule=='remove_replace_commute':definitions[replace_role]=t['replace']
+                law=dict(theorem=names['state-calculus/'+rule],sorts={names['state-calculus/StateRow']:sort},functions={},definitions=definitions,assumptions={})
+                general.update(database.bundle([law['theorem']])['objects'])
+                commuting.append((t,rule,law))
+    objects.update(general)
+    used_commuting=set()
+    def canonical(term):
+        def find(t):
+            if isinstance(t,dict) and 'Call' in t:
+                outer=t['Call'];args=outer['arguments']
+                if len(args)==2 and isinstance(args[0],dict) and 'Call' in args[0]:
+                    inner=args[0]['Call'];inside=inner['arguments']
+                    for table,rule,law in commuting:
+                        if outer['function']!=table['remove']:continue
+                        if rule=='remove_remove_commute' and inner['function']==table['remove'] and len(inside)==2:
+                            if json.dumps(args[1],sort_keys=True)<json.dumps(inside[1],sort_keys=True):
+                                return t,call(table['remove'],[call(table['remove'],[inside[0],args[1]]),inside[1]]),law,[inside[0],inside[1],args[1]]
+                        if rule=='remove_replace_commute' and inner['function']==table['replace'] and len(inside)==3:
+                            return t,call(table['replace'],[call(table['remove'],[inside[0],args[1]]),inside[1],inside[2]]),law,[inside[0],inside[1],args[1],inside[2]]
+            if isinstance(t,dict):
+                for k in sorted(t):
+                    r=find(t[k])
+                    if r:return r
+            if isinstance(t,list):
+                for x in t:
+                    r=find(x)
+                    if r:return r
+            return None
+        def swap(t,target,value):
+            if t==target:return copy.deepcopy(value)
+            if isinstance(t,dict):return {k:swap(v,target,value) for k,v in t.items()}
+            if isinstance(t,list):return [swap(v,target,value) for v in t]
+            return t
+        steps=[];current=copy.deepcopy(term)
+        for _ in range(64):
+            found=find(current)
+            if not found:break
+            original,replacement,law,args=found
+            context=swap(current,original,var('replacement_rows'))
+            steps.append({'Substitute':dict(variable='replacement_rows',context=context,equality={'Instance':dict(**law,arguments=args,premises=[])})})
+            used_commuting.add(law['theorem'])
+            current=swap(current,original,replacement)
+        return current,steps
     for name,a in before['actions'].items():
         z=after['actions'][name];old=a['case']['call'];new=z['case']['call']
         if a['function']==z['function']:
@@ -178,10 +231,16 @@ def produce(before,after,selected,directory,knowledge_root=None,snapshot=None):
         # Convert rechecks the final complete observation, including hygienic
         # binder changes caused by removing a statement. Syntactic identity is
         # unnecessarily strict here; this proposal gains no authority from it.
-        case=trans(convert(old,start),*steps,guarded_equality(current,new,objects))
+        current,left_steps=canonical(current)
+        end_canonical,right_steps=canonical(end)
+        if right_steps:
+            tail=trans(guarded_equality(current,end_canonical,objects),{'Sym':trans(*right_steps)},convert(end,new))
+        else:
+            tail=guarded_equality(current,new,objects)
+        case=trans(convert(old,start),*steps,*left_steps,tail)
         args=[var(n) for n,_ in a['params']]
         proofs[name]={'Induction':dict(variable='initial',**{'from':call(a['function'],args),'to':call(z['function'],args)},cases=[dict(bindings=a['case']['bindings'],proof=case)])}
-    roots=sorted({a['function'] for a in before['actions'].values()}|{a['function'] for a in after['actions'].values()}|{law['theorem'] for law in laws.values()}|{law['theorem'] for _,_,law in coalescing})
+    roots=sorted({a['function'] for a in before['actions'].values()}|{a['function'] for a in after['actions'].values()}|{law['theorem'] for law in laws.values()}|{law['theorem'] for _,_,law in coalescing}|used_commuting)
     store=Store.publish(directory,list(objects.values()))
     return dict(schema=1,semantics='ink-evidence-v1',input_core_sha256=before['source'],knowledge=store.bundle(roots),applications=[],action_replacement=dict(selected=selected,proofs=proofs))
 

@@ -25,23 +25,50 @@ def modules(store=None):
     if len(names)>64 or any(not isinstance(n,str) or not MODULE.fullmatch(n) for n in names):raise ValueError('producer catalog limit or module')
     return list(dict.fromkeys(names)),publications
 
-def generate(subject,core,store=None):
+def retarget(value,renamed):
+    """Follow identities that changed when an earlier row was context-bound.
+
+    A producer may emit a supporting law and later rows that `Use` it by its
+    unbound identity. Binding a definition context changes that identity, so
+    dependency lists and proof references are rewritten to the bound entry.
+    Unknown identities are left alone; the kernel still checks every closure.
+    """
+    if not renamed:return value
+    if isinstance(value,dict):
+        out={}
+        for k,v in value.items():
+            if k=='law' and isinstance(v,str):out[k]=renamed.get(v,v)
+            elif k=='dependencies' and isinstance(v,list):out[k]=sorted({renamed.get(d,d) if isinstance(d,str) else d for d in v})
+            else:out[k]=retarget(v,renamed)
+        return out
+    if isinstance(value,list):return [retarget(v,renamed) for v in value]
+    return value
+
+def generate(subject,core,store=None,compiler=None):
     names,publications=modules(store)
     objects={};receipts=[]
     for name in names:
         module=importlib.import_module(name)
         rows=module.specialize(subject,core)
         if len(rows)>256:raise ValueError('producer candidate limit')
+        renamed={}
         for label,proposal in rows:
             from producers.definition_context28 import bind,calls
             names={f['name']for f in core['program']['functions']}
+            original=identity(semantic_entry(proposal))
+            proposal=retarget(proposal,renamed)
             if 'definition_context' not in proposal and (calls(proposal,names) or nominal_types(proposal)):
                 proposal=bind(proposal,core,subject)
-            obj=semantic_entry(proposal);objects[identity(obj)]=obj
-        receipts.append(dict(module=name,source_sha256=hashlib.sha256(Path(module.__file__).read_bytes()).hexdigest(),candidates=len(rows),publication_ids=publications))
+            obj=semantic_entry(proposal);ident=identity(obj);objects[ident]=obj
+            if ident!=original:renamed[original]=ident
+        receipts.append(dict(module=name,source_sha256=hashlib.sha256(Path(module.__file__).read_bytes()).hexdigest(),candidates=len(rows),publication_ids=publications,retargeted=len(renamed)))
     if store is not None:
         from .law_templates import generate as instantiate
         extra,templates=instantiate(store,subject,core);objects.update(extra);receipts.extend(templates)
+        # Structure laws reach a program only through concrete instances whose
+        # assumptions the compiler has checked for this module.
+        from .structure_instances import generate as structures
+        extra,receipt=structures(store,subject,core,compiler);objects.update(extra);receipts.append(receipt)
     return objects,receipts
 
 def nominal_types(value):
