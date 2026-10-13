@@ -369,7 +369,7 @@ class Store:
                 with db:return self._refresh_rows(db)
         fd,tmp=tempfile.mkstemp(prefix='.ink-index-',dir=self.root);os.close(fd)
         try:
-            with closing(sqlite3.connect(target.as_uri()+'?mode=ro',uri=True))as source,closing(sqlite3.connect(tmp))as db:
+            with closing(sqlite3.connect(target.as_uri()+'?mode=ro',uri=True))as source,closing(sqlite3.connect(Path(tmp).as_uri(),uri=True))as db:
                 from .index_cache import copy as copy_index
                 copy_index(source,target,db);db.execute('PRAGMA foreign_keys=ON')
                 from .pattern_index import SCHEMA as pattern_schema
