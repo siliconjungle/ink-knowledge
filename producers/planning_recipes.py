@@ -30,7 +30,7 @@ def published(context):
                 obj=store.object(ident)
                 if kind=='representation':
                     if obj['payload'].get('source_objects')!=source_objects:continue
-                    request=dict(schema=1,semantics='ink-source-representation-v1',input_core_sha256=context['source'],
+                    request=dict(schema=1,semantics=obj['semantics'],input_core_sha256=context['source'],
                         representation=ident,knowledge=store.bundle([ident]))
                     yield row('representation',request,'published/'+ident)
                 else:
@@ -44,7 +44,7 @@ def published(context):
                         package['knowledge']=store.bundle(roots)
                     if package['semantics']=='ink-compiled-plan-v1':yield dict(status='plan',label='published/'+ident,package=package)
                     elif package['semantics']=='ink-evidence-v1':yield row('rewrite',package,'published/'+ident)
-                    elif package['semantics']=='ink-source-representation-v1':yield row('representation',package,'published/'+ident)
+                    elif package['semantics']in ('ink-source-representation-v1','ink-source-representation-v2'):yield row('representation',package,'published/'+ident)
                     else:yield decline('published/'+ident,'unsupported package protocol '+package['semantics'])
             if len(page)<256:break
             after=page[-1]
@@ -109,6 +109,9 @@ def author(context,parameters,generate):
 def representations(context,**parameters):
     from producers.representations import generate
     yield from author(context,parameters,lambda m,d,p:generate(m,d,**p))
+def invariant_observations(context,**parameters):
+    from producers.invariant_representations import generate
+    yield from author(context,parameters,lambda m,d,p:generate(m,d,context['compiler'],**p))
 def generic_index(context,**parameters):
     from producers.generic_indexed import generate
     yield from author(context,parameters,lambda m,d,p:generate(m,d,**p))

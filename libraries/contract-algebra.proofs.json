@@ -1,0 +1,227 @@
+{
+  "known_conjunction_left": {
+    "proof": {
+      "Trans": {
+        "middle": {
+          "sort": {
+            "Value": "Bool"
+          },
+          "node": {
+            "Op": [
+              "binary:&&",
+              [
+                {
+                  "sort": {
+                    "Value": "Bool"
+                  },
+                  "node": {
+                    "Free": "p"
+                  }
+                },
+                {
+                  "sort": {
+                    "Value": "Bool"
+                  },
+                  "node": {
+                    "Free": "q"
+                  }
+                }
+              ]
+            ]
+          }
+        },
+        "left": {
+          "Cases": {
+            "condition": {
+              "sort": {
+                "Value": "Bool"
+              },
+              "node": {
+                "Free": "p"
+              }
+            },
+            "on_false": {
+              "Trans": {
+                "middle": {
+                  "sort": {
+                    "Value": "Bool"
+                  },
+                  "node": {
+                    "Bool": false
+                  }
+                },
+                "left": {
+                  "Hypothesis": 1
+                },
+                "right": "Normalize"
+              }
+            },
+            "on_true": {
+              "Trans": {
+                "middle": {
+                  "sort": {
+                    "Value": "Bool"
+                  },
+                  "node": {
+                    "Bool": true
+                  }
+                },
+                "left": {
+                  "Hypothesis": 1
+                },
+                "right": {
+                  "Sym": {
+                    "Hypothesis": 0
+                  }
+                }
+              }
+            }
+          }
+        },
+        "right": {
+          "Hypothesis": 0
+        }
+      }
+    }
+  },
+  "integer_bound_transitive": {
+    "proof": {
+      "Linear": {
+        "premises": [
+          [
+            0,
+            1
+          ],
+          [
+            1,
+            1
+          ]
+        ]
+      }
+    }
+  },
+  "integer_strict_predecessor": {
+    "proof": {
+      "Linear": {
+        "premises": []
+      }
+    }
+  },
+  "integer_positive_zero": {
+    "proof": {
+      "Linear": {
+        "premises": [
+          [
+            0,
+            1
+          ]
+        ]
+      }
+    }
+  },
+  "count_nonnegative": {
+    "proof": {
+      "Induction": {
+        "variable": "xs",
+        "names": [
+          "head",
+          "tail"
+        ],
+        "base": {
+          "Linear": {
+            "premises": []
+          }
+        },
+        "step": {
+          "Linear": {
+            "premises": [
+              [
+                0,
+                1
+              ]
+            ]
+          }
+        }
+      }
+    }
+  },
+  "filter_count_bound": {
+    "proof": {
+      "Induction": {
+        "variable": "xs",
+        "names": [
+          "head",
+          "tail"
+        ],
+        "base": {
+          "Linear": {
+            "premises": []
+          }
+        },
+        "step": {
+          "Cases": {
+            "condition": {
+              "sort": {
+                "Value": "Bool"
+              },
+              "node": {
+                "Op": [
+                  "apply",
+                  [
+                    {
+                      "sort": {
+                        "Arrow": [
+                          {
+                            "Value": {
+                              "Named": "T"
+                            }
+                          },
+                          {
+                            "Value": "Bool"
+                          }
+                        ]
+                      },
+                      "node": {
+                        "Free": "p"
+                      }
+                    },
+                    {
+                      "sort": {
+                        "Value": {
+                          "Named": "T"
+                        }
+                      },
+                      "node": {
+                        "Free": "head"
+                      }
+                    }
+                  ]
+                ]
+              }
+            },
+            "on_false": {
+              "Linear": {
+                "premises": [
+                  [
+                    0,
+                    1
+                  ]
+                ]
+              }
+            },
+            "on_true": {
+              "Linear": {
+                "premises": [
+                  [
+                    0,
+                    1
+                  ]
+                ]
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

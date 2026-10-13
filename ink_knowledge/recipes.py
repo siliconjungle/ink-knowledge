@@ -60,7 +60,8 @@ def role(obj):
     kind,sem=obj['kind'],obj['semantics']
     if kind not in KINDS:raise ValueError('unhandled database kind: '+kind)
     if kind=='rewrite' and sem=='ink-conditional-laws-v1':return 'semantic-search'
-    if kind=='representation' and sem=='ink-source-representation-v1':return 'representation-search'
+    if kind=='rewrite' and sem=='ink-general-laws-v1':return 'general-proof-dependency'
+    if kind=='representation' and sem in ('ink-source-representation-v1','ink-source-representation-v2'):return 'representation-search'
     if kind=='implementation' and sem=='ink-implementation-candidate-v1':return 'implementation-search'
     if kind=='bridge' and sem=='ink-representation-migration-v1':return 'migration-search'
     if kind in {'definition','theorem'} and sem=='first-order-inductive-equality-v1':

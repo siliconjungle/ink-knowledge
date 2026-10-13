@@ -75,7 +75,7 @@ def _entry_fields(v):
     for key in ['operations','effects']:
         a=v['interface'][key]
         if not isinstance(a,list) or any(not isinstance(x,str) for x in a) or a != sorted(set(a)): raise ValueError('invalid interface index')
-    dependency_limit=MAX_VIEW_ENTRIES if v['semantics']=='ink-implementation-candidate-v1' else 512 if v['semantics']=='ink-source-representation-v1' else 128
+    dependency_limit=MAX_VIEW_ENTRIES if v['semantics']=='ink-implementation-candidate-v1' else 512 if v['semantics']in ('ink-source-representation-v1','ink-source-representation-v2') else 128
     if not isinstance(v['dependencies'],list) or len(v['dependencies'])>dependency_limit or v['dependencies'] != sorted(set(v['dependencies'])): raise ValueError('dependencies must be unique and sorted')
     for i in v['dependencies']: hash_id(i)
 def _entry_size(v,size):
