@@ -37,3 +37,17 @@ and sparse component gathering. They add no compiler algorithm recognisers.
 The external bulk-buffer producer separately publishes checked range identities
 and fill length invariants. See the distribution's `docs/bulk-buffer-workloads.md`
 for admission, CPU/device boundaries, reproducible measurements and limitations.
+
+`json.ink` defines the ordinary recursive `Json` datatype and object algorithms:
+constructors, typed accessors, missing-versus-null lookup, replacement, removal
+and projection. Number tokens preserve exact spelling; member order is observable.
+The ABI's checked text boundary rejects duplicate names and invalid number tokens.
+Source constructors can create malformed JSON documents, so conversion back to
+JSON is explicitly fallible. No compiler JSON algorithm recogniser is added.
+
+`json-laws.ink` supplies generic lookup-after-replacement, empty lookup,
+projection idempotence and projection/map fusion, plus searchable String
+instances. `producers/json_laws.py` publishes six ordinary checked laws and their
+dependencies into the active snapshot and `json-view.json`. Conditional premises
+must be proved at use sites. These laws concern source list/value semantics;
+the operational Rust/JavaScript binary codecs remain trusted and tested.
