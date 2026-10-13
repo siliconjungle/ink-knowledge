@@ -152,6 +152,28 @@ def keyed_tables(lib):
         lib.theorem(name,[['rows',RS],['key','U64']]+extras,left(r),right(r),proof,[option] if name in ('contains_replace','lookup_replace') else [])
     key_locality(lib,rows,row,option,get,remove,rep)
     general_lookup_updates(lib,rows,row,option,get,remove,rep,present)
+    key_commutation(lib,rows,row,remove,rep)
+
+def key_commutation(lib,rows,row,remove,rep):
+    """Updates of two keys commute: two removals always, and a removal with a
+    replacement always (a replacement keeps keys; a removal filters by key).
+    Both hold for any row list, sorted or not, and for equal keys too."""
+    from producers.point_delta import binary,equality
+    r,k,q,n=map(var,('rows','key','other','new'));h,x,t=map(var,('proof_key','proof_row','proof_tail'))
+    RS={'Data':rows};nil=construct(rows,0);bound=construct(rows,1,h,x,t)
+    D=lambda r,key:call(remove,r,key);R=lambda r,key,v:call(rep,r,key,v)
+    laws=[('remove_remove_commute',lambda r:D(D(r,k),q),lambda r:D(D(r,q),k),[]),
+          ('remove_replace_commute',lambda r:D(R(r,k,n),q),lambda r:R(D(r,q),k,n),[['new',row]])]
+    first,second=binary('==',k,h),binary('==',q,h)
+    for name,left,right,extras in laws:
+        a,z=left(bound),right(bound)
+        def leaf(fk,fq):
+            return equality(a,z,lib.objects,(left(t),right(t),0),[(first,{'Bool':fk},1),(second,{'Bool':fq},2)])
+        def inner(fk):
+            return {'BoolSplit':dict(condition=second,**{'from':a,'to':z},on_true=leaf(fk,True),on_false=leaf(fk,False))}
+        step={'BoolSplit':dict(condition=first,**{'from':a,'to':z},on_true=inner(True),on_false=inner(False))}
+        proof={'Induction':dict(variable='rows',**{'from':left(r),'to':right(r)},cases=[dict(bindings=[],proof=equality(left(nil),right(nil),lib.objects)),dict(bindings=['proof_key','proof_row','proof_tail'],proof=step)])}
+        lib.theorem(name,[['rows',RS],['key','U64'],['other','U64']]+extras,left(r),right(r),proof)
 
 def general_lookup_updates(lib,rows,row,option,get,remove,rep,present):
     import subprocess,tempfile
