@@ -27,4 +27,14 @@ class Candidates(unittest.TestCase):
             package['knowledge']['objects']['2'*64] = entry('definition','test-data',{'value':3})
             with self.assertRaises(ValueError): publish_candidates(temporary,[package])
 
+class SharedTopology(unittest.TestCase):
+    def test_shared_views_preserve_existing_wide_leaves(self):
+        with tempfile.TemporaryDirectory()as temporary:
+            root=Path(temporary);objects=[entry('definition','test-data',{'value':n})for n in range(200)]
+            Store.publish(root,objects)
+            store,ids=publish_candidates(root,[identity_selection('1'*64)],shared_knowledge=True)
+            self.assertGreater(max(len(w['entries'])for w in store.members().values()),2)
+            self.assertEqual(len(store.members()),201)
+            self.assertEqual(store.object(ids[0])['payload']['package']['knowledge_ref']['roots'],[])
+
 if __name__ == '__main__': unittest.main()

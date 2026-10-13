@@ -76,3 +76,40 @@ class AppendPublication(unittest.TestCase):
             self.assertEqual(Store(root).snapshot_id,pin)
             frozen=Store(root,root/'store/snapshots'/(pin+'.json'))
             with self.assertRaises(ValueError):frozen.extend([])
+
+class PublicationReuse(unittest.TestCase):
+ def test_constructed_tree_is_reused_but_later_instances_authenticate_files(self):
+  from ink_knowledge import store as module
+  with tempfile.TemporaryDirectory() as tmp:
+   objects=[entry('definition','test',{'number':n})for n in range(200)]
+   original=module.read
+   with patch.object(module,'read',wraps=original)as reads:
+    published=Store.publish(tmp,objects)
+   self.assertFalse(any('/trees/'in str(c.args[0])for c in reads.call_args_list))
+   members=published.members();leaf=next(iter(members.values()))
+   for ident in leaf['entries']:self.assertIs(members[ident],leaf)
+   root=Path(tmp);tree=root/'store/trees'/(published.snapshot['root']+'.json');value=json.loads(tree.read_text());value['left']='0'*64;tree.write_text(json.dumps(value))
+   with self.assertRaisesRegex(ValueError,'tree content mismatch'):Store(root).members()
+ def test_duplicate_extension_is_a_noop_and_preserves_all_names(self):
+  with tempfile.TemporaryDirectory()as tmp:
+   obj=entry('definition','test',{'number':1});ident=identity(obj);store=Store.publish(tmp,[obj],{'a':ident})
+   with patch.object(Store,'_publish_ids',side_effect=AssertionError('republished unchanged tree')):
+    self.assertIs(store.extend([obj]),store)
+   changed=store.extend([obj],{'b':ident});self.assertEqual(changed.snapshot_id,store.snapshot_id)
+   self.assertEqual(json.loads((Path(tmp)/'store/names.json').read_text()),{'a':ident,'b':ident})
+
+class AtomicModernRefresh(unittest.TestCase):
+ def test_late_failure_rolls_back_rows_and_keeps_pinned_exports(self):
+  from ink_knowledge import template_index
+  with tempfile.TemporaryDirectory()as tmp:
+   a=entry('definition','test',{'value':1});b=entry('definition','test',{'value':2})
+   old=Store.publish(tmp,[a]);old.rebuild();before=(Path(tmp)/'index.sqlite').read_bytes();expected=old.bundle([identity(a)])
+   new=old.extend([b])
+   with patch.object(template_index,'refresh',side_effect=ValueError('late refresh failure')):
+    with self.assertRaisesRegex(ValueError,'late refresh failure'):new.refresh_index()
+   self.assertEqual((Path(tmp)/'index.sqlite').read_bytes(),before)
+   self.assertEqual(old.bundle([identity(a)]),expected)
+   with patch('ink_knowledge.index_cache.copy',side_effect=AssertionError('copied modern index')):
+    self.assertEqual(new.refresh_index(),1)
+   self.assertEqual(old.bundle([identity(a)]),expected)
+   self.assertEqual(new.object(identity(b)),b)
