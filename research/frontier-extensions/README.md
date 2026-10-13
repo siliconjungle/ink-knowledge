@@ -1,4 +1,4 @@
-# Checked Frontier-inspired representations
+# Checked incremental state representations
 
 These are source-bound proposals authored by untrusted Python tactics and checked
 by Ink's existing general equality/representation/migration checker. Hashes and
