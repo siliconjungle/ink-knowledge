@@ -29,6 +29,17 @@ class RegistryCoverage(unittest.TestCase):
             registry['recipes'][-1]['module']='os';p.write_text(json.dumps(registry))
             with self.assertRaises(ValueError):load(p)
 
+    def test_published_maintained_fold_is_an_untrusted_candidate(self):
+        from producers.planning_recipes import published
+        source='a'*64
+        package=dict(schema=1,semantics='ink-maintained-fold-v1',input_core_sha256=source,knowledge={},views=[])
+        with tempfile.TemporaryDirectory()as d:
+            store=Store.publish(d,[entry('maintenance','ink-maintained-fold-v1',dict(package=package))]);store.refresh_index()
+            rows=list(published(dict(knowledge_root=d,knowledge_snapshot=store.snapshot_id,source=source)))
+            self.assertEqual(len(rows),1)
+            self.assertEqual(rows[0]['step'],dict(kind='maintained',package=package))
+            self.assertEqual(list(published(dict(knowledge_root=d,knowledge_snapshot=store.snapshot_id,source='b'*64))),[])
+
     def test_every_public_layout_parameter_has_a_registry_recipe(self):
         import inspect
         from producers.representations import generate
