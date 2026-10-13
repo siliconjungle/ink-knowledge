@@ -1,0 +1,1 @@
+{"dependencies":[],"interface":{"conditions":[],"effects":[],"operations":[],"parameters":{},"result":null},"kind":"implementation","payload":{"package":{"input_core_sha256":"b79d2303fd0e80416ef884f1ebdfb57d7a27c1a1167786e7f6e0ce15e65f665e","schema":1,"semantics":"ink-compiled-plan-v1","steps":[]}},"schema":1,"semantics":"ink-implementation-candidate-v1"}

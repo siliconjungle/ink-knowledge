@@ -1,0 +1,1 @@
+{"dependencies":["ade150fd8ed7b5b69f3cf01969b73ebc324ef8f93b6c477e1d689d88bfa4bdf9"],"interface":{"conditions":[],"effects":[],"operations":[],"parameters":{},"result":null},"kind":"definition","payload":{"declaration":{"Datatype":{"constructors":[{"fields":[],"name":"Unit"}]}}},"schema":1,"semantics":"first-order-inductive-equality-v1"}

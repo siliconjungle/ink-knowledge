@@ -412,6 +412,9 @@ proof obligations per keep: exact source factorisation, identity, associativity,
 commutativity, cancellation, insertion, deletion and replacement. Arithmetic
 covers all 64 bits, including wrapping. Filtered counts, sums and weighted mapped
 contributions compose across independent tables.
+Use `--publish KNOWLEDGE_ROOT` to extend an existing canonical snapshot with its
+proof definitions and source-bound maintenance candidate. Published candidates
+are discovered through the normal catalogue and still replay every obligation.
 
 `--dense-capacity N` adds bounded-prefix storage with exact map fallback for every
 out-of-prefix key. The registered recipe offers map and dense alternatives; the

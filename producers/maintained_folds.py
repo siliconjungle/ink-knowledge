@@ -18,6 +18,17 @@ def invoke(compiler,*args):
     if result.returncode:raise ValueError(result.stderr.strip())
     return result.stdout
 
+def publish(plan,root):
+    """Publish ordinary source-bound candidates; admission still replays proofs."""
+    package=plan['steps'][0]['package']
+    objects=package['knowledge']['objects']
+    roots={i for i,o in objects.items()if o['kind']!='theorem'}|refs(package['views'])
+    compact={k:v for k,v in package.items()if k!='knowledge'}
+    compact['knowledge_ref']=dict(roots=sorted(roots))
+    candidate=entry('maintenance','ink-maintained-fold-v1',dict(package=compact),roots)
+    store=Store(root).extend([*objects.values(),candidate])
+    return dict(entry=identity(candidate),snapshot=store.snapshot_id,roots=len(roots))
+
 def produce(source,compiler,directory,keeps=None,capacity=0,source_core=False):
     source=Path(source).resolve();compiler=Path(compiler).resolve();directory=Path(directory);directory.mkdir(parents=True,exist_ok=True)
     flags=['--core']if source_core else []
@@ -119,6 +130,7 @@ def candidates(context):
         except (ValueError,subprocess.TimeoutExpired)as e:yield dict(status='declined',label='maintained-folds',reason=str(e))
 
 def main():
-    p=argparse.ArgumentParser(description=__doc__);p.add_argument('source',type=Path);p.add_argument('-o',type=Path,required=True);p.add_argument('--compiler',type=Path,default=compiler_path());p.add_argument('--keep',action='append');p.add_argument('--dense-capacity',type=int,default=0);p.add_argument('--core',action='store_true');a=p.parse_args()
-    produce(a.source,a.compiler,a.o,a.keep,a.dense_capacity,a.core)
+    p=argparse.ArgumentParser(description=__doc__);p.add_argument('source',type=Path);p.add_argument('-o',type=Path,required=True);p.add_argument('--compiler',type=Path,default=compiler_path());p.add_argument('--keep',action='append');p.add_argument('--dense-capacity',type=int,default=0);p.add_argument('--core',action='store_true');p.add_argument('--publish',type=Path);a=p.parse_args()
+    plan=produce(a.source,a.compiler,a.o,a.keep,a.dense_capacity,a.core)
+    if a.publish:print(json.dumps(publish(plan,a.publish)))
 if __name__=='__main__':main()
