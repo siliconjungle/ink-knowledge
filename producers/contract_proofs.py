@@ -169,6 +169,23 @@ def context_for(context,goal):
     return dict(schema=1,definitions={n:context['definitions'][n] for n in sorted(functions)},records={n:t for n,t in context['records'].items() if n in types},enums={n:t for n,t in context['enums'].items() if n in types},**({'ids':[n for n in context.get('ids',[]) if n in types]} if any(n in types for n in context.get('ids',[])) else {}))
 
 def state_proof(objects,a,z,params,hyp=(),depth=0,serial=None,aliases=None,scalar=None,lemma_attempts=None,strengthen=True):
+    proof=_state_proof(objects,a,z,params,hyp,depth,serial,aliases,scalar,lemma_attempts,strengthen)
+    if scalar is None:return proof
+    from producers.point_delta import free_variables
+    from producers.proof_composition import nesting
+    # Close a deep branch under its exact typed parameters and premises. A use
+    # proves every original premise again; induction/case hypotheses retain their
+    # local indices. No branch fact becomes an unconditional global theorem.
+    if nesting(proof)<=24 or [i for _,_,i in hyp]!=list(range(len(hyp))):return proof
+    free=free_variables(a)|free_variables(z)|set().union(*(free_variables(x)|free_variables(y) for x,y,_ in hyp))
+    if not free<=params.keys():return proof
+    theorem=scalar.add({'Theorem':dict(params=list(params.items()),
+        conditions=[dict(**{'from':x,'to':y}) for x,y,_ in hyp],
+        **{'from':a,'to':z},proof=proof)})
+    return {'Use':dict(theorem=theorem,arguments=[var(n) for n in params],
+        premises=[{'Hypothesis':i} for _,_,i in hyp])}
+
+def _state_proof(objects,a,z,params,hyp=(),depth=0,serial=None,aliases=None,scalar=None,lemma_attempts=None,strengthen=True):
     """Bounded ordinary constructor induction and Boolean case proof search."""
     if depth>18:raise ValueError('contract proof search depth')
     serial=serial if serial is not None else [0,0]
@@ -429,6 +446,8 @@ def author(compiler,source,directory,bodies=None,source_evidence=None):
         obj=semantic_entry(law);i=identity(obj);pure_objects[i]=obj;pure_roots.append(i);names['contract.'+g['name']]=i
         proofs[g['name']]={'Use':dict(law=i,arguments={n:dict(sort=t,node={'Free':n}) for n,t in g['params'].items()},premises=[{'Hypothesis':j} for j in range(len(g['conditions']))])}
     def add(declaration):
+        from producers.proof_composition import balance_transitivity
+        declaration={**declaration,'Theorem':{**declaration['Theorem'],'proof':balance_transitivity(declaration['Theorem']['proof'])}}
         d=declaration['Theorem'];deps=references(declaration);pending=list(deps)
         while pending:
             for dep in state_objects[pending.pop()]['dependencies']:
