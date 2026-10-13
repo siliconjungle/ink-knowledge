@@ -49,11 +49,38 @@ def pure_proposals(goal):
         for condition in reversed(conditions):proof={'Cases':dict(condition=condition,on_false=proof,on_true=proof)}
         yield proof
     for name,sort in goal['params'].items():
+        value=sort.get('Value') if isinstance(sort,dict) else None
+        if isinstance(value,dict) and any(k in value for k in ('Option','Result')):
+            names=[]
+            for i in range(2 if 'Result' in value else 1):
+                payload=f'contract_payload_{i}'
+                while payload in goal['params'] or payload in names:payload+='_'
+                names.append(payload)
+            yield {'Variants':dict(variable=name,names=names,first='Normalize',second='Normalize')}
         if isinstance(sort,dict)and isinstance(sort.get('Value'),dict)and 'List'in sort['Value']:
             head,tail='contract_head','contract_tail'
             while head in goal['params']:head+='_' 
             while tail in goal['params']:tail+='_' 
             yield {'Induction':dict(variable=name,names=[head,tail],base='Normalize',step='Normalize')}
+
+def proof_semantics(proof):
+    """Mirror the kernel's marker requirement; the marker grants no authority."""
+    def general(p):
+        if not isinstance(p,dict):return False
+        if 'Variants' in p or 'Assume' in p:return True
+        if 'Use' in p:
+            use=p['Use']
+            return bool(use.get('types') or use.get('assumptions')) or any(general(x) for x in use.get('premises',[]))
+        if 'AssertEquality' in p:return general(p['AssertEquality']['premise']) or general(p['AssertEquality']['body'])
+        if 'Sym' in p:return general(p['Sym'])
+        if 'Trans' in p:return general(p['Trans']['left']) or general(p['Trans']['right'])
+        if 'Congruence' in p:return any(general(x) for x in p['Congruence'])
+        if 'Forall' in p:return general(p['Forall']['body'])
+        if 'Cases' in p:return general(p['Cases']['on_false']) or general(p['Cases']['on_true'])
+        for kind in ('Induction','GeneralizedInduction'):
+            if kind in p:return general(p[kind]['base']) or general(p[kind]['step'])
+        return False
+    return 'ink-general-laws-v1' if general(proof) else 'ink-conditional-laws-v1'
 
 def rewrite_proposals(goal,store,limit=64):
     """Compose ordinary database laws through the exact obligation context.
@@ -398,7 +425,7 @@ def author(compiler,source,directory,bodies=None,source_evidence=None):
                 if check(g,candidate,bundle):
                     proof=candidate;dependencies=bundle['roots'];pure_objects.update(bundle['objects']);break
         if proof is None:raise ValueError('no checked proof for '+g['name'])
-        law=dict(schema=1,semantics='ink-conditional-laws-v1',params=g['params'],conditions=g['conditions'],**g['goal'],proof=proof,dependencies=dependencies,definition_context=context_for(goals['definition_context'],g))
+        law=dict(schema=1,semantics=proof_semantics(proof),params=g['params'],conditions=g['conditions'],**g['goal'],proof=proof,dependencies=dependencies,definition_context=context_for(goals['definition_context'],g))
         obj=semantic_entry(law);i=identity(obj);pure_objects[i]=obj;pure_roots.append(i);names['contract.'+g['name']]=i
         proofs[g['name']]={'Use':dict(law=i,arguments={n:dict(sort=t,node={'Free':n}) for n,t in g['params'].items()},premises=[{'Hypothesis':j} for j in range(len(g['conditions']))])}
     def add(declaration):

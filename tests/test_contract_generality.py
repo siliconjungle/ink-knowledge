@@ -36,5 +36,16 @@ class GeneralContracts(unittest.TestCase):
  def test_general_laws_and_invariant_representations_are_discoverable(self):
   self.assertEqual(role(entry('rewrite','ink-general-laws-v1',{})),'general-proof-dependency')
   self.assertEqual(role(entry('representation','ink-source-representation-v2',{})),'representation-search')
+ def test_contract_variants_are_proposals_with_fresh_payloads(self):
+  from producers.contract_proofs import pure_proposals,proof_semantics
+  scalar=value('U32');x=term(scalar,{'Free':'contract_payload_0'})
+  goal=dict(params={'value':value({'Result':['U32','U32']}),'contract_payload_0':scalar},conditions=[],goal={'from':x,'to':x})
+  proposal=next(p for p in pure_proposals(goal) if isinstance(p,dict) and 'Variants' in p)
+  self.assertEqual(proposal['Variants']['names'],['contract_payload_0_','contract_payload_1'])
+  self.assertEqual(proof_semantics(proposal),'ink-general-laws-v1')
+  nested={'Cases':dict(condition=term(value('Bool'),{'Bool':True}),on_false='Normalize',on_true=proposal)}
+  self.assertEqual(proof_semantics(nested),'ink-general-laws-v1')
+  self.assertEqual(proof_semantics({'Use':dict(law='0'*64,arguments={},premises=['Normalize'])}),'ink-conditional-laws-v1')
+  self.assertEqual(proof_semantics({'Use':dict(law='0'*64,arguments={},premises=[],types={'T':'U32'})}),'ink-general-laws-v1')
 
 if __name__=='__main__':unittest.main()
