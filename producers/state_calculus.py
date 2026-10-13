@@ -153,6 +153,19 @@ def keyed_tables(lib):
     key_locality(lib,rows,row,option,get,remove,rep)
     general_lookup_updates(lib,rows,row,option,get,remove,rep,present)
     key_commutation(lib,rows,row,remove,rep)
+    sorted_rows(lib)
+
+def sorted_rows(lib):
+    """Insertion, strict sortedness, and laws that hold only on sorted rows
+    (see producers/sorted_rows.py). Word facts use cached bit-blasting
+    certificates; the checker replays every one."""
+    from producers import sorted_rows as rows
+    from producers.workspace import compiler_path
+    cache=Path(__file__).resolve().parents[1]/'research/composable-state/sorted-row-certificates.json'
+    certificates=json.loads(cache.read_text()) if cache.exists() else {}
+    before=dict(certificates)
+    rows.build(lib,compiler_path(),certificates)
+    if certificates!=before:cache.write_text(json.dumps(certificates,sort_keys=True,separators=(',',':'))+'\n')
 
 def key_commutation(lib,rows,row,remove,rep):
     """Updates of two keys commute: two removals always, and a removal with a
