@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Untrusted dependency-factorisation and equal-output propagation laws.
 
-Inspired by Svelte/Preact computed graphs. A tracked-read list or observed sample
-is never a proof premise. Concrete interpretations must prove that the specified
-dependencies determine the observation, and discharge exact equality conditions.
+A tracked-read list or observed sample is never a proof premise. Concrete
+interpretations must prove that the specified dependencies determine the
+observation, and discharge exact equality conditions.
 """
 import argparse, hashlib, json, subprocess, sys, tempfile
 from pathlib import Path

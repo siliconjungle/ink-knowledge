@@ -10,7 +10,7 @@ The reviewer inspected the existing executable semantic producers and target
 boundaries without running tests, builds, proof search or timed workloads.
 Both numeric and collection producer sources have been reviewed. For those
 sources the reviewer read author checker receipts without running their jobs.
-The reviewer subsequently authored and checked the eight Frontier-inspired
+The reviewer subsequently authored and checked the eight no-op write
 laws below; that lane is author validation, not independent review. Publication,
 application replay and measured results remain separate stages of review.
 
@@ -145,7 +145,7 @@ universal performance claim, and a handful of kernels does not rank languages.
 
 ## Frontier lane and publication review
 
-The eight Frontier-inspired laws preserve pure U32/I32/U64 values: guarded
+The eight no-op write laws preserve pure U32/I32/U64 values: guarded
 same-value writes, repeats that restore the original value, and guarded folds
 that preserve their initial value. Their names do not claim to verify complete
 mutable or JSON patch operations. The pinned source mechanisms, exclusions
