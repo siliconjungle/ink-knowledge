@@ -12,7 +12,7 @@ def touch(path,snapshot):
     import sqlite3
     from contextlib import closing
     try:
-        with closing(sqlite3.connect(path,timeout=.1)) as db,db:
+        with closing(sqlite3.connect(path.as_uri()+'?mode=rw',uri=True,timeout=.1)) as db,db:
             db.execute('UPDATE snapshots SET touched=max(touched,?) WHERE id=?',(time.time_ns(),snapshot))
     except sqlite3.DatabaseError:
         # A concurrent reader/writer or atomic refresh may win. Missing this
