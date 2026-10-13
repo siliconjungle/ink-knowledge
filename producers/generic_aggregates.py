@@ -51,6 +51,7 @@ def factory(model,table,add,objects):
             marker=canonical(q)
             if marker not in seen:seen.add(marker);candidates.append((name,action,q))
     for name,action,q in candidates:
+        observed=q;modular=None
         free=variables(q);bindings=action['case']['bindings']
         if len(free)!=1 or not free <= set(bindings):continue
         binding=next(iter(free));index=bindings.index(binding)
@@ -63,13 +64,24 @@ def factory(model,table,add,objects):
         op='+' if sort=='U64' else '&&' if empty['Bool'] else '||'
         algebra=arithmetic if sort=='U64' else boolean.prove
         try:
+            if sort=='U64':
+                from producers.modular_aggregates import lift_sum
+                modular=lift_sum(q,objects,add,word.compiler,word.cache/'modular')
+                if modular:q=modular['term']
             contribution=fun([['summary_key',key_sort],['summary_value',row]],sort,sub(q,{binding:cons(rows,1,[k,v,nil])}))
             fold=fun([['summary_rows',R]],sort,match(xs,[([],empty),(['summary_key','summary_value','summary_tail'],binary(op,call(contribution,[k,v]),{'SelfCall':[tail]}))]),0)
             query=lambda r:sub(q,{binding:r});total=lambda r:call(fold,[r]);head=cons(rows,1,[k,v,tail]);a,z=query(xs),total(xs)
             tactic=Tactic(objects,algebra=algebra)
             proof={'Induction':dict(variable='summary_rows',**{'from':a,'to':z},cases=[dict(bindings=[],proof=tactic.prove(query(nil),total(nil))),dict(bindings=['summary_key','summary_value','summary_tail'],proof=tactic.prove(query(head),total(head),[(query(tail),total(tail),0)]))])}
             fusion=law([['summary_rows',R]],a,z,proof)
-            queries.append(dict(name=name,term=q,binding=binding,index=index,sort=sort,empty=empty,op=op,contribution=contribution,fold=fold,fusion=fusion))
+            raw_fold=fold
+            if modular:
+                project=lambda value:binary('&',value,{'U64':modular['mask']})
+                observed_fold=fun([['summary_rows',R]],sort,project(call(fold,[xs])))
+                fusion=law([['summary_rows',R]],sub(observed,{binding:xs}),call(observed_fold,[xs]),
+                    trans(sub(modular['proof'],{binding:xs}),{'Substitute':dict(variable='modular_hole',context=project(var('modular_hole')),equality={'Use':dict(theorem=fusion,arguments=[xs],premises=[])})},convert(project(call(fold,[xs])),call(observed_fold,[xs]))))
+                fold=observed_fold
+            queries.append(dict(name=name,term=observed,binding=binding,index=index,sort=sort,empty=empty,op=op,contribution=contribution,fold=fold,raw_fold=raw_fold,fusion=fusion,observation_mask=modular['mask']if modular else None))
         except (ValueError,KeyError):
             # An inapplicable proposal grants no rewrite and leaves no unproved
             # declaration in the candidate closure.
@@ -91,9 +103,16 @@ def factory(model,table,add,objects):
     fold=fun([['summary_rows',R]],S,match(xs,[([],unit),(['summary_key','summary_value','summary_tail'],merge(call(contribution,[k,v]),{'SelfCall':[tail]}))]),0)
     # Projections of the product fold are the independently admitted folds.
     for field,q in zip(projections,queries):
-        a=call(field,[call(fold,[xs])]);z=call(q['fold'],[xs]);head=cons(rows,1,[k,v,tail]);tactic=Tactic(objects,rules,opaque=[combine],algebra=arithmetic if q['sort']=='U64' else boolean.prove)
-        p={'Induction':dict(variable='summary_rows',**{'from':a,'to':z},cases=[dict(bindings=[],proof=tactic.prove(sub(a,{'summary_rows':nil}),sub(z,{'summary_rows':nil}))),dict(bindings=['summary_key','summary_value','summary_tail'],proof=tactic.prove(sub(a,{'summary_rows':head}),sub(z,{'summary_rows':head}),[(call(field,[call(fold,[tail])]),call(q['fold'],[tail]),0)]))])}
-        q['product_projection']=law([['summary_rows',R]],a,z,p);q['projection']=field
+        a=call(field,[call(fold,[xs])]);z=call(q['raw_fold'],[xs]);head=cons(rows,1,[k,v,tail]);tactic=Tactic(objects,rules,opaque=[combine],algebra=arithmetic if q['sort']=='U64' else boolean.prove)
+        p={'Induction':dict(variable='summary_rows',**{'from':a,'to':z},cases=[dict(bindings=[],proof=tactic.prove(sub(a,{'summary_rows':nil}),sub(z,{'summary_rows':nil}))),dict(bindings=['summary_key','summary_value','summary_tail'],proof=tactic.prove(sub(a,{'summary_rows':head}),sub(z,{'summary_rows':head}),[(call(field,[call(fold,[tail])]),call(q['raw_fold'],[tail]),0)]))])}
+        raw_projection=law([['summary_rows',R]],a,z,p)
+        if q['observation_mask']is not None:
+            project=lambda value:binary('&',value,{'U64':q['observation_mask']})
+            observed_field=fun([['summary',S]],q['sort'],project(call(field,[var('summary')])))
+            left,right=call(observed_field,[call(fold,[xs])]),call(q['fold'],[xs])
+            q['product_projection']=law([['summary_rows',R]],left,right,trans(convert(left,project(a)),{'Substitute':dict(variable='modular_hole',context=project(var('modular_hole')),equality={'Use':dict(theorem=raw_projection,arguments=[xs],premises=[])})},convert(project(z),right)))
+            q['projection']=observed_field
+        else:q['product_projection']=raw_projection;q['projection']=field
     def product_arithmetic(a,z):
         parts=[]
         for field,q in zip(projections,queries):

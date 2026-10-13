@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Untrusted pure no-op write laws inspired by pinned Frontier diff/apply source.
+"""Untrusted pure no-op write laws for exact diff/apply transitions.
 
 These model word values, not JSON patches, paths, validation or object identity.
 Every law requires the unchanged semantic checker; profitability is separate.
