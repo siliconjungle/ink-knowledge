@@ -22,32 +22,34 @@ def published(context):
     from ink_knowledge.implementation_candidates import SEMANTICS
     source_objects=sorted((context.get('model')or{}).get('objects',[]))
     store=Store(context['knowledge_root'],Path(context['knowledge_root'])/'store/snapshots'/f"{context['knowledge_snapshot']}.json"if context.get('knowledge_snapshot')else None)
-    for kind in ['implementation','representation','maintenance']:
-        after=None
-        while True:
-            page=store.query(kind=kind,after=after,limit=256)
-            for ident in page:
-                obj=store.object(ident)
-                if kind=='representation':
-                    if obj['payload'].get('source_objects')!=source_objects:continue
-                    request=dict(schema=1,semantics=obj['semantics'],input_core_sha256=context['source'],
-                        representation=ident,knowledge=store.bundle([ident]))
-                    yield row('representation',request,'published/'+ident)
-                else:
-                    package=obj['payload'].get('package')
-                    if not isinstance(package,dict):
-                        if kind=='maintenance':yield decline('maintenance/'+ident,'entry must supply a checked source package or be a dependency of a representation')
-                        continue
-                    if package.get('input_core_sha256')!=context['source']:continue
-                    if 'knowledge_ref'in package:
-                        roots=package['knowledge_ref']['roots'];package={k:v for k,v in package.items()if k!='knowledge_ref'}
-                        package['knowledge']=store.bundle(roots)
-                    if package['semantics']=='ink-compiled-plan-v1':yield dict(status='plan',label='published/'+ident,package=package)
-                    elif package['semantics']=='ink-evidence-v1':yield row('rewrite',package,'published/'+ident)
-                    elif package['semantics']in ('ink-source-representation-v1','ink-source-representation-v2'):yield row('representation',package,'published/'+ident)
-                    else:yield decline('published/'+ident,'unsupported package protocol '+package['semantics'])
-            if len(page)<256:break
-            after=page[-1]
+    # A per-snapshot binding index avoids loading every package body at every
+    # admitted state; only entries bound to this source are opened.
+    from ink_knowledge.published_bindings import bindings,source_key
+    wanted=source_key(source_objects)
+    for kind,entries in bindings(store).items():
+        target=wanted if kind=='representation' else context['source']
+        for ident,binding in entries:
+            if binding!=target and not (kind=='maintenance' and binding is None):continue
+            obj=store.object(ident)
+            if kind=='representation':
+                if obj['payload'].get('source_objects')!=source_objects:continue
+                request=dict(schema=1,semantics=obj['semantics'],input_core_sha256=context['source'],
+                    representation=ident,knowledge=store.bundle([ident]))
+                yield row('representation',request,'published/'+ident)
+                continue
+            package=obj['payload'].get('package')
+            if not isinstance(package,dict):
+                if kind=='maintenance':yield decline('maintenance/'+ident,'entry must supply a checked source package or be a dependency of a representation')
+                continue
+            if package.get('input_core_sha256')!=context['source']:continue
+            if 'knowledge_ref'in package:
+                roots=package['knowledge_ref']['roots'];package={k:v for k,v in package.items()if k!='knowledge_ref'}
+                package['knowledge']=store.bundle(roots)
+            if package['semantics']=='ink-compiled-plan-v1':yield dict(status='plan',label='published/'+ident,package=package)
+            elif package['semantics']=='ink-evidence-v1':yield row('rewrite',package,'published/'+ident)
+            elif package['semantics']in ('ink-source-representation-v1','ink-source-representation-v2'):yield row('representation',package,'published/'+ident)
+            elif package['semantics']=='ink-maintained-fold-v1':yield row('maintained',package,'published/'+ident)
+            else:yield decline('published/'+ident,'unsupported package protocol '+package['semantics'])
 
 def action_coalescing(context,operations):
     from producers.action_replacement import produce
@@ -103,7 +105,7 @@ def author(context,parameters,generate):
                 result=generate(context['model'],Path(temporary),options)
                 for i,request in enumerate(requests(result)):
                     yield row('representation',request,label+'/'+str(i))
-        except (ValueError,KeyError,TypeError,NotImplementedError,subprocess.CalledProcessError)as error:
+        except (ValueError,KeyError,TypeError,NotImplementedError,ImportError,subprocess.CalledProcessError)as error:
             yield decline(label,error)
 
 def representations(context,**parameters):
@@ -169,7 +171,8 @@ def semantic(context):
             '--core',str(core),'--knowledge-root',context['knowledge_root'],
             '--snapshot',str(store.root/'store/snapshots'/f'{store.snapshot_id}.json'),
             '--budget',str(context.get('semantic_budget',4096)),
-            '--alternatives',str(d/'alternatives.jsonl'),'--stream-alternatives','--time-seconds',str(context.get('semantic_seconds',600)),'--compact-output','-o',str(out)]
+            '--alternatives',str(d/'alternatives.jsonl'),'--stream-alternatives','--time-seconds',str(context.get('semantic_seconds',600)),'--compact-output','-o',str(out),
+            '--diagnostics',str(d/'diagnostics.json')]
         if context.get('semantic_rounds') is not None:command+=['--rounds',str(context['semantic_rounds'])]
         if context.get('properties'):
             properties=d/'properties.json';properties.write_bytes(canonical(context['properties']));command+=['--properties',str(properties)]
@@ -196,6 +199,15 @@ def semantic(context):
                     time.sleep(.02)
                 if process.returncode not in (None,0):yield decline('semantic search',(d/'stderr.log').read_text()[-2000:])
                 elif not count:yield decline('semantic search','fixed point within supplied search budget')
+                # Near-miss observations explain matched laws the checker did not
+                # admit. They are diagnostics, never proposals or proof authority.
+                # A search cut off by this budget leaves its last periodic receipt.
+                diagnostics=d/'diagnostics.json'
+                if diagnostics.exists() and diagnostics.stat().st_size<=16_000_000:
+                    try:value=json.loads(diagnostics.read_bytes())
+                    except ValueError:value=None
+                    if isinstance(value,dict):
+                        yield dict(status='diagnostic',label='semantic search',diagnostics=value)
             finally:
                 if process.poll()is None:process.kill()
                 process.wait()

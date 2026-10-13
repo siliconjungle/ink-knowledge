@@ -305,6 +305,16 @@ canonical entries plus source-bound `ink-contracts-v1` evidence. Static clauses,
 `before`, invariants, finite bag observations and uniqueness are checked source
 meanings; producers cannot assign their own interpretation.
 
+`producers.invariant_representations` also proposes action guard simplifications
+from the exact exported source invariant and action precondition equations.
+Boolean wrapper elimination is an authoring heuristic; only the original
+boundary equations enter the proof environment. Each replacement requires
+ordinary complete observation and future-state preservation proofs. Public
+preconditions and restore invariant checks remain, and nested actions retain
+their original intermediate-state behavior. `performance/source-precondition-guards`
+publishes a checked example closure; source binding, not its name, makes it
+applicable. `--max-queries` retains its CLI name but bounds all changed actions.
+
 The database includes `contracts.zero-map-u64`, `contracts.identity-map-u32` and
 `contracts.sorted-identity-u64`, and `contracts.unique-id-check-erasure`: two list-induction laws, a conditional uniqueness law and a conditional sort
 law. Their definition contexts contain no exact helper bodies. The
@@ -392,3 +402,49 @@ replay. Larger operation-head buckets use necessary structural, literal and
 concrete-sort constraints; small buckets match directly. Applied higher-order
 holes remain unrestricted. See the distribution's `docs/discovery-reuse.md` for
 ablation curves and the cases where index construction adds overhead.
+
+## Maintained source folds
+
+`python3 -m producers.maintained_folds SOURCE --compiler INK -o DIRECTORY`
+authors an ordinary compiled-plan packet for factorised U64 source keeps. It
+proposes row contributions, group operations and eight independently regenerated
+proof obligations per keep: exact source factorisation, identity, associativity,
+commutativity, cancellation, insertion, deletion and replacement. Arithmetic
+covers all 64 bits, including wrapping. Filtered counts, sums and weighted mapped
+contributions compose across independent tables.
+Use `--publish KNOWLEDGE_ROOT` to extend an existing canonical snapshot with its
+proof definitions and source-bound maintenance candidate. Published candidates
+are discovered through the normal catalogue and still replay every obligation.
+
+`--dense-capacity N` adds bounded-prefix storage with exact map fallback for every
+out-of-prefix key. The registered recipe offers map and dense alternatives; the
+planner ranks them using supplied state lifecycle evidence and held-out histories.
+Producer patterns and measurements never grant equality authority. The installed
+tactic currently handles U64 keys/groups; unsupported authoring domains decline.
+The capability itself admits other valid U64/Bool group proofs with supported
+source codecs. Current emission is JavaScript only.
+
+See the distribution's `docs/maintained-folds.md` for trusted runtime/controller
+limits, ownership, rollback, restore and subscription contracts.
+
+`producers/tagged_word_codecs.py` publishes bounded 1–12-bit tagged-word equations
+with explicit payload/tag premises and independently replayed `shared-v2` RUP
+certificates. It requires a compiler supporting the explicit circuit mode. Use
+`--compiler /path/to/ink --output /private/candidate/store`; publication does not
+select a source or backend representation. `tests/test_tagged_word_codecs.py`
+checks all widths, false proposals, statement/mode changes and corrupt hints.
+
+`producers.sum_flatten` authors ordinary bidirectional case/conversion proofs for
+source-derived right-associated sum codecs. The `private-sum-spines` recipe
+proposes individual and combined JavaScript layouts, preserving existing physical
+choices. It has no JSON matcher and leaves recursive leaves and exact numbers
+opaque. The compiler checks source correspondence and both proof roots; backend
+ownership, resources and bytes have independent executable conformance tests.
+Proof availability does not select a layout without comparable lifecycle costs.
+See the distribution's `docs/private-sum-layouts.md` for capability and trust limits.
+
+Maintained folds can additionally author checked scalar update and contribution
+choices. `producers.cell_actions` and `producers.early_return` propose complete
+action simplifications, admitted only through whole-action equality. Generated
+helper names are bridged with ordinary induction theorems rather than hash-based
+equality. See the distribution's `docs/maintained-folds.md` for trust boundaries.

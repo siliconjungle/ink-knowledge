@@ -2,11 +2,30 @@ import json,tempfile,unittest
 from pathlib import Path
 from ink_knowledge import Store
 from ink_knowledge.store import entry
-from ink_knowledge.recipes import load,coverage,role
+from ink_knowledge.recipes import load,coverage,indexed_coverage,role
 from producers.collection_analysis import analyse
 from producers.planning_recipes import lexical_reads
 
 class RegistryCoverage(unittest.TestCase):
+    def test_index_coverage_matches_audit_and_authenticates_active_ids(self):
+        import sqlite3
+        objects=[entry(k,s,dict(index=i,node={'Op':['shared-operation',[]]}))
+                 for i in range(60) for k,s in [('maintenance','maintenance-test'),
+                 ('definition','total-scalar-equality-v1'),('rewrite','ink-conditional-laws-v1')]]
+        with tempfile.TemporaryDirectory() as d:
+            store=Store.publish(d,objects);store.rebuild()
+            expected=coverage(store);actual=indexed_coverage(Store(d))
+            for key in ['snapshot','entries','roles','operations','unhandled']:
+                self.assertEqual(actual[key],expected[key])
+            # An indexed row outside the exact pin must not enter role sets.
+            extra=entry('maintenance','maintenance-test',dict(node={'Op':['outside-pin',[]]}))
+            store.extend([extra]).refresh_index()
+            self.assertEqual(indexed_coverage(Store(d,store.data/'snapshots'/f'{store.snapshot_id}.json'))['operations'],expected['operations'])
+            with sqlite3.connect(Path(d)/'index.sqlite') as db,db:
+                db.execute('DELETE FROM members WHERE snapshot_id=? AND entry_id=(SELECT entry_id FROM members WHERE snapshot_id=? LIMIT 1)',(store.snapshot_id,store.snapshot_id))
+            with self.assertRaisesRegex(ValueError,'membership differs'):
+                indexed_coverage(Store(d,store.data/'snapshots'/f'{store.snapshot_id}.json'))
+
     def test_registry_covers_every_current_operation_kind_and_fails_new_semantics(self):
         families={('rewrite','ink-conditional-laws-v1'),('representation','ink-source-representation-v1'),
             ('implementation','ink-implementation-candidate-v1'),('bridge','ink-representation-migration-v1'),
@@ -28,6 +47,17 @@ class RegistryCoverage(unittest.TestCase):
             self.assertEqual(loaded['recipes'][-1]['id'],'new-family')
             registry['recipes'][-1]['module']='os';p.write_text(json.dumps(registry))
             with self.assertRaises(ValueError):load(p)
+
+    def test_published_maintained_fold_is_an_untrusted_candidate(self):
+        from producers.planning_recipes import published
+        source='a'*64
+        package=dict(schema=1,semantics='ink-maintained-fold-v1',input_core_sha256=source,knowledge={},views=[])
+        with tempfile.TemporaryDirectory()as d:
+            store=Store.publish(d,[entry('maintenance','ink-maintained-fold-v1',dict(package=package))]);store.refresh_index()
+            rows=list(published(dict(knowledge_root=d,knowledge_snapshot=store.snapshot_id,source=source)))
+            self.assertEqual(len(rows),1)
+            self.assertEqual(rows[0]['step'],dict(kind='maintained',package=package))
+            self.assertEqual(list(published(dict(knowledge_root=d,knowledge_snapshot=store.snapshot_id,source='b'*64))),[])
 
     def test_every_public_layout_parameter_has_a_registry_recipe(self):
         import inspect

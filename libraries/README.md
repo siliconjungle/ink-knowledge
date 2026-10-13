@@ -89,3 +89,13 @@ lexicographic decreasing-measure certificates, replayed by the core RUP checker.
 The incremental library retains the both-input join cross term and exact signed
 deletion cancellation. These algebraic laws alone do not admit an executable
 maintained representation or establish profitability.
+
+`math.ink` defines exact float min/max/clamp/absolute value and scaled vector
+length/normalisation, plus explicitly bounded `*_approx` trigonometry, exponentials
+and logarithms. The algorithms are ordinary ordered F32 source. `text.ink` defines
+chunked text construction, flattening, fallible UTF-8 byte lengths, slicing, search
+and insertion. Their new fixed operations bind executable core V11.
+
+`producers.numeric_text_laws` supplies 39 checked choice-distribution instances for
+individual arguments of numeric, word and UTF-8 primitives. They do not authorise
+float reassociation or replacing division by reciprocal multiplication.

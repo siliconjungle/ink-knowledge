@@ -44,9 +44,9 @@ def insert(db, ident, obj):
     db.executemany('INSERT OR REPLACE INTO template_tokens VALUES(?,?,?)',
                   [(ident,p,t) for p,t in tokens(law['from'],law.get('params',{})).items()])
 
-def refresh(store,db):
-    db.executescript(SCHEMA)
-    rows=list(db.execute("SELECT e.id FROM entries e JOIN members m ON m.entry_id=e.id LEFT JOIN template_heads t ON t.entry_id=e.id WHERE m.snapshot_id=? AND e.kind='definition' AND e.semantics IN (?,?) AND t.entry_id IS NULL",(store.snapshot_id,*SEMANTICS)))
+def refresh(store,db,*,schema_ready=False):
+    if not schema_ready:db.executescript(SCHEMA)
+    rows=list(db.execute("SELECT e.id FROM entries e WHERE e.kind='definition' AND e.semantics IN (?,?) AND NOT EXISTS(SELECT 1 FROM template_heads t WHERE t.entry_id=e.id) AND EXISTS(SELECT 1 FROM members m WHERE m.entry_id=e.id AND m.snapshot_id=?)",(*SEMANTICS,store.snapshot_id)))
     for (ident,) in rows:insert(db,ident,store._read_object(ident))
 
 def candidates(store,subject,semantics,sites=None):

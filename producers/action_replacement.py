@@ -92,10 +92,12 @@ def guarded_equality(a,z,objects,index=0,depth=0):
         branches['on_true'if flag else 'on_false']=trans(convert(a,a0),lift(h,ca),guarded_equality(na,nz,objects,index+1,depth+1),{'Sym':lift(h,cz)},convert(z0,z))
     return {'BoolSplit':dict(condition=guard,**{'from':a,'to':z},**branches)}
 
-def produce(before,after,selected,directory,knowledge_root=None,snapshot=None):
+def produce(before,after,selected,directory,knowledge_root=None,snapshot=None,sorted_tables=None):
     if before['semantics']!='ink-action-transition-v1' or after['semantics']!=before['semantics']:raise ValueError('incompatible projection')
     if before['state']!=after['state'] or before['events']!=after['events']:raise ValueError('transition representation changed')
     objects={**before['objects'],**after['objects']};proofs={};laws={}
+    from producers.definition_bridges import bridges
+    bridge,bridge_roots=bridges(before['objects'],after['objects'],objects)
     database=Store(Path(knowledge_root) if knowledge_root else Path(__file__).resolve().parents[1],snapshot)
     names=read(database.data/'names.json')
     roles={n:names['action-laws/'+n] for n in ['StateRow','WordRows','remove','remove_idempotence']}
@@ -120,6 +122,59 @@ def produce(before,after,selected,directory,knowledge_root=None,snapshot=None):
                 option=objects[t['get']]['payload']['declaration']['Function']['result']['Data']
                 law['definitions'][names['state-calculus/RowOption']]=option
             coalescing.append((t,rule,law))
+    # Two-key commutation (state-calculus/key_commutation): both sides are put
+    # in one canonical order, removals innermost and in key order. Each step is
+    # an instance the compiler replays; the order is only a search convention.
+    commuting=[]
+    if all('state-calculus/'+n in names for n in ('remove_remove_commute','remove_replace_commute')):
+        for t in before['tables']:
+            ty=json.dumps(t['value_type'],sort_keys=True,separators=(',',':'));sort=before['types'][ty]
+            rows_role,remove_role,replace_role=names['state-calculus/WordRows'],names['state-calculus/remove'],names['state-calculus/replace']
+            for rule in ('remove_remove_commute','remove_replace_commute'):
+                definitions={rows_role:t['datatype'],remove_role:t['remove']}
+                if rule=='remove_replace_commute':definitions[replace_role]=t['replace']
+                law=dict(theorem=names['state-calculus/'+rule],sorts={names['state-calculus/StateRow']:sort},functions={},definitions=definitions,assumptions={})
+                general.update(database.bundle([law['theorem']])['objects'])
+                commuting.append((t,rule,law))
+    objects.update(general)
+    used_commuting=set()
+    def canonical(term):
+        def find(t):
+            if isinstance(t,dict) and 'Call' in t:
+                outer=t['Call'];args=outer['arguments']
+                if len(args)==2 and isinstance(args[0],dict) and 'Call' in args[0]:
+                    inner=args[0]['Call'];inside=inner['arguments']
+                    for table,rule,law in commuting:
+                        if outer['function']!=table['remove']:continue
+                        if rule=='remove_remove_commute' and inner['function']==table['remove'] and len(inside)==2:
+                            if json.dumps(args[1],sort_keys=True)<json.dumps(inside[1],sort_keys=True):
+                                return t,call(table['remove'],[call(table['remove'],[inside[0],args[1]]),inside[1]]),law,[inside[0],inside[1],args[1]]
+                        if rule=='remove_replace_commute' and inner['function']==table['replace'] and len(inside)==3:
+                            return t,call(table['replace'],[call(table['remove'],[inside[0],args[1]]),inside[1],inside[2]]),law,[inside[0],inside[1],args[1],inside[2]]
+            if isinstance(t,dict):
+                for k in sorted(t):
+                    r=find(t[k])
+                    if r:return r
+            if isinstance(t,list):
+                for x in t:
+                    r=find(x)
+                    if r:return r
+            return None
+        def swap(t,target,value):
+            if t==target:return copy.deepcopy(value)
+            if isinstance(t,dict):return {k:swap(v,target,value) for k,v in t.items()}
+            if isinstance(t,list):return [swap(v,target,value) for v in t]
+            return t
+        steps=[];current=copy.deepcopy(term)
+        for _ in range(64):
+            found=find(current)
+            if not found:break
+            original,replacement,law,args=found
+            context=swap(current,original,var('replacement_rows'))
+            steps.append({'Substitute':dict(variable='replacement_rows',context=context,equality={'Instance':dict(**law,arguments=args,premises=[])})})
+            used_commuting.add(law['theorem'])
+            current=swap(current,original,replacement)
+        return current,steps
     for name,a in before['actions'].items():
         z=after['actions'][name];old=a['case']['call'];new=z['case']['call']
         if a['function']==z['function']:
@@ -178,16 +233,38 @@ def produce(before,after,selected,directory,knowledge_root=None,snapshot=None):
         # Convert rechecks the final complete observation, including hygienic
         # binder changes caused by removing a statement. Syntactic identity is
         # unnecessarily strict here; this proposal gains no authority from it.
-        case=trans(convert(old,start),*steps,guarded_equality(current,new,objects))
+        current,bridge_steps=bridge(current)
+        steps.extend(bridge_steps)
+        current,left_steps=canonical(current)
+        end_bridged,bridge_right_steps=bridge(end)
+        end_canonical,right_steps=canonical(end_bridged)
+        right_steps=[*bridge_right_steps,*right_steps]
+        if right_steps:
+            tail=trans(guarded_equality(current,end_canonical,objects),{'Sym':trans(*right_steps)},convert(end,new))
+        else:
+            tail=guarded_equality(current,new,objects)
+        case=trans(convert(old,start),*steps,*left_steps,tail)
         args=[var(n) for n,_ in a['params']]
         proofs[name]={'Induction':dict(variable='initial',**{'from':call(a['function'],args),'to':call(z['function'],args)},cases=[dict(bindings=a['case']['bindings'],proof=case)])}
-    roots=sorted({a['function'] for a in before['actions'].values()}|{a['function'] for a in after['actions'].values()}|{law['theorem'] for law in laws.values()}|{law['theorem'] for _,_,law in coalescing})
+    invariant={};sorted_roots=set()
+    if sorted_tables is not None:
+        # Prove the original actions keep every table strictly sorted, then
+        # prove changed transitions equal under that checked invariant.
+        from producers.sorted_rows import action_proofs
+        library=database.bundle(sorted(i for n,i in names.items() if n.startswith('state-calculus/')))['objects']
+        objects.update(library);objects.update(sorted_tables['objects'])
+        preservation,equalities,used=action_proofs(before,after,sorted_tables,objects,names)
+        proofs.update(equalities);invariant=dict(sorted_tables=dict(actions=preservation))
+        sorted_roots=set(sorted_tables['objects'])|used
+    roots=sorted({a['function'] for a in before['actions'].values()}|{a['function'] for a in after['actions'].values()}|{law['theorem'] for law in laws.values()}|{law['theorem'] for _,_,law in coalescing}|used_commuting|bridge_roots|sorted_roots)
     store=Store.publish(directory,list(objects.values()))
-    return dict(schema=1,semantics='ink-evidence-v1',input_core_sha256=before['source'],knowledge=store.bundle(roots),applications=[],action_replacement=dict(selected=selected,proofs=proofs))
+    return dict(schema=1,semantics='ink-evidence-v1',input_core_sha256=before['source'],knowledge=store.bundle(roots),applications=[],action_replacement=dict(selected=selected,proofs=proofs,**invariant))
 
 def main():
     p=argparse.ArgumentParser(description=__doc__);p.add_argument('before');p.add_argument('after');p.add_argument('selected');p.add_argument('-o','--output',required=True);p.add_argument('--knowledge',type=Path);p.add_argument('--snapshot',type=Path)
+    p.add_argument('--sorted-tables',type=Path,help='the original module\'s derived sortedness predicates (emit-action-model --sorted-tables); prove and assume them')
     a=p.parse_args();out=Path(a.output);out.parent.mkdir(parents=True,exist_ok=True)
-    result=produce(read(Path(a.before)),read(Path(a.after)),read(Path(a.selected)),out.parent/'database',a.knowledge,a.snapshot)
-    out.write_text(json.dumps(result,indent=2)+'\n');print(json.dumps(dict(status='proposed',authority='requires compiler checking')))
+    result=produce(read(Path(a.before)),read(Path(a.after)),read(Path(a.selected)),out.parent/'database',a.knowledge,a.snapshot,
+                   json.loads(a.sorted_tables.read_text()) if a.sorted_tables else None)
+    out.write_text(json.dumps(result,separators=(',',':'))+'\n');print(json.dumps(dict(status='proposed',authority='requires compiler checking')))
 if __name__=='__main__':main()
