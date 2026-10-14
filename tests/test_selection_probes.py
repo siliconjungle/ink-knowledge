@@ -16,3 +16,59 @@ class TypedProbes(unittest.TestCase):
         self.assertFalse(supported({'Named':'Node'},{'Node':[['tail',{'List':{'Named':'Node'}}]]}))
         self.assertFalse(supported('U64',{}))
         self.assertFalse(supported({'Arrow':['U32','U32']},{}))
+
+    def test_checked_wire_profiles_cover_finite_recursive_sums_and_exact_words(self):
+        node={'Named':'Node'}
+        records={'Node':[['value','U64'],['next',{'Option':node}]]}
+        program=dict(records=records,functions=[dict(name='entry',params=[['node',node],['pair',{'Vector':['F32',2]}],['choice',{'Result':['Unit','String']}]],result=node,body={})])
+        spec,receipt=create(dict(program=program),'javascript')
+        self.assertEqual(receipt['declined'],[])
+        self.assertEqual(set(spec['phases']),{'call:entry:portable','call:entry:compact'})
+        self.assertEqual(spec['schema'],3)
+        for calls in spec['phases'].values():
+            for call in calls:
+                node,pair,choice=call['args'];depth=0
+                while True:
+                    self.assertIsInstance(node['value'],int)
+                    self.assertLessEqual(int(node['value']),2**64-1)
+                    depth+=1;self.assertLess(depth,16)
+                    if 'None'in node['next']:break
+                    node=node['next']['Some']
+                self.assertEqual(len(pair),2)
+                self.assertTrue(all(type(v)is float for v in pair))
+                self.assertTrue(set(choice)in ({'Ok'},{'Err'}))
+        self.assertIsNone(create(dict(program=program),'rust')[0])
+
+    def test_uninhabited_and_unsupported_recursive_signatures_decline(self):
+        for records in [{'Loop':[['next',{'Named':'Loop'}]]},{'Loop':[['next',{'Result':[{'Named':'Loop'},{'Named':'Loop'}]}]]},{'Loop':[['next',{'Option':{'Arrow':['U32','U32']}}]]}]:
+            program=dict(records=records,functions=[dict(name='entry',params=[['x',{'Named':'Loop'}]],result='Bool',body={})])
+            self.assertIsNone(create(dict(program=program),'javascript')[0])
+
+    def test_recursive_result_selects_a_finite_branch_at_depth_bound(self):
+        loop={'Named':'Loop'}
+        records={'Loop':[['tail',{'Result':[loop,{'Vector':['U32',4]}]}]]}
+        program=dict(records=records,functions=[dict(name='entry',params=[['x',loop]],result='Bool',body={})])
+        spec,_=create(dict(program=program),'javascript')
+        self.assertTrue(spec['phases'])
+        for calls in spec['phases'].values():
+            for call in calls:
+                v=call['args'][0];depth=0
+                while 'Ok'in v['tail']:
+                    v=v['tail']['Ok'];depth+=1;self.assertLess(depth,16)
+                self.assertEqual(len(v['tail']['Err']),4)
+
+    def test_first_nested_sequence_uses_profile_sizes_without_recursive_explosion(self):
+        records={'Box':[['rows',{'List':{'List':'U32'}}]]}
+        program=dict(records=records,functions=[dict(name='entry',params=[['x',{'Named':'Box'}]],result='Bool',body={})])
+        spec,_=create(dict(program=program),'javascript')
+        sizes={len(c['args'][0]['rows'])for c in spec['phases']['call:entry:compact']}
+        self.assertEqual(sizes,{0,8,128,2048})
+        self.assertTrue(all(len(v)<=1 for c in spec['phases']['call:entry:compact']for v in c['args'][0]['rows']))
+
+    def test_named_enums_and_identifiers_use_exact_declared_wire_carriers(self):
+        program=dict(enums={'Choice':['First','Last']},ids=['Tag'],functions=[dict(name='entry',params=[['tag',{'Named':'Tag'}],['choice',{'Named':'Choice'}]],result={'Named':'Choice'},body={})])
+        spec,receipt=create(dict(program=program),'javascript')
+        self.assertFalse(receipt['declined'])
+        for calls in spec['phases'].values():
+            for c in calls:
+                tag,choice=c['args'];self.assertRegex(tag,r'^[0-9a-f]{32}$');self.assertIn(choice,{'Choice.First','Choice.Last'})

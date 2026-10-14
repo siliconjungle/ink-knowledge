@@ -448,3 +448,13 @@ choices. `producers.cell_actions` and `producers.early_return` propose complete
 action simplifications, admitted only through whole-action equality. Generated
 helper names are bridged with ordinary induction theorems rather than hash-based
 equality. See the distribution's `docs/maintained-folds.md` for trust boundaries.
+
+Automatic typed probe authoring covers the complete admitted first-order wire
+carrier family: scalars, exact U64/Int, Unit, fixed numeric vectors, lists,
+inhabited recursive records, options/results, enums and identifiers. It derives
+finite constructor choices and bounded nested collection sizes from declarations;
+no source-function name or theorem ID selects cases. The JavaScript planner
+measures advanced carriers through portable/compact boundaries using lossless
+measurement packets. Unsupported trusted transfers and state lifecycles still
+need their appropriate recorded evidence. Probe values and costs never grant
+proof admission or permit skipping input checks.
