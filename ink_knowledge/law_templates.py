@@ -114,9 +114,11 @@ def generate(store,subject,core):
             # Exact source endpoint -> beta-expanded universal instance -> target.
             # The adapter is ordinary proof data, not a new checker match mode.
             middle=substitute(base['from'],args)
-            proof={'Trans':dict(middle=middle,left='Normalize',right={'Use':dict(law=base_id,arguments=args,premises=[])})}
-            candidate=dict(semantics='ink-conditional-laws-v1',params=params,conditions=[],**{'from':target,'to':substitute(base['to'],args)},proof=proof,dependencies=[base_id])
-            if base['conditions']:continue # premise synthesis stays in the planner
+            proof={'Trans':dict(middle=middle,left='Normalize',right={'Use':dict(law=base_id,arguments=args,premises=[{'Hypothesis':i} for i in range(len(base['conditions']))])})}
+            # Keep each instantiated premise as an adapter obligation. Its
+            # Hypothesis proof above is scoped to this law, never caller trust.
+            conditions=[{side:substitute(condition[side],args)for side in ('from','to')}for condition in base['conditions']]
+            candidate=dict(semantics='ink-conditional-laws-v1',params=params,conditions=conditions,**{'from':target,'to':substitute(base['to'],args)},proof=proof,dependencies=[base_id])
             if nominal_types(candidate):candidate=bind(candidate,core,subject)
             obj=semantic_entry(candidate);adapter_id=identity(obj);objects[adapter_id]=obj;produced.add(adapter_id)
             if len(objects)>1024:raise ValueError('instantiated law template budget')

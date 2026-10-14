@@ -477,3 +477,33 @@ measures advanced carriers through portable/compact boundaries using lossless
 measurement packets. Unsupported trusted transfers and state lifecycles still
 need their appropriate recorded evidence. Probe values and costs never grant
 proof admission or permit skipping input checks.
+
+
+`producers.word_facts` performs bounded, untrusted unsigned-word analysis during
+offline discovery. Facts established by a `choose` condition apply only inside
+that arm. Supported comparison bounds, Boolean negation, true conjunctions and
+false disjunctions refine local scopes; nested constraints intersect, while
+alternative arms union possible values. Wrapping operations retain their fixed
+meaning. Contradictory constraints are conservatively discarded, not used as
+proofs of unreachable code. This is expression analysis, not a whole-program
+control-flow analysis or an assumption that a fallible contract always succeeds.
+
+Offline `ink_planner.llvm_learning --proposal-engine facts` proves the complete
+guarded replacement before publishing any law. The reusable `bounded_low_mask`
+u32/u64 laws additionally allow symbolic masks under the checked condition
+`m & (m + 1) == 0`, including zero and the full word mask. Their universal
+certificates are stored with the other word laws. A use with an arbitrary mask
+cannot discard this premise; source-level selection still replays it. These
+changes add discovery/proof opportunities, not runtime adaptation or a claim
+that every selected simplification improves an application's measured speed.
+
+
+Higher-order exact-source adapters retain instantiated conditions from their
+base law. Each base-law use refers to the corresponding adapter hypothesis;
+ordinary selection must still prove every adapter condition at the source site.
+A discovered callback match neither supplies a premise nor allows it to be
+omitted. This supports conditional callback laws through the existing generic
+instantiator and checker, including renamed parameters and concrete type instances.
+Disposable pattern-index queries also enforce the public store's 0–1024 page
+limit and explicitly close failed reader opens; these are discovery resource
+controls, never mathematical authority.

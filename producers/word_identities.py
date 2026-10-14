@@ -72,6 +72,11 @@ def templates():
         # mask is supported under an explicit low-mask premise, including 0/MAX.
         add('low_mask_add', AND(ADD(AND(x, m), AND(y, m)), m), AND(ADD(x, y), m),
             [eq(AND(m, ADD(m, word(kind, 1))), zero)])
+        # A branch bound removes a low contiguous mask. The mask shape is an
+        # explicit checked premise, not inferred from arbitrary range metadata.
+        add('bounded_low_mask',
+            op(s, 'call:choose', REL('<=', x, m), AND(x, m), x), x,
+            [eq(AND(m, ADD(m, word(kind, 1))), zero)])
         # Arithmetic fusion that remains correct at the word boundary.
         add('cancel_add_left', SUB(ADD(x, y), x), y)
         add('cancel_sub_left', ADD(SUB(x, y), y), x)
