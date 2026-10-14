@@ -6,6 +6,36 @@ kernel proofs; this module grants no rewrite authority.
 """
 import copy
 
+def adapter(law_id,law,target):
+ """Bridge an exact source site to a higher-order instance by ordinary proof.
+
+ The caller supplies the portable definition context and replays the complete
+ closure. Open lexical sites and undischarged premises are never erased.
+ """
+ from ink_planner.semantic_search import substitute,children
+ if law.get('conditions') or law.get('assumptions'):return None
+ arguments={}
+ if not match(law['from'],target,law['params'],[],{},arguments)or set(arguments)!=set(law['params']):return None
+ params={}
+ def free(term,depth=0):
+  node=term['node']
+  if isinstance(node,dict):
+   if 'Bound'in node and node['Bound']>=depth:raise ValueError('open adapter site')
+   if 'Free'in node:
+    name=node['Free']
+    if name in params and params[name]!=term['sort']:raise ValueError('adapter free sort conflict')
+    params[name]=term['sort']
+  for child in children(term):free(child,depth+int(isinstance(node,dict)and 'Lambda'in node))
+ try:
+  free(target)
+  for argument in arguments.values():free(argument)
+ except ValueError:return None
+ middle=substitute(law['from'],arguments)
+ return dict(semantics='ink-conditional-laws-v1',params=params,conditions=[],
+  **{'from':target,'to':substitute(law['to'],arguments)},
+  proof={'Trans':dict(middle=middle,left='Normalize',right={'Use':dict(law=law_id,arguments=arguments,premises=[])})},
+  dependencies=[law_id])
+
 def applied_hole(pattern,params):
  args=[];head=pattern
  while isinstance(head['node'],dict)and head['node'].get('Op',[None])[0]=='apply':

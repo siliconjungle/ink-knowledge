@@ -233,11 +233,21 @@ def propose(context_,**_):
                             receipt=dict(core_sha256=context_['source']);extendedcore=context_['core'];extendedsubject=subject
                         definition_context=context(extendedcore,extendedsubject,proof_roots(extendedcore,law,[f['name']for f in definitions['functions']]))
                         lid,objects=materialise(law,supports,definition_context)
-                        law=objects[lid]['payload'];view=ProposalViews(store,objects,d/'law').bundle([lid])
+                        law=objects[lid]['payload'];transport=ProposalViews(store,objects,d/'law')
                         for name,path,target in sites:
                             arguments={}
-                            if not match(law['from'],target,law['params'],arguments)or set(arguments)!=set(law['params']):continue
-                            application=dict(function=name,path=list(path),law=lid,arguments=dict(sorted(arguments.items())),premises=['Normalize']*len(law['conditions']))
+                            applied=lid;premises=['Normalize']*len(law['conditions'])
+                            if not match(law['from'],target,law['params'],arguments)or set(arguments)!=set(law['params']):
+                                from .higher_patterns import adapter
+                                from producers.definition_context28 import bind
+                                adapted=adapter(lid,law,target)
+                                if adapted is None:continue
+                                adapted=bind(adapted,extendedcore,extendedsubject)
+                                obj=semantic_entry(adapted);applied=identity(obj)
+                                transport.update({applied:obj})
+                                arguments={n:dict(sort=s,node={'Free':n})for n,s in adapted['params'].items()};premises=[]
+                            view=transport.bundle([applied])
+                            application=dict(function=name,path=list(path),law=applied,arguments=dict(sorted(arguments.items())),premises=premises)
                             rewrite=dict(schema=1,semantics='ink-evidence-v1',input_core_sha256=receipt['core_sha256'],knowledge=view,applications=[application])
                             yield dict(status='proposal',label=ident,steps=steps+[dict(kind='rewrite',package=rewrite)])
                             produced+=1

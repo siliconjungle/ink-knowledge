@@ -372,6 +372,14 @@ folds while retaining each state's exact operation order, including floating
 arithmetic. Its supporting map lemmas are proof dependencies, not automatically
 enabled search rules. Profitability remains a separate measured decision.
 
+`producers.captured_fold_batching.templates(map_fusion_id)` authors a source
+algorithm that lifts per-result captures into a private environment/accumulator
+record before batching, then projects the results. The generic source-template
+producer shares the law-template adapter builder, so callback abstraction,
+source extension and proof composition need no batching-specific compiler path.
+Inputs that vary by environment do not match the shared-input rule. A normal
+planner run can discover the alternative, but needs cost evidence to select it.
+
 ## Composable knowledge and indexed growth
 
 Source algorithm templates can import other snapshot-owned algorithms, bind their

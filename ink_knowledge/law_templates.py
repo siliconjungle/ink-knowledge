@@ -120,7 +120,7 @@ def generate(store,subject,core):
         for _,_,target,bindings in sites.matches(payload['law']['from'],payload['law']['params'],payload['type_parameters']):
             base_id,_=instantiate(ident,bindings,{ident});instances.add(base_id);produced.add(base_id)
             base=objects[base_id]['payload']
-            from ink_planner.semantic_search import match,substitute,children
+            from ink_planner.semantic_search import match
             args={}
             if match(base['from'],target,base['params'],args):continue
             from .store import canonical
@@ -128,29 +128,9 @@ def generate(store,subject,core):
             if adapter_key in adapter_cache:
                 produced.add(adapter_cache[adapter_key]);adapter_hits+=1
                 continue
-            from .higher_patterns import match as higher_match
-            args={}
-            if not higher_match(base['from'],target,base['params'],[],{},args)or set(args)!=set(base['params']):continue
-            params={}
-            def free(t,depth=0):
-                node=t['node']
-                if isinstance(node,dict):
-                    if 'Bound'in node and node['Bound']>=depth:raise ValueError('open adapter site')
-                    if 'Free'in node:
-                        name=node['Free']
-                        if name in params and params[name]!=t['sort']:raise ValueError('adapter free sort conflict')
-                        params[name]=t['sort']
-                for child in children(t):free(child,depth+int(isinstance(node,dict)and 'Lambda'in node))
-            try:
-                free(target)
-                for arg in args.values():free(arg)
-            except ValueError:continue
-            # Exact source endpoint -> beta-expanded universal instance -> target.
-            # The adapter is ordinary proof data, not a new checker match mode.
-            middle=substitute(base['from'],args)
-            proof={'Trans':dict(middle=middle,left='Normalize',right={'Use':dict(law=base_id,arguments=args,premises=[])})}
-            candidate=dict(semantics='ink-conditional-laws-v1',params=params,conditions=[],**{'from':target,'to':substitute(base['to'],args)},proof=proof,dependencies=[base_id])
-            if base['conditions']:continue # premise synthesis stays in the planner
+            from .higher_patterns import adapter
+            candidate=adapter(base_id,base,target)
+            if candidate is None:continue
             if nominal_types(candidate):candidate=bind(candidate,core,subject)
             obj=semantic_entry(candidate);adapter_id=identity(obj);objects[adapter_id]=obj;produced.add(adapter_id)
             if len(objects)>1024:raise ValueError('instantiated law template budget')
