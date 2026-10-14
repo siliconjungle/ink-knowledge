@@ -175,7 +175,7 @@ from producers.owned_fold_contracts import closed
 from ink_planner.semantic_search import positions,map_children
 
 
-def author(compiler,source,directory,framework_directory=None,*,max_attempts=4096,max_unfold_work=100_000):
+def author(compiler,source,directory,framework_directory=None,*,max_attempts=4096,max_unfold_work=100_000,source_evidence=None):
  if not 1<=max_attempts<=65_536 or not 1<=max_unfold_work<=1_000_000:raise ValueError("set authoring resource budget")
  D=Path(directory).resolve();D.mkdir(parents=True,exist_ok=True)
  compiler=str(Path(compiler).resolve());source=str(Path(source).resolve())
@@ -210,12 +210,45 @@ def author(compiler,source,directory,framework_directory=None,*,max_attempts=409
   if set(fields)!={'seen','valid'} or fields['valid']!='Bool' or not isinstance(fields['seen'],dict) or 'List'not in fields['seen']:continue
   if beta_normalize(d['body'])['node'].get('Op',[None])[0]=='call:foldl':scans.append(n)
  components=[derive(compiler,context,D/('components-'+n),framework_directory,D/'empty.core.json',n)for n in scans]
+ indexed_components=[]
+ for builder,fields in context['records'].items():
+  if dict(fields)!={'seen':{'Map':['U32','Bool']},'out':{'Buffer':'U32'}}:continue
+  steps=[n for n,r in context['definitions'].items()if [t for _,t in r['definition']['params']]==['U32',{'Named':builder}]and r['definition']['result']=={'Named':builder}]
+  if len(steps)!=1:continue
+  base=next((c for c in components if c['element_type']=='U32'),None)
+  if base is None:continue
+  from producers.indexed_set_construction import derive as indexed_derive
+  indexed_components.append(indexed_derive(compiler,context,base,D/('indexed-'+builder),framework_directory,D/'empty.core.json',builder,steps[0]))
  objects={}; roots=[];proofs={};names={}
  for component in components:objects.update(component['objects'])
+ for component in indexed_components:objects.update(component['objects'])
+ previous=json.loads(Path(source_evidence).read_text())if source_evidence else {}
+ previous_bank=Store.publish(D/'previous-proposals',previous['knowledge']['objects'].values())if previous.get('knowledge')else None
+ retained_bundles={}
  with ProofSession(compiler,source,[],goals['source_sha256'])as session:
   for goal in goals['pure']:
+   retained=previous.get('proofs',{}).get(goal['name']);old_bundle=None
+   if retained is not None and previous_bank and set(retained)=={'Use'}:
+    ident=retained['Use']['law']
+    if ident not in retained_bundles:retained_bundles[ident]=previous_bank.bundle([ident])
+    old_bundle=retained_bundles[ident]
+   if old_bundle and session.check(goal['name'],retained,old_bundle)['status']=='checked':
+    ident=retained['Use']['law'];objects.update(old_bundle['objects']);roots.append(ident);names['contract.'+goal['name']]=ident;proofs[goal['name']]=retained;continue
    proof=next((p for p in pure_proposals(goal)if session.check(goal['name'],p,None)['status']=='checked'),None)
    deps=[]
+   if proof is None:
+    for component in indexed_components:
+     ident=component['construction'];law=objects[ident]['payload'];bank=Store.publish(D/'indexed-proposals',objects.values())
+     terms={json.dumps(var(sort,name),sort_keys=True):var(sort,name)for name,sort in goal['params'].items()if sort=={'Value':{'List':'U32'}}}
+     unfold_work[0]=0
+     for _,t in positions(beta_normalize(unfold(goal['goal']['from']))):
+      if t['sort']=={'Value':{'List':'U32'}}and closed(t):terms[json.dumps(t,sort_keys=True)]=t
+      if len(terms)>64:raise ValueError('indexed construction proposal budget')
+     for candidate in terms.values():
+      args=dict(xs=candidate);middle=substitute(law['from'],args)
+      trial={'Trans':dict(middle=middle,left='Normalize',right={'Use':dict(law=ident,arguments=args,premises=[])})}
+      if session.check(goal['name'],trial,bank.bundle([ident]))['status']=='checked':proof=trial;deps=[ident];break
+     if proof is not None:break
    if proof is None:
     attempts=0;unfold_work[0]=0
     proposal_bank=Store.publish(D/'proposal-bank',objects.values());bundle_cache={}
@@ -250,6 +283,9 @@ def author(compiler,source,directory,framework_directory=None,*,max_attempts=409
    proofs[goal['name']]={'Use':dict(law=ident,arguments={n:var(sort,n)for n,sort in goal['params'].items()},premises=[{'Hypothesis':i}for i in range(len(goal['conditions']))])}
  bank=Store.publish(D/'proofs',objects.values(),names)
  evidence=dict(schema=1,semantics=goals['semantics'],source_sha256=goals['source_sha256'],proofs=proofs,state_proofs={},knowledge=bank.bundle(roots),state_knowledge=None)
+ state_names={g['name']for g in (goals.get('state')or {}).get('obligations',[])}
+ evidence['state_proofs']={n:p for n,p in previous.get('state_proofs',{}).items()if n in state_names}
+ if evidence['state_proofs']:evidence['state_knowledge']=previous.get('state_knowledge')
  (D/'evidence.json').write_text(json.dumps(evidence,separators=(',',':'))+'\n')
  if goals.get('state') is not None:
   from producers.contract_proofs import author as author_contracts
@@ -261,6 +297,6 @@ def author(compiler,source,directory,framework_directory=None,*,max_attempts=409
 if __name__=='__main__':
  import argparse
  parser=argparse.ArgumentParser(description=__doc__)
- parser.add_argument('source');parser.add_argument('output');parser.add_argument('--compiler',required=True)
- args=parser.parse_args();evidence,bank=author(args.compiler,args.source,args.output)
+ parser.add_argument('source');parser.add_argument('output');parser.add_argument('--compiler',required=True);parser.add_argument('--source-evidence')
+ args=parser.parse_args();evidence,bank=author(args.compiler,args.source,args.output,source_evidence=args.source_evidence)
  print(json.dumps(dict(status='checked',pure=len(evidence['proofs']),objects=len(evidence['knowledge']['objects']),snapshot=bank.snapshot_id)))
