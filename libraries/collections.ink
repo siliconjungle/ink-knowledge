@@ -1,23 +1,33 @@
 module ink.knowledge.collections;
 
-// Stable, deterministic observable order. Algorithms are ordinary library
-// definitions; the compiler has no set, grouping or join algorithm cases.
-type Set<T> = List<T>;
+// Stable sets use structural value identity, including floating-point bits.
+// Construction normalizes once; operations on checked sets preserve the same
+// predicate. Algorithms and preservation proofs are ordinary knowledge.
+record Scan<T>{seen:List<T>,valid:Bool,}
+fn member<T>(items:List<T>,item:T)->Bool{return foldr(items,false,fn(x)=>fn(found)=>[x]==[item]||found);}
+fn scan_step<T>(item:T,state:Scan<T>)->Scan<T>{return Scan<T>{seen:state.seen.concat([item]),valid:state.valid&&!member<T>(state.seen,item)};}
+fn scan<T>(items:List<T>)->Scan<T>{return foldl(items,Scan<T>{seen:[],valid:true},fn(item)=>fn(state)=>scan_step<T>(item,state));}
+fn distinct<T>(items:List<T>)->Bool{return scan<T>(items).valid;}
+abstract refined record Set<T>{items:List<T>,} invariant distinct<T>(value.items);
+fn append_new<T>(items:List<T>,item:T)->List<T>{if member<T>(items,item){return items;}return items.concat([item]);}
+fn set<T>(items:List<T>)->Set<T>{return Set<T>{items:foldl(items,[],fn(item)=>fn(seen)=>append_new<T>(seen,item))};}
+fn elements<T>(value:Set<T>)->List<T>{return value.items;}
+fn union<T>(a:Set<T>,b:Set<T>)->Set<T>{return Set<T>{items:foldl(b.items,a.items,fn(item)=>fn(seen)=>append_new<T>(seen,item))};}
+fn intersection<T>(a:Set<T>,b:Set<T>)->Set<T>{return Set<T>{items:a.items.filter(fn(item)=>member<T>(b.items,item))};}
+fn difference<T>(a:Set<T>,b:Set<T>)->Set<T>{return Set<T>{items:a.items.filter(fn(item)=>!member<T>(b.items,item))};}
+
 record Entry<K,V> { key:K, value:V, }
 record Group<K,V> { key:K, values:List<V>, }
 record Joined<K,A,B> { key:K, left:A, right:B, }
-
+// Ordinary list membership retains the source scalar equality contract.
 fn contains<T>(xs:List<T>,value:T)->Bool {
-    return foldl(xs,false,fn(x)=>fn(found)=>found || x==value);
+ return foldl(xs,false,fn(x)=>fn(found)=>found || x==value);
 }
-fn set<T>(xs:List<T>)->Set<T> {
-    var output:List<T>=[];
-    for x in xs { if !contains<T>(output,x) {output=output.concat([x]);} }
-    return output;
-}
-fn union<T>(a:Set<T>,b:Set<T>)->Set<T> {return set<T>(a.concat(b));}
-fn intersection<T>(a:Set<T>,b:Set<T>)->Set<T> {return set<T>(a.filter(fn(x)=>contains<T>(b,x)));}
-fn difference<T>(a:Set<T>,b:Set<T>)->Set<T> {return set<T>(a.filter(fn(x)=>!contains<T>(b,x)));}
+fn has<T>(value:Set<T>,item:T)->Bool{return member<T>(value.items,item);}
+fn size<T>(value:Set<T>)->Int{return count(value.items);}
+spec fn known_distinct<T>(value:Set<T>)->Bool ensures result;
+implementation checked_set_observation for known_distinct{return distinct<T>(value.items);}
+
 fn map<T,U>(xs:List<T>,f:fn(T)->U)->List<U> {return xs.map(f);}
 fn filter<T>(xs:List<T>,predicate:fn(T)->Bool)->List<T> {return xs.filter(predicate);}
 record FoldState<T,U> { item:T, accumulated:U, }

@@ -5,8 +5,14 @@ They confer no optimisation authority. Alternative algorithms need canonical
 entries and checked correspondence/equivalence evidence; measurements rank only
 admitted alternatives.
 
-`collections.ink` defines stable list-based sets, callback traversal/reduction,
-first-appearance grouping and duplicate-preserving left-major equijoins.
+`collections.ink` defines an abstract refined Set interface with structural
+identity, stable construction and invariant-preserving union, intersection and
+difference. Callers use `elements`, `has` and `size`; raw boundaries validate the
+invariant. The generic list implementation remains a quadratic baseline.
+`producers.set_contracts` authors ordinary source-bound preservation proofs from
+shared fold laws with finite search budgets. The library also provides callback
+traversal/reduction, first-appearance grouping and duplicate-preserving left-major
+equijoins.
 `integers.ink` defines checked word division/remainder with separate zero-divisor
 and signed-overflow errors. See the distribution's generic-language-foundations
 contract for syntax, ordering, wire shapes and limitations. Generic templates are
@@ -104,3 +110,7 @@ and insertion. Their new fixed operations bind executable core V11.
 `producers.numeric_text_laws` supplies 39 checked choice-distribution instances for
 individual arguments of numeric, word and UTF-8 primitives. They do not authorise
 float reassociation or replacing division by reciprocal multiplication.
+
+`sequence-filter-laws.ink` proves that folding a filtered sequence equals folding
+the original sequence with a conditional step. Set preservation uses it with
+general fold simulation and prefix observation; it adds no compiler Set case.

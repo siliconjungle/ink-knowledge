@@ -12,6 +12,7 @@ from producers.action_replacement import var,call,cons,trans
 from producers.contract_proofs import state_proof
 from producers.equational import Tactic
 from producers.point_delta import sub
+from producers.proof_composition import freshen_match_terms
 
 SEMANTICS='ink-source-representation-v2'
 MATH='first-order-inductive-equality-v1'
@@ -92,13 +93,14 @@ def generate(model,directory,compiler,max_queries=16):
             proof=state_proof(objects,new,old,env,[(e['from'],e['to'],i)for i,e in enumerate(conditions)])
         except ValueError as error:declined.append(dict(action=name,reason=str(error)));continue
         current=copy.deepcopy(original);current['execute']=execute
-        current['observation']=trans(subst(proof,call(current['observe'],[var('replacement')])),original['observation'])
+        current['observation']=freshen_match_terms(trans(subst(proof,call(current['observe'],[var('replacement')])),original['observation']),env)
         # All logical post-state and event obligations retain their exact source.
         current['preservation']=[trans(subst(proof,call(r['left'],[call(current['next'],[var('replacement')]),
             {'Match':dict(scrutinee=call(source['function'],[var('logical'),*args[1:]]),branches=[
                 dict(bindings=['__r','__c','__v','__s','__e'],body=var('__s')),
                 dict(bindings=['__h','__v','__s'],body=var('__s'))])}])),old_proof)
             for r,old_proof in zip(plan['relations'],original['preservation'])]
+        current['preservation']=[freshen_match_terms(p,env)for p in current['preservation']]
         plan['actions'][name]=current;changed.append(name)
     if not changed:return dict(requests=[],declined=declined)
     obj=entry('representation',SEMANTICS,plan,refs(plan),parameters={'logical':logical},result=physical,effects=['source-transitions'],conditions=[{'source_domain':'checked-source-invariants'}]);obj['interface']['operations']=sorted(plan['actions']);ident=identity(obj);objects[ident]=obj
