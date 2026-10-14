@@ -1,0 +1,4 @@
+{
+  "law": "be92142b6d0539c65395834a8a65b63c4defd9b96b6d79339e906041c186c0b1",
+  "scope": "Full typed Stored -> loaded -> stored inverse for the exact uniform-run codec. No reverse affine-owner inverse, maintained-state action preservation, CRDT equivalence or convergence claim."
+}

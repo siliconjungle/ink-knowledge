@@ -1,0 +1,1 @@
+{"laws": {"source/linear_fold_simulation": "00a861969661b3e0a0209fc2d29eb7223593f730e0e8b707196eeff94868504d"}, "scope": "actual checked/hoisted linear-step stopping-fold simulation for arbitrary change lists and initial checked states; no CRDT convergence, run-tree invariant, or FugueMax bridge"}

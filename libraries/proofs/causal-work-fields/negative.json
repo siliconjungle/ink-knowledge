@@ -1,0 +1,5 @@
+{
+  "returncode": 1,
+  "reason": "error: semantic normal forms differ\n",
+  "claim": "enq always returns bound zero; recomputed canonical identity and interface"
+}

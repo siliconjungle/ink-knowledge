@@ -1,0 +1,1 @@
+Generically commutes a stopping left fold through a state mapping, under universal step and stop assumptions. Includes the terminal step. No concrete source simulation is discharged here.

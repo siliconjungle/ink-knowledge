@@ -1,11 +1,26 @@
-import copy,json,tempfile,unittest
+import copy,json,os,subprocess,tempfile,unittest
 from pathlib import Path
-from ink_knowledge import Store
-from ink_knowledge.source_algorithms import instantiate,namespace,publish,SEMANTICS
+from ink_knowledge import Store,canonical,identity,semantic_entry
+from ink_knowledge.proposal_views import ProposalViews
+from ink_knowledge.source_algorithms import instantiate,namespace,publish,proof_roots,SEMANTICS
 from ink_knowledge.recipes import load,role
 from producers.capacity_plans import expression
-from producers.semantic_laws import value,var,op,bound
+from producers.semantic_laws import value,var,op,bound,law
 class DatabaseAlgorithms(unittest.TestCase):
+ def test_new_proof_can_reuse_published_law_with_checked_membership(self):
+  x=var(value('U32'),'x');old=semantic_entry(law({'x':value('U32')},x,x));oid=identity(old)
+  new=semantic_entry(law({'x':value('U32')},x,x,{'Use':{'law':oid,'arguments':{'x':x},'premises':[]}},dependencies=[oid]));nid=identity(new)
+  compiler=Path(os.environ.get('INK_COMPILER',Path(__file__).resolve().parents[2]/'target/debug/ink'))
+  with tempfile.TemporaryDirectory()as temporary:
+   d=Path(temporary);store=Store.publish(d/'knowledge',[old]);view=ProposalViews(store,{nid:new},d/'transport').bundle([nid]);self.assertEqual(set(view['membership']),{oid,nid})
+   source=d/'source.ink';source.write_text('module proof_transport;fn id(x:u32)->u32{return x;}');core=d/'core.json';packet=d/'view.json';packet.write_bytes(canonical(view))
+   subprocess.run([compiler,'emit-core',source,'-o',core],check=True,capture_output=True)
+   checked=subprocess.run([compiler,'knowledge-check',core,packet],capture_output=True,text=True);self.assertEqual(checked.returncode,0,checked.stderr)
+ def test_replacement_proofs_keep_original_endpoints_and_intermediate_unfolds(self):
+  core={'program':{'functions':[{'name':n}for n in ['old','fresh','intermediate']]}}
+  term=lambda name:op(value('U32'),'call:'+name)
+  law={'from':term('old'),'to':term('fresh'),'conditions':[],'proof':{'Trans':{'middle':term('intermediate'),'left':'Unfold','right':'Normalize'}},'definition_context':{'unused':term('not_available')}}
+  self.assertEqual(proof_roots(core,law,['fresh']),['fresh','intermediate','old'])
  def examples(self):return json.loads((Path(__file__).resolve().parents[1]/'libraries/source-algorithms.json').read_bytes())
  def test_fresh_names_and_type_substitution_do_not_rename_literals_or_fields(self):
   obj=self.examples()[0]['object'];definitions,law=instantiate(obj['payload'],{'A':'U32'},'a'*64)

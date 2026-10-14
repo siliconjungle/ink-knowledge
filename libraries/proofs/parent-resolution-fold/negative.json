@@ -1,0 +1,5 @@
+{
+  "returncode": 1,
+  "error": "error: induction schema does not establish exact goal\n",
+  "scope": "Canonical rehashed false commutation conclusion discards input parent list"
+}

@@ -1,0 +1,4 @@
+{
+  "law": "7eee55578ac6e40bb4c5ebd06eabbc783cb5e6cf584247d38287a4a7df176d1d",
+  "scope": "For every typed Stored value, stored(loaded(value)) equals value, with complete source definitions and every field. Does not establish loaded(stored(affineWalker)), maintained graph/CRDT invariants, reachable-state equivalence or FugueMax correspondence."
+}

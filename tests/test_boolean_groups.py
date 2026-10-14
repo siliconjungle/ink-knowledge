@@ -1,6 +1,7 @@
 import json,os,tempfile,unittest
 from pathlib import Path
-from producers.maintained_folds import produce
+from producers.maintained_folds import produce,candidates
+from unittest.mock import patch
 ROOT=Path(__file__).resolve().parents[2]
 COMPILER=Path(os.environ.get('INK_COMPILER',ROOT/'target/debug/ink'))
 class DatabaseGroups(unittest.TestCase):
@@ -29,4 +30,15 @@ query read()->Bool reads(answer){return answer;}
   with tempfile.TemporaryDirectory()as tmp:
    p=Path(tmp);source=self.source(p,'||')
    with self.assertRaisesRegex(ValueError,'no factorised folds'):produce(source,COMPILER,p/'authored')
+ def test_keep_free_native_query_still_reaches_grouped_discovery(self):
+  # Grouped query views need no scalar keep. The cheap pure-module decline must
+  # not hide a query over state from the native producer.
+  context=dict(core={'program':{'keeps':[],'states':[{'name':'Rows'}]}},emit_target='rust',compiler=str(COMPILER))
+  with patch('producers.maintained_folds.produce',return_value={'steps':[]})as author:
+   rows=list(candidates(context))
+  self.assertEqual(rows[0]['status'],'proposal')
+  self.assertTrue(author.call_args.kwargs['grouped'])
+  with patch('producers.maintained_folds.produce')as author:
+   rows=list(candidates({**context,'core':{'program':{'keeps':[],'states':[]}}}))
+  author.assert_not_called();self.assertEqual(rows[0]['status'],'declined')
 if __name__=='__main__':unittest.main()

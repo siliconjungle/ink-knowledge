@@ -84,7 +84,7 @@ def contribution_choice(contribution,subject,delta,add,objects):
     proof=prove(original,optimized,[('key',subject['key']),('row',subject['row'])])
     return dict(function=function,proof=proof)
 
-def produce(source,compiler,directory,keeps=None,capacity=0,source_core=False,guarded_update=False,guard_zero=False,predicate_updates=False,extrema=False,groups=None):
+def produce(source,compiler,directory,keeps=None,capacity=0,source_core=False,guarded_update=False,guard_zero=False,predicate_updates=False,extrema=False,grouped=False,groups=None):
     source=Path(source).resolve();compiler=Path(compiler).resolve();directory=Path(directory);directory.mkdir(parents=True,exist_ok=True)
     flags=['--core']if source_core else []
     with tempfile.TemporaryDirectory(prefix='ink-maintained-folds-')as temporary:
@@ -124,6 +124,15 @@ def produce(source,compiler,directory,keeps=None,capacity=0,source_core=False,gu
         certificates={}
         for subject in subjects['subjects']:
             if keeps is not None and subject['keep']not in keeps:continue
+            if subject.get('parameter'):
+                # One-parameter queries become grouped views (Rust only).
+                if not grouped:continue
+                from producers.maintained_groups import author as grouped_view
+                try:views.append(grouped_view(subject,objects,add,compiler,certificates,combine,inverse,group,ring))
+                except (ValueError,KeyError)as e:
+                    if os.environ.get('INK_PROOF_DEBUG'):raise
+                    declined.append(dict(keep=subject['keep'],reason=str(e)))
+                continue
             if subject['result']=='Bool':
                 from producers.boolean_groups import author
                 failures=[]
@@ -207,7 +216,7 @@ def produce(source,compiler,directory,keeps=None,capacity=0,source_core=False,gu
 def candidates(context,groups=None):
     if context.get('representation')or context.get('maintained')or context.get('emit_target')not in('javascript','rust','rust-wasm'):
         yield dict(status='declined',label='maintained-folds',reason='requires JavaScript or Rust source state capability');return
-    if not context.get('core',{}).get('program',{}).get('keeps'):
+    if not context.get('core',{}).get('program',{}).get('keeps') and (context.get('emit_target')=='javascript' or not context.get('core',{}).get('program',{}).get('states')):
         yield dict(status='declined',label='maintained-folds',reason='no source keeps');return
     if context.get('emit_target')!='javascript':
         # Rust executes group folds and word extremum views; dense prefixes and
@@ -215,7 +224,7 @@ def candidates(context,groups=None):
         with tempfile.TemporaryDirectory(prefix='ink-maintained-candidates-')as temporary:
             temp=Path(temporary);source=temp/'source.json';source.write_bytes(canonical(context['core']))
             try:
-                plan=produce(source,context['compiler'],temp/'map',source_core=True,extrema=True,groups=groups)
+                plan=produce(source,context['compiler'],temp/'map',source_core=True,extrema=True,grouped=True,groups=groups)
                 yield dict(status='proposal',label='maintained-folds/rust',steps=plan['steps'])
             except (ValueError,subprocess.TimeoutExpired)as e:yield dict(status='declined',label='maintained-folds',reason=str(e))
         return
@@ -253,7 +262,7 @@ def candidates(context,groups=None):
         except (ValueError,subprocess.TimeoutExpired)as e:yield dict(status='declined',label='maintained-folds',reason=str(e))
 
 def main():
-    p=argparse.ArgumentParser(description=__doc__);p.add_argument('source',type=Path);p.add_argument('-o',type=Path,required=True);p.add_argument('--compiler',type=Path,default=compiler_path());p.add_argument('--keep',action='append');p.add_argument('--dense-capacity',type=int,default=0);p.add_argument('--core',action='store_true');p.add_argument('--guarded-update',action='store_true');p.add_argument('--guard-zero',action='store_true');p.add_argument('--predicate-update',action='store_true');p.add_argument('--extrema',action='store_true');p.add_argument('--publish',type=Path);a=p.parse_args()
-    plan=produce(a.source,a.compiler,a.o,a.keep,a.dense_capacity,a.core,a.guarded_update or a.guard_zero,a.guard_zero,a.predicate_update,a.extrema)
+    p=argparse.ArgumentParser(description=__doc__);p.add_argument('source',type=Path);p.add_argument('-o',type=Path,required=True);p.add_argument('--compiler',type=Path,default=compiler_path());p.add_argument('--keep',action='append');p.add_argument('--dense-capacity',type=int,default=0);p.add_argument('--core',action='store_true');p.add_argument('--guarded-update',action='store_true');p.add_argument('--guard-zero',action='store_true');p.add_argument('--predicate-update',action='store_true');p.add_argument('--extrema',action='store_true');p.add_argument('--grouped',action='store_true');p.add_argument('--publish',type=Path);a=p.parse_args()
+    plan=produce(a.source,a.compiler,a.o,a.keep,a.dense_capacity,a.core,a.guarded_update or a.guard_zero,a.guard_zero,a.predicate_update,a.extrema,a.grouped)
     if a.publish:print(json.dumps(publish(plan,a.publish)))
 if __name__=='__main__':main()

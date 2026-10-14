@@ -9,6 +9,7 @@
     "producers.collect_before_build",
     "producers.carrier_fusion",
     "producers.established_facts",
-    "producers.word_laws"
+    "producers.word_laws",
+    "producers.capture_projections"
   ]
 }

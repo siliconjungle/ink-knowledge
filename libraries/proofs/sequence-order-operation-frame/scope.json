@@ -1,0 +1,5 @@
+{
+  "status": "checked",
+  "law": "ad6c0ebb9ef6529bbb369d3f7cc7be8017dfafd99271782452ae1d5a7d893752",
+  "scope": "Portable exact operation tree frame with only referenced type declarations; not ordering correctness."
+}

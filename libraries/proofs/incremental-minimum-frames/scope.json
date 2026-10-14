@@ -1,0 +1,10 @@
+{
+  "laws": {
+    "source/minimum_preserves_nodes": "20d906655a6f143fc1e8d3cdc1ba63c3cef37eed62ef47d1a56d499f28d1993c",
+    "source/minimum_preserves_children": "df3122785111f0a4030dc0e67bda22561b2b2d0ba939651a82b5307a46716131",
+    "source/minimum_preserves_root": "fa00d225d1ebd524aea3ba77b86b35f9d9a134c55fe46e365e49ad7774cf1717",
+    "source/minimum_preserves_valid": "132adc28477f7fed9b4eb563397377d06c245c5d21c3cf5a8a8607ac65cd7679"
+  },
+  "snapshot": "06a54e149b43b0610def03941d222adf6acc81a08e23f1ff360afb1b72cdabf5",
+  "scope": "Actual minimum_step and arbitrary bounded iterations preserve index.nodes, index.children, index.root and index.valid. Block minima correctness and safe early termination require separate maintained metadata invariants."
+}

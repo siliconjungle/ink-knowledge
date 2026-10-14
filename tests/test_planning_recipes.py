@@ -4,7 +4,7 @@ from ink_knowledge import Store
 from ink_knowledge.store import entry
 from ink_knowledge.recipes import load,coverage,indexed_coverage,role
 from producers.collection_analysis import analyse
-from producers.planning_recipes import lexical_reads
+from producers.planning_recipes import lexical_reads,author
 
 class RegistryCoverage(unittest.TestCase):
     def test_index_coverage_matches_audit_and_authenticates_active_ids(self):
@@ -27,7 +27,7 @@ class RegistryCoverage(unittest.TestCase):
                 indexed_coverage(Store(d,store.data/'snapshots'/f'{store.snapshot_id}.json'))
 
     def test_registry_covers_every_current_operation_kind_and_fails_new_semantics(self):
-        families={('rewrite','ink-conditional-laws-v1'),('representation','ink-source-representation-v1'),
+        families={('rewrite','ink-conditional-laws-v1'),('rewrite','ink-general-laws-v1'),('representation','ink-source-representation-v1'),
             ('implementation','ink-implementation-candidate-v1'),('bridge','ink-representation-migration-v1'),
             ('maintenance','maintenance-test'),('definition','first-order-inductive-equality-v1'),
             ('theorem','first-order-inductive-equality-v1'),('definition','total-scalar-equality-v1'),
@@ -106,6 +106,15 @@ class RegistryCoverage(unittest.TestCase):
             self.assertEqual(coverage(store)['roles']['recipe-discovery'],1)
 
 class ExternalAnalysis(unittest.TestCase):
+    def test_pure_source_does_not_spend_stateful_representation_search_budget(self):
+        context=dict(core=dict(program=dict(states=[],actions=[],functions=[])))
+        def unexpected(*args):
+            self.fail('state representation author called for a pure-only source')
+        rows=list(author(context,{},unexpected))
+        self.assertEqual(len(rows),1)
+        self.assertEqual(rows[0]['status'],'declined')
+        self.assertIn('source-function equality',rows[0]['reason'])
+
     def program(self):
         return dict(records={},functions=[dict(name='mapped',params=[['xs',{'List':'U32'}]],result={'List':'U32'},body={'Method':[{'Var':'xs'},'map',[{'Lambda':['x',{'Var':'x'}]}]]})])
     def test_length_is_an_authoring_hint_not_compiler_authority(self):

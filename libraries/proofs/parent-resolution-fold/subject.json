@@ -1,0 +1,1075 @@
+{
+  "schema": 1,
+  "semantics": "ink-semantic-terms-v1",
+  "input_core_sha256": "d48e76c7ba743d90440fe7a1b0c31af5aa8b7e2a756d2f58c3e7b0085fa5a0ef",
+  "functions": {
+    "decode": {
+      "sort": {
+        "Value": {
+          "Named": "Gathering"
+        }
+      },
+      "node": {
+        "Op": [
+          "record:Gathering",
+          [
+            {
+              "sort": {
+                "Value": {
+                  "Map": [
+                    "U64",
+                    "U32"
+                  ]
+                }
+              },
+              "node": {
+                "Op": [
+                  "field:map",
+                  [
+                    {
+                      "sort": {
+                        "Value": {
+                          "Named": "Split"
+                        }
+                      },
+                      "node": {
+                        "Free": "s"
+                      }
+                    }
+                  ]
+                ]
+              }
+            },
+            {
+              "sort": {
+                "Value": {
+                  "Buffer": "U32"
+                }
+              },
+              "node": {
+                "Op": [
+                  "field:values",
+                  [
+                    {
+                      "sort": {
+                        "Value": {
+                          "Named": "Split"
+                        }
+                      },
+                      "node": {
+                        "Free": "s"
+                      }
+                    }
+                  ]
+                ]
+              }
+            }
+          ]
+        ]
+      }
+    },
+    "original": {
+      "sort": {
+        "Value": {
+          "Named": "Resolution"
+        }
+      },
+      "node": {
+        "Op": [
+          "apply",
+          [
+            {
+              "sort": {
+                "Arrow": [
+                  {
+                    "Value": {
+                      "Named": "Gathering"
+                    }
+                  },
+                  {
+                    "Value": {
+                      "Named": "Resolution"
+                    }
+                  }
+                ]
+              },
+              "node": {
+                "Lambda": {
+                  "sort": {
+                    "Value": {
+                      "Named": "Resolution"
+                    }
+                  },
+                  "node": {
+                    "Op": [
+                      "record:Resolution",
+                      [
+                        {
+                          "sort": {
+                            "Value": {
+                              "Map": [
+                                "U64",
+                                "U32"
+                              ]
+                            }
+                          },
+                          "node": {
+                            "Op": [
+                              "field:ends",
+                              [
+                                {
+                                  "sort": {
+                                    "Value": {
+                                      "Named": "Gathering"
+                                    }
+                                  },
+                                  "node": {
+                                    "Bound": 0
+                                  }
+                                }
+                              ]
+                            ]
+                          }
+                        },
+                        {
+                          "sort": {
+                            "Value": {
+                              "List": "U32"
+                            }
+                          },
+                          "node": {
+                            "Op": [
+                              "method:freeze",
+                              [
+                                {
+                                  "sort": {
+                                    "Value": {
+                                      "Buffer": "U32"
+                                    }
+                                  },
+                                  "node": {
+                                    "Op": [
+                                      "field:parents",
+                                      [
+                                        {
+                                          "sort": {
+                                            "Value": {
+                                              "Named": "Gathering"
+                                            }
+                                          },
+                                          "node": {
+                                            "Bound": 0
+                                          }
+                                        }
+                                      ]
+                                    ]
+                                  }
+                                }
+                              ]
+                            ]
+                          }
+                        }
+                      ]
+                    ]
+                  }
+                }
+              }
+            },
+            {
+              "sort": {
+                "Value": {
+                  "Named": "Gathering"
+                }
+              },
+              "node": {
+                "Op": [
+                  "call:foldl",
+                  [
+                    {
+                      "sort": {
+                        "Value": {
+                          "List": "U64"
+                        }
+                      },
+                      "node": {
+                        "Free": "parents"
+                      }
+                    },
+                    {
+                      "sort": {
+                        "Value": {
+                          "Named": "Gathering"
+                        }
+                      },
+                      "node": {
+                        "Op": [
+                          "record:Gathering",
+                          [
+                            {
+                              "sort": {
+                                "Value": {
+                                  "Map": [
+                                    "U64",
+                                    "U32"
+                                  ]
+                                }
+                              },
+                              "node": {
+                                "Free": "ends"
+                              }
+                            },
+                            {
+                              "sort": {
+                                "Value": {
+                                  "Buffer": "U32"
+                                }
+                              },
+                              "node": {
+                                "Op": [
+                                  "local:buffer-empty",
+                                  []
+                                ]
+                              }
+                            }
+                          ]
+                        ]
+                      }
+                    },
+                    {
+                      "sort": {
+                        "Arrow": [
+                          {
+                            "Value": "U64"
+                          },
+                          {
+                            "Arrow": [
+                              {
+                                "Value": {
+                                  "Named": "Gathering"
+                                }
+                              },
+                              {
+                                "Value": {
+                                  "Named": "Gathering"
+                                }
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      "node": {
+                        "Lambda": {
+                          "sort": {
+                            "Arrow": [
+                              {
+                                "Value": {
+                                  "Named": "Gathering"
+                                }
+                              },
+                              {
+                                "Value": {
+                                  "Named": "Gathering"
+                                }
+                              }
+                            ]
+                          },
+                          "node": {
+                            "Lambda": {
+                              "sort": {
+                                "Value": {
+                                  "Named": "Gathering"
+                                }
+                              },
+                              "node": {
+                                "Op": [
+                                  "call:original_step",
+                                  [
+                                    {
+                                      "sort": {
+                                        "Value": {
+                                          "Named": "Gathering"
+                                        }
+                                      },
+                                      "node": {
+                                        "Bound": 0
+                                      }
+                                    },
+                                    {
+                                      "sort": {
+                                        "Value": "U64"
+                                      },
+                                      "node": {
+                                        "Bound": 1
+                                      }
+                                    }
+                                  ]
+                                ]
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                ]
+              }
+            }
+          ]
+        ]
+      }
+    },
+    "original_step": {
+      "sort": {
+        "Value": {
+          "Named": "Gathering"
+        }
+      },
+      "node": {
+        "Op": [
+          "apply",
+          [
+            {
+              "sort": {
+                "Arrow": [
+                  {
+                    "Value": "U32"
+                  },
+                  {
+                    "Value": {
+                      "Named": "Gathering"
+                    }
+                  }
+                ]
+              },
+              "node": {
+                "Lambda": {
+                  "sort": {
+                    "Value": {
+                      "Named": "Gathering"
+                    }
+                  },
+                  "node": {
+                    "Op": [
+                      "record:Gathering",
+                      [
+                        {
+                          "sort": {
+                            "Value": {
+                              "Map": [
+                                "U64",
+                                "U32"
+                              ]
+                            }
+                          },
+                          "node": {
+                            "Op": [
+                              "field:ends",
+                              [
+                                {
+                                  "sort": {
+                                    "Value": {
+                                      "Named": "Gathering"
+                                    }
+                                  },
+                                  "node": {
+                                    "Free": "r"
+                                  }
+                                }
+                              ]
+                            ]
+                          }
+                        },
+                        {
+                          "sort": {
+                            "Value": {
+                              "Buffer": "U32"
+                            }
+                          },
+                          "node": {
+                            "Op": [
+                              "method:push",
+                              [
+                                {
+                                  "sort": {
+                                    "Value": {
+                                      "Buffer": "U32"
+                                    }
+                                  },
+                                  "node": {
+                                    "Op": [
+                                      "field:parents",
+                                      [
+                                        {
+                                          "sort": {
+                                            "Value": {
+                                              "Named": "Gathering"
+                                            }
+                                          },
+                                          "node": {
+                                            "Free": "r"
+                                          }
+                                        }
+                                      ]
+                                    ]
+                                  }
+                                },
+                                {
+                                  "sort": {
+                                    "Value": "U32"
+                                  },
+                                  "node": {
+                                    "Bound": 0
+                                  }
+                                }
+                              ]
+                            ]
+                          }
+                        }
+                      ]
+                    ]
+                  }
+                }
+              }
+            },
+            {
+              "sort": {
+                "Value": "U32"
+              },
+              "node": {
+                "Op": [
+                  "method:get_or",
+                  [
+                    {
+                      "sort": {
+                        "Value": {
+                          "Map": [
+                            "U64",
+                            "U32"
+                          ]
+                        }
+                      },
+                      "node": {
+                        "Op": [
+                          "field:ends",
+                          [
+                            {
+                              "sort": {
+                                "Value": {
+                                  "Named": "Gathering"
+                                }
+                              },
+                              "node": {
+                                "Free": "r"
+                              }
+                            }
+                          ]
+                        ]
+                      }
+                    },
+                    {
+                      "sort": {
+                        "Value": "U64"
+                      },
+                      "node": {
+                        "Free": "p"
+                      }
+                    },
+                    {
+                      "sort": {
+                        "Value": "U32"
+                      },
+                      "node": {
+                        "Word": 0
+                      }
+                    }
+                  ]
+                ]
+              }
+            }
+          ]
+        ]
+      }
+    },
+    "original_values": {
+      "sort": {
+        "Value": {
+          "List": "U32"
+        }
+      },
+      "node": {
+        "Op": [
+          "field:parents",
+          [
+            {
+              "sort": {
+                "Value": {
+                  "Named": "Resolution"
+                }
+              },
+              "node": {
+                "Op": [
+                  "call:original",
+                  [
+                    {
+                      "sort": {
+                        "Value": {
+                          "Map": [
+                            "U64",
+                            "U32"
+                          ]
+                        }
+                      },
+                      "node": {
+                        "Free": "ends"
+                      }
+                    },
+                    {
+                      "sort": {
+                        "Value": {
+                          "List": "U64"
+                        }
+                      },
+                      "node": {
+                        "Free": "parents"
+                      }
+                    }
+                  ]
+                ]
+              }
+            }
+          ]
+        ]
+      }
+    },
+    "shared": {
+      "sort": {
+        "Value": {
+          "Named": "Resolution"
+        }
+      },
+      "node": {
+        "Op": [
+          "apply",
+          [
+            {
+              "sort": {
+                "Arrow": [
+                  {
+                    "Value": {
+                      "Named": "Split"
+                    }
+                  },
+                  {
+                    "Value": {
+                      "Named": "Resolution"
+                    }
+                  }
+                ]
+              },
+              "node": {
+                "Lambda": {
+                  "sort": {
+                    "Value": {
+                      "Named": "Resolution"
+                    }
+                  },
+                  "node": {
+                    "Op": [
+                      "apply",
+                      [
+                        {
+                          "sort": {
+                            "Arrow": [
+                              {
+                                "Value": {
+                                  "Named": "Gathering"
+                                }
+                              },
+                              {
+                                "Value": {
+                                  "Named": "Resolution"
+                                }
+                              }
+                            ]
+                          },
+                          "node": {
+                            "Lambda": {
+                              "sort": {
+                                "Value": {
+                                  "Named": "Resolution"
+                                }
+                              },
+                              "node": {
+                                "Op": [
+                                  "record:Resolution",
+                                  [
+                                    {
+                                      "sort": {
+                                        "Value": {
+                                          "Map": [
+                                            "U64",
+                                            "U32"
+                                          ]
+                                        }
+                                      },
+                                      "node": {
+                                        "Op": [
+                                          "field:ends",
+                                          [
+                                            {
+                                              "sort": {
+                                                "Value": {
+                                                  "Named": "Gathering"
+                                                }
+                                              },
+                                              "node": {
+                                                "Bound": 0
+                                              }
+                                            }
+                                          ]
+                                        ]
+                                      }
+                                    },
+                                    {
+                                      "sort": {
+                                        "Value": {
+                                          "List": "U32"
+                                        }
+                                      },
+                                      "node": {
+                                        "Op": [
+                                          "method:freeze",
+                                          [
+                                            {
+                                              "sort": {
+                                                "Value": {
+                                                  "Buffer": "U32"
+                                                }
+                                              },
+                                              "node": {
+                                                "Op": [
+                                                  "field:parents",
+                                                  [
+                                                    {
+                                                      "sort": {
+                                                        "Value": {
+                                                          "Named": "Gathering"
+                                                        }
+                                                      },
+                                                      "node": {
+                                                        "Bound": 0
+                                                      }
+                                                    }
+                                                  ]
+                                                ]
+                                              }
+                                            }
+                                          ]
+                                        ]
+                                      }
+                                    }
+                                  ]
+                                ]
+                              }
+                            }
+                          }
+                        },
+                        {
+                          "sort": {
+                            "Value": {
+                              "Named": "Gathering"
+                            }
+                          },
+                          "node": {
+                            "Op": [
+                              "call:decode",
+                              [
+                                {
+                                  "sort": {
+                                    "Value": {
+                                      "Named": "Split"
+                                    }
+                                  },
+                                  "node": {
+                                    "Bound": 0
+                                  }
+                                }
+                              ]
+                            ]
+                          }
+                        }
+                      ]
+                    ]
+                  }
+                }
+              }
+            },
+            {
+              "sort": {
+                "Value": {
+                  "Named": "Split"
+                }
+              },
+              "node": {
+                "Op": [
+                  "call:foldl",
+                  [
+                    {
+                      "sort": {
+                        "Value": {
+                          "List": "U64"
+                        }
+                      },
+                      "node": {
+                        "Free": "parents"
+                      }
+                    },
+                    {
+                      "sort": {
+                        "Value": {
+                          "Named": "Split"
+                        }
+                      },
+                      "node": {
+                        "Op": [
+                          "record:Split",
+                          [
+                            {
+                              "sort": {
+                                "Value": {
+                                  "Map": [
+                                    "U64",
+                                    "U32"
+                                  ]
+                                }
+                              },
+                              "node": {
+                                "Free": "ends"
+                              }
+                            },
+                            {
+                              "sort": {
+                                "Value": {
+                                  "Buffer": "U32"
+                                }
+                              },
+                              "node": {
+                                "Op": [
+                                  "local:buffer-empty",
+                                  []
+                                ]
+                              }
+                            }
+                          ]
+                        ]
+                      }
+                    },
+                    {
+                      "sort": {
+                        "Arrow": [
+                          {
+                            "Value": "U64"
+                          },
+                          {
+                            "Arrow": [
+                              {
+                                "Value": {
+                                  "Named": "Split"
+                                }
+                              },
+                              {
+                                "Value": {
+                                  "Named": "Split"
+                                }
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      "node": {
+                        "Lambda": {
+                          "sort": {
+                            "Arrow": [
+                              {
+                                "Value": {
+                                  "Named": "Split"
+                                }
+                              },
+                              {
+                                "Value": {
+                                  "Named": "Split"
+                                }
+                              }
+                            ]
+                          },
+                          "node": {
+                            "Lambda": {
+                              "sort": {
+                                "Value": {
+                                  "Named": "Split"
+                                }
+                              },
+                              "node": {
+                                "Op": [
+                                  "call:shared_step",
+                                  [
+                                    {
+                                      "sort": {
+                                        "Value": {
+                                          "Named": "Split"
+                                        }
+                                      },
+                                      "node": {
+                                        "Bound": 0
+                                      }
+                                    },
+                                    {
+                                      "sort": {
+                                        "Value": "U64"
+                                      },
+                                      "node": {
+                                        "Bound": 1
+                                      }
+                                    }
+                                  ]
+                                ]
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                ]
+              }
+            }
+          ]
+        ]
+      }
+    },
+    "shared_step": {
+      "sort": {
+        "Value": {
+          "Named": "Split"
+        }
+      },
+      "node": {
+        "Op": [
+          "apply",
+          [
+            {
+              "sort": {
+                "Arrow": [
+                  {
+                    "Value": "U32"
+                  },
+                  {
+                    "Value": {
+                      "Named": "Split"
+                    }
+                  }
+                ]
+              },
+              "node": {
+                "Lambda": {
+                  "sort": {
+                    "Value": {
+                      "Named": "Split"
+                    }
+                  },
+                  "node": {
+                    "Op": [
+                      "record:Split",
+                      [
+                        {
+                          "sort": {
+                            "Value": {
+                              "Map": [
+                                "U64",
+                                "U32"
+                              ]
+                            }
+                          },
+                          "node": {
+                            "Op": [
+                              "field:map",
+                              [
+                                {
+                                  "sort": {
+                                    "Value": {
+                                      "Named": "Split"
+                                    }
+                                  },
+                                  "node": {
+                                    "Free": "s"
+                                  }
+                                }
+                              ]
+                            ]
+                          }
+                        },
+                        {
+                          "sort": {
+                            "Value": {
+                              "Buffer": "U32"
+                            }
+                          },
+                          "node": {
+                            "Op": [
+                              "method:push",
+                              [
+                                {
+                                  "sort": {
+                                    "Value": {
+                                      "Buffer": "U32"
+                                    }
+                                  },
+                                  "node": {
+                                    "Op": [
+                                      "field:values",
+                                      [
+                                        {
+                                          "sort": {
+                                            "Value": {
+                                              "Named": "Split"
+                                            }
+                                          },
+                                          "node": {
+                                            "Free": "s"
+                                          }
+                                        }
+                                      ]
+                                    ]
+                                  }
+                                },
+                                {
+                                  "sort": {
+                                    "Value": "U32"
+                                  },
+                                  "node": {
+                                    "Bound": 0
+                                  }
+                                }
+                              ]
+                            ]
+                          }
+                        }
+                      ]
+                    ]
+                  }
+                }
+              }
+            },
+            {
+              "sort": {
+                "Value": "U32"
+              },
+              "node": {
+                "Op": [
+                  "method:get_or",
+                  [
+                    {
+                      "sort": {
+                        "Value": {
+                          "Map": [
+                            "U64",
+                            "U32"
+                          ]
+                        }
+                      },
+                      "node": {
+                        "Op": [
+                          "field:map",
+                          [
+                            {
+                              "sort": {
+                                "Value": {
+                                  "Named": "Split"
+                                }
+                              },
+                              "node": {
+                                "Free": "s"
+                              }
+                            }
+                          ]
+                        ]
+                      }
+                    },
+                    {
+                      "sort": {
+                        "Value": "U64"
+                      },
+                      "node": {
+                        "Free": "p"
+                      }
+                    },
+                    {
+                      "sort": {
+                        "Value": "U32"
+                      },
+                      "node": {
+                        "Word": 0
+                      }
+                    }
+                  ]
+                ]
+              }
+            }
+          ]
+        ]
+      }
+    },
+    "shared_values": {
+      "sort": {
+        "Value": {
+          "List": "U32"
+        }
+      },
+      "node": {
+        "Op": [
+          "field:parents",
+          [
+            {
+              "sort": {
+                "Value": {
+                  "Named": "Resolution"
+                }
+              },
+              "node": {
+                "Op": [
+                  "call:shared",
+                  [
+                    {
+                      "sort": {
+                        "Value": {
+                          "Map": [
+                            "U64",
+                            "U32"
+                          ]
+                        }
+                      },
+                      "node": {
+                        "Free": "ends"
+                      }
+                    },
+                    {
+                      "sort": {
+                        "Value": {
+                          "List": "U64"
+                        }
+                      },
+                      "node": {
+                        "Free": "parents"
+                      }
+                    }
+                  ]
+                ]
+              }
+            }
+          ]
+        ]
+      }
+    }
+  },
+  "unavailable": []
+}

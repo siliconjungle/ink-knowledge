@@ -1,0 +1,6 @@
+{
+  "source": "examples/crdts/ragged_builder.ink",
+  "law": "09903c8d6b7aea9bbdc7789eb7a67a52ee07fa0958d71b5b42039b712c1b26c5",
+  "compiler_sha256": "0857e41841c848581381245070e3e6e5c065a164bfa11ee97a43a1dcf4968f40",
+  "scope": "Actual U32 build_row values decoded as logical append fold for arbitrary-length input. Does not prove row lookup, final end bounds, overflow or CRDT equivalence."
+}

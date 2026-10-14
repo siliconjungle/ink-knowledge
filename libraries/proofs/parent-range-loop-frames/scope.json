@@ -1,0 +1,10 @@
+{
+  "laws": {
+    "source/checkpoint_added_step_loop_ends": "141d355727f5e943aac00fdae6ac744e61d0b327005d80d9b420e31c2c0aac98",
+    "source/checkpoint_removed_step_loop_ends": "66b3144360c530a608842f5487e9a7b7d0403d56c565492a1a3a4e3f99af1c27",
+    "source/ordinary_added_step_loop_ends": "b81e4ed0a798b7768fd50839ca12dbc64e421d98460ce7032c5fe3d0d8871665",
+    "source/ordinary_removed_step_loop_ends": "9cbe5570a3b544031d2a614368dbab2ab78acd02d4b68addc609aab8dec71b54"
+  },
+  "snapshot": "f075faac7fa541fffa889aad52379d8db1eea3f45cc1f2ee60e7653f9b0529da",
+  "scope": "Actual removed/added range-step bounded loops preserve ends map for arbitrary u32 counts and stop predicates. Complete prepare_resolved proof is not admitted."
+}
