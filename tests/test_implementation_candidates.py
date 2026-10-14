@@ -1,4 +1,4 @@
-import tempfile, unittest
+import json, tempfile, unittest
 from pathlib import Path
 from ink_knowledge import Store, entry, identity
 from ink_knowledge.implementation_candidates import identity_selection, publish_candidates
@@ -20,6 +20,41 @@ class Candidates(unittest.TestCase):
             self.assertIn('existing',(root/'store/names.json').read_text())
             store.rebuild()
             self.assertEqual(store.bundle(ids),bundle)
+
+    def test_names_only_update_during_candidate_preparation_is_preserved(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            objects = [entry('definition', 'test-data', {'value': n}) for n in [1, 2]]
+            first, second = map(identity, objects)
+            original = Store.publish(root, objects, {'chosen': first})
+            def packages():
+                # Candidate preparation runs after publish_candidates opens its
+                # original Store. A names-only publication keeps the same root.
+                concurrent = Store(root).extend([], {'chosen': second, 'new': second})
+                self.assertEqual(concurrent.snapshot_id, original.snapshot_id)
+                yield identity_selection('1' * 64)
+            store, ids = publish_candidates(root, packages())
+            self.assertEqual(json.loads((root / 'store/names.json').read_text()),
+                             {'chosen': second, 'new': second})
+            self.assertEqual(set(store.members()), {first, second, ids[0]})
+            store.rebuild()
+            self.assertEqual(store.object(ids[0])['kind'], 'implementation')
+
+    def test_membership_change_during_candidate_preparation_reports_conflict(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            first = entry('definition', 'test-data', {'value': 1})
+            second = entry('definition', 'test-data', {'value': 2})
+            Store.publish(root, [first], {'chosen': identity(first)})
+            def packages():
+                Store(root).extend([second], {'chosen': identity(second)})
+                yield identity_selection('1' * 64)
+            with self.assertRaisesRegex(ValueError, 'publication changed during extension'):
+                publish_candidates(root, packages())
+            current = Store(root)
+            self.assertEqual(set(current.members()), {identity(first), identity(second)})
+            self.assertEqual(json.loads((root / 'store/names.json').read_text()),
+                             {'chosen': identity(second)})
 
     def test_changed_dependency_bytes_fail_publication(self):
         with tempfile.TemporaryDirectory() as temporary:
