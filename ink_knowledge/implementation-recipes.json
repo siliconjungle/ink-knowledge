@@ -61,7 +61,12 @@
         "source-equality-and-complete-observations"
       ],
       "parameters": {
-        "modular": true
+        "modular": true,
+        "guard_cutoffs": [
+          8,
+          128,
+          2048
+        ]
       },
       "requires": [
         "core"

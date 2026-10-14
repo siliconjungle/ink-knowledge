@@ -57,53 +57,64 @@ def list_guard(name, sort, cutoff):
 
 
 def has_size_guard(term):
-    """Bound repeated authoring, not proof applicability."""
-    if isinstance(term, dict):
-        node = term.get('node', {})
-        operator = node.get('Op') if isinstance(node, dict) else None
-        if operator and operator[0] == 'call:choose':
-            condition = operator[1][0].get('node', {})
-            comparison = condition.get('Op') if isinstance(condition, dict) else None
-            if comparison and comparison[0] == 'binary:>=':
-                left = comparison[1][0].get('node', {})
-                if isinstance(left, dict) and left.get('Op', [None])[0] == 'call:count':
-                    return True
-        return any(has_size_guard(v) for v in term.values())
-    return isinstance(term, list) and any(has_size_guard(v) for v in term)
+    """Bound repeated authoring, including conjunctions of size conditions."""
+    def count_test(t):
+        if isinstance(t,dict):
+            operator=t.get('node',{}).get('Op') if isinstance(t.get('node'),dict) else None
+            if operator and operator[0]=='binary:>=':
+                left=operator[1][0].get('node',{})
+                if isinstance(left,dict) and left.get('Op',[None])[0]=='call:count':return True
+            return any(count_test(v)for v in t.values())
+        return isinstance(t,list) and any(count_test(v)for v in t)
+    if isinstance(term,dict):
+        node=term.get('node',{});operator=node.get('Op')if isinstance(node,dict)else None
+        if operator and operator[0]=='call:choose' and count_test(operator[1][0]):return True
+        return any(has_size_guard(v)for v in term.values())
+    return isinstance(term,list) and any(has_size_guard(v)for v in term)
 
 
-def guarded_rows(row, store, directory, cutoff, equivalence=None):
-    """Preserve source-extension prefixes and guard one whole-function rewrite."""
-    steps = row.get('steps', [row['step']] if 'step' in row else [])
-    if row.get('status') != 'proposal' or not steps or steps[-1].get('kind') != 'rewrite':
-        return
-    if any(s.get('kind') != 'extension' for s in steps[:-1]):
-        return
-    packet = steps[-1]['package']
-    applications = packet['applications']
-    if len(applications) != 1 or applications[0]['path']:
-        return
-    application = applications[0]
-    ident = application['law']
-    rule = choice_rule() if equivalence is None else equivalence
-    objects = {**packet['knowledge']['objects'], identity(rule): rule}
-    entry = objects[ident]
-    if has_size_guard(entry['payload']['from']):
-        return
-    views = ProposalViews(store, objects, directory)
-    for name, sort in sorted(entry['payload']['params'].items()):
-        if not isinstance(sort, dict) or not isinstance(sort.get('Value'), dict) or 'List' not in sort['Value']:
-            continue
-        obj = guard_entry(ident, entry, list_guard(name, sort, cutoff), rule)
-        new = identity(obj)
-        views.update({new: obj})
-        result = copy.deepcopy(row)
-        result.pop('step', None)
-        result['steps'] = copy.deepcopy(steps)
-        result['label'] = row['label'] + '/guard-count-' + name + '-' + str(cutoff)
-        replacement = result['steps'][-1]['package']
-        replacement['knowledge'] = views.bundle([new])
-        replacement['applications'][0]['law'] = new
+def guarded_rows(row, store, directory, cutoff, equivalence=None, joint=False):
+    """Guard independent root equalities; preserve extensions and premises.
+
+    Joint mode guards every eligible function with the conjunction of its List
+    parameter bounds. Repeated functions and interior paths need a whole-body
+    equality before they can be guarded as a complete implementation.
+    """
+    steps=row.get('steps',[row['step']]if 'step'in row else [])
+    if row.get('status')!='proposal' or not steps or steps[-1].get('kind')!='rewrite':return
+    if any(s.get('kind')!='extension'for s in steps[:-1]):return
+    packet=steps[-1]['package'];applications=packet['applications']
+    if not 1<=len(applications)<=128 or any(a['path']for a in applications):return
+    if len({a['function']for a in applications})!=len(applications):return
+    if not joint and len(applications)!=1:return
+    rule=choice_rule()if equivalence is None else equivalence
+    objects={**packet['knowledge']['objects'],identity(rule):rule}
+    changes=[]
+    for index,application in enumerate(applications):
+        ident=application['law'];entry=objects[ident]
+        if has_size_guard(entry['payload']['from']):return
+        conditions=[(name,list_guard(name,sort,cutoff))for name,sort in sorted(entry['payload']['params'].items())
+            if isinstance(sort,dict)and isinstance(sort.get('Value'),dict)and 'List'in sort['Value']]
+        if joint and conditions:
+            condition=conditions[0][1]
+            for _,test in conditions[1:]:condition=op(value('Bool'),'binary:&&',condition,test)
+            changes.append((index,ident,entry,'+'.join(n for n,_ in conditions),condition))
+        elif not joint:
+            changes.extend((index,ident,entry,name,condition)for name,condition in conditions)
+    if not changes:return
+    views=ProposalViews(store,objects,directory)
+    variants=[changes]if joint else [[change]for change in changes]
+    for variant in variants:
+        result=copy.deepcopy(row);result.pop('step',None);result['steps']=copy.deepcopy(steps)
+        replacement=result['steps'][-1]['package'];roots=set(packet['knowledge']['roots']);labels=[]
+        for index,ident,entry,name,condition in variant:
+            obj=guard_entry(ident,entry,condition,rule);new=identity(obj);views.update({new:obj})
+            replacement['applications'][index]['law']=new;roots.add(new)
+            labels.append(applications[index]['function']+':'+name)
+        # Original roots include independent laws used by application premises.
+        # Keep them along with every guarded root; the full chain is replayed.
+        replacement['knowledge']=views.bundle(sorted(roots))
+        result['label']=row['label']+'/guard-count-'+','.join(labels)+'-'+str(cutoff)
         yield result
 
 

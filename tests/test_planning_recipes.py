@@ -101,7 +101,7 @@ class RegistryCoverage(unittest.TestCase):
         registry,_=load()
         recipes={r['id']:r for r in registry['recipes']}
         global_recipe=recipes['semantic-laws'];modular_recipe=recipes['modular-semantic-laws']
-        self.assertEqual(modular_recipe,dict(global_recipe,id='modular-semantic-laws',parameters={'modular':True}))
+        self.assertEqual(modular_recipe,dict(global_recipe,id='modular-semantic-laws',parameters={'modular':True,'guard_cutoffs':[8,128,2048]}))
         self.assertEqual(global_recipe.get('priority',0),0)
 
     def test_published_recipe_is_discovered_without_planner_dispatch(self):

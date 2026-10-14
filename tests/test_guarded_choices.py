@@ -170,6 +170,90 @@ for(const n of [0,1,7,8,9]){const xs=Array.from({length:n},(_,i)=>!!(i%2));
                 bad['steps'][-1]['package']['applications'][0]['arguments']['ys'] = dict(sort=sort, node='Nil')
                 self.check(d, context, bad, 'false-premise-' + str(i), success=False)
 
+    def test_joint_independent_functions_keep_compound_guards_and_premise_roots(self):
+        with tempfile.TemporaryDirectory()as temporary:
+            d=Path(temporary)
+            store,context=self.context(d,'module pair; fn first(xs:List<Bool>,ys:List<Bool>)->List<Bool>{return xs;} fn second(xs:List<Bool>,ys:List<Bool>)->List<Bool>{return ys;}')
+            sort=value({'List':'Bool'});xs,ys=var(sort,'xs'),var(sort,'ys')
+            premise=semantic_entry(law({'xs':sort},xs,xs,'Normalize'));premise_id=identity(premise)
+            conditional=semantic_entry(law({'xs':sort,'ys':sort},xs,ys,{'Hypothesis':0},conditions=[{'from':xs,'to':ys}]))
+            ident=identity(conditional)
+            packet=dict(schema=1,semantics='ink-evidence-v1',input_core_sha256=context['source'],
+                knowledge=ProposalViews(store,{ident:conditional,premise_id:premise},d/'original').bundle([ident,premise_id]),
+                applications=[dict(function=name,path=[],law=ident,arguments={'xs':term,'ys':term},
+                    premises=[{'Use':dict(law=premise_id,arguments={'xs':term},premises=[])}])
+                    for name,term in [('first',xs),('second',ys)]])
+            original=dict(status='proposal',label='independent-conditional',step=dict(kind='rewrite',package=packet))
+            rows=list(guarded_rows(original,store,d/'guarded',8,joint=True));self.assertEqual(len(rows),1)
+            self.check(d,context,rows[0],'joint')
+            guarded=rows[0]['steps'][-1]['package']
+            self.assertIn(premise_id,guarded['knowledge']['objects'])
+            for application in guarded['applications']:
+                condition=guarded['knowledge']['objects'][application['law']]['payload']['to']['node']['Op'][1][0]
+                self.assertEqual(condition['node']['Op'][0],'binary:&&')
+                self.assertEqual(application['premises'],packet['applications'][0 if application['function']=='first'else 1]['premises'])
+            bad=copy.deepcopy(rows[0]);bad['steps'][-1]['package']['applications'][1]['premises']=[]
+            self.check(d,context,bad,'missing-joint-premise',success=False)
+            repeated=copy.deepcopy(original);repeated['step']['package']['applications'][1]['function']='first'
+            self.assertEqual(list(guarded_rows(repeated,store,d/'repeated',8,joint=True)),[])
+            # A compound guard must also prevent repeated guarded authoring.
+            from producers.guarded_choices import has_size_guard
+            self.assertTrue(all(has_size_guard(guarded['knowledge']['objects'][a['law']]['payload']['to'])for a in guarded['applications']))
+            self.node(d,"""import assert from 'node:assert/strict';import * as m from './joint.mjs';
+for(const n of [0,1,7,8,9])for(const q of [0,1,7,8,9]){
+ const xs=Array.from({length:n},(_,i)=>!!(i%2)),ys=Array.from({length:q},(_,i)=>!(i%2));
+ assert.deepEqual(m.call('first',[xs,ys]),xs);assert.deepEqual(m.call('second',[xs,ys]),ys);
+} """)
+
+    def test_joint_contextual_indexes_preserve_small_and_empty_query_results(self):
+        from producers.indexed_lookup import specialize
+        with tempfile.TemporaryDirectory()as temporary:
+            d=Path(temporary)
+            store,context=self.context(d,(ROOT/'bench/contextual-indexed-lookup/source.ink').read_text())
+            self.compiler('emit-semantic',d/'core.json','--core','-o',d/'semantic.json')
+            subject=json.loads((d/'semantic.json').read_text());laws=specialize(subject,context['core'])
+            objects={identity(semantic_entry(l)):semantic_entry(l)for _,l in laws};apps=[]
+            for name,l in laws:
+                if name.startswith('index_membership_'):continue
+                apps.append(dict(function=name.split('_indexed_lookup_')[0],path=[],law=identity(semantic_entry(l)),
+                    arguments={n:var(s,n)for n,s in l['params'].items()},premises=[]))
+            self.assertEqual({a['function']for a in apps},{'nested','predicate','records'})
+            packet=dict(schema=1,semantics='ink-evidence-v1',input_core_sha256=context['source'],
+                knowledge=ProposalViews(store,objects,d/'index-proof').bundle([a['law']for a in apps]),applications=apps)
+            original=dict(status='proposal',label='contextual',step=dict(kind='rewrite',package=packet))
+            rows=list(guarded_rows(original,store,d/'joint-proof',8,joint=True));self.assertEqual(len(rows),1)
+            self.check(d,context,rows[0],'indexed-joint')
+            self.node(d,"""import assert from 'node:assert/strict';import * as m from './indexed-joint.mjs';
+for(const n of [0,1,7,8,9,64])for(const count of [0,1,7,8,9]){
+ const keys=Array.from({length:n},(_,i)=>(Math.imul(i,2654435761)+3)>>>0),denied=keys.filter((_,i)=>i%3===0);
+ const queries=Array.from({length:count},(_,i)=>({key:keys[i%n]??i,other:keys[(i+1)%n]??0,enabled:i%3!==0,probes:[0,1,4294967295,i]}));
+ const before=structuredClone([keys,denied,queries]);
+ assert.deepEqual(m.call('records',[keys,queries,17,0]),queries.map(q=>({key:(q.key+17)>>>0,hit:keys.includes(q.key),other:!keys.includes(q.other)})));
+ assert.deepEqual(m.call('predicate',[keys,denied,queries]),queries.filter(q=>q.enabled&&keys.includes(q.key)&&!denied.includes(q.other)));
+ assert.deepEqual(m.call('nested',[keys,queries]),queries.map(q=>q.probes.map(k=>keys.includes((k+q.key)>>>0))));
+ assert.deepEqual([keys,denied,queries],before);
+} """)
+
+    def test_semantic_recipe_guards_the_completed_modular_selection(self):
+        import sys
+        from producers.planning_recipes import semantic
+        with tempfile.TemporaryDirectory()as temporary:
+            d=Path(temporary)
+            store,context=self.context(d,'module streams; fn first(xs:List<Bool>)->List<Bool>{return xs.concat([]);} fn second(xs:List<Bool>)->List<Bool>{return xs.concat([]);}')
+            self.compiler('emit-semantic',d/'core.json','--core','-o',d/'semantic.json')
+            body=json.loads((d/'semantic.json').read_text())['functions']['first'];sort=value({'List':'Bool'})
+            obj=semantic_entry(law({'xs':sort},body,var(sort,'xs'),
+                {'Induction':dict(variable='xs',names=['head','tail'],base='Normalize',step='Normalize')}))
+            store=store.extend([obj]);context.update(python=sys.executable,knowledge_snapshot=store.snapshot_id,
+                semantic_budget=128,semantic_seconds=10,proposal_timeout=30)
+            rows=list(semantic(context,modular=True,guard_cutoffs=[8]))
+            guarded=[r for r in rows if r['status']=='proposal'and '/guard-count-'in r['label']]
+            self.assertEqual(len(guarded),1,rows)
+            self.assertEqual({a['function']for a in guarded[0]['steps'][-1]['package']['applications']},{'first','second'})
+            self.check(d,context,guarded[0],'streamed-joint')
+            for cutoffs in [[True],list(range(1,10))]:
+                with self.assertRaises(ValueError):list(semantic(context,modular=True,guard_cutoffs=cutoffs))
+
     def test_base_recipe_comes_from_the_pinned_snapshot(self):
         with tempfile.TemporaryDirectory() as temporary:
             registry, _ = load()

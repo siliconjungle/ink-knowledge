@@ -167,10 +167,13 @@ def product(context):
                     'product/'+peer['representation'])
         except (ValueError,KeyError)as error:yield decline('product/'+peer['representation'],error)
 
-def semantic(context,modular=False):
+def semantic(context,modular=False,guard_cutoffs=()):
     """The generic semantic planner discovers every typed rewrite root and all
     installed specialisers. No operation or theorem-name selector is added here.
     """
+    from producers.guarded_choices import guarded_rows,list_guard
+    if not isinstance(guard_cutoffs,(list,tuple))or len(guard_cutoffs)>8:raise ValueError('semantic guard cutoff budget')
+    for cutoff in guard_cutoffs:list_guard('budget',{'Value':{'List':'U32'}},cutoff)
     with tempfile.TemporaryDirectory(prefix='ink-semantic-recipe-')as temporary:
         d=Path(temporary);core=d/'core.json';core.write_bytes(canonical(context['core'])+b'\n')
         out=d/'selection.json';store=Store(context['knowledge_root'],Path(context['knowledge_root'])/'store/snapshots'/f"{context['knowledge_snapshot']}.json"if context.get('knowledge_snapshot')else None)
@@ -207,6 +210,11 @@ def semantic(context,modular=False):
                     time.sleep(.02)
                 if process.returncode not in (None,0):yield decline('semantic search',(d/'stderr.log').read_text()[-2000:])
                 elif not count:yield decline('semantic search','fixed point within supplied search budget')
+                if process.returncode==0 and guard_cutoffs and out.exists():
+                    selected=row('rewrite',json.loads(out.read_bytes()),'semantic selected')
+                    for cutoff in guard_cutoffs:
+                        try:yield from guarded_rows(selected,store,d/('guards-'+str(cutoff)),cutoff,joint=True)
+                        except (ValueError,KeyError,TypeError)as error:yield decline('semantic guarded choice',error)
                 # Near-miss observations explain matched laws the checker did not
                 # admit. They are diagnostics, never proposals or proof authority.
                 # A search cut off by this budget leaves its last periodic receipt.
