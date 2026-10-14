@@ -62,13 +62,17 @@ def declaration_dependencies(declaration, objects):
             continue
         seen.add(ident)
         declared = objects.get(ident, {}).get('payload', {}).get('declaration', {})
+        referenced_types = set()
         for kind in ('Function', 'Theorem', 'AbstractFunction'):
             if kind in declared:
                 signature = declared[kind]
-                for dependency in refs([signature.get('params', []), signature.get('result')]):
-                    if dependency not in dependencies:
-                        dependencies.add(dependency)
-                        pending.append(dependency)
+                referenced_types |= refs([signature.get('params', []), signature.get('result')])
+        if 'Datatype' in declared:
+            referenced_types |= refs(declared['Datatype'])
+        for dependency in referenced_types:
+            if dependency not in dependencies:
+                dependencies.add(dependency)
+                pending.append(dependency)
     return dependencies
 
 
