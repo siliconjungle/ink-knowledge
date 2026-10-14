@@ -501,12 +501,19 @@ measurement packets. Unsupported trusted transfers and state lifecycles still
 need their appropriate recorded evidence. Probe values and costs never grant
 proof admission or permit skipping input checks.
 
-`producers.indexed_lookup` proposes one U32/U64 map index per batch of ordered
-membership queries. Map and filter callbacks, captured keys, duplicate keys and
-output order are preserved by ordinary list induction and congruence proofs.
-Query-dependent tables and float keys are outside the admitted domain. This does
-not retain an index between public calls. Construction, memory and lookup costs
-still need whole-workload evidence; proof availability alone grants no selection.
+`producers.indexed_lookup` proposes shared U32/U64 map indexes for batches of
+ordered membership queries. Membership can occur inside record results, Boolean
+conditions and nested callbacks; all observations of the same independent key
+list share one index. Distinct key lists remain distinct indexes. Ordinary list
+induction, function extensionality, congruence and ordered-word case proofs retain
+the complete callback result, captured keys, duplicates and output order for left
+and right folds, including
+reversed equality/disjunction operands. Fresh bindings prevent capture. Discovery
+is bounded to four key lists and 128 observations per callback; budget exhaustion
+retains the source. Query-dependent tables and float keys are outside the admitted
+domain. Indexes do not persist between public calls. Construction, memory and
+lookup costs still need whole-workload evidence; proof availability alone grants
+no selection. These are database-produced proofs, with no new compiler rule.
 
 `producers.guarded_choices` composes whole-function equality proposals with a
 checked `choose(count(input) >= cutoff, alternative, original)` expression.

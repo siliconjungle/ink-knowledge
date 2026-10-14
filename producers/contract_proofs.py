@@ -98,8 +98,9 @@ def pure_proposals(goal):
 def proof_semantics(proof):
     """Mirror the kernel's marker requirement; the marker grants no authority."""
     def general(p):
+        if p=='Unfold':return True
         if not isinstance(p,dict):return False
-        if 'Variants' in p or 'Assume' in p:return True
+        if any(kind in p for kind in ('Variants','Assume','Order','Word','MapExtensional')):return True
         if 'Use' in p:
             use=p['Use']
             return bool(use.get('types') or use.get('assumptions')) or any(general(x) for x in use.get('premises',[]))
