@@ -6,10 +6,11 @@ The catalogue records correctness; measurements separately establish profitabili
 import argparse, json, subprocess
 from pathlib import Path
 from ink_knowledge.store import Store, entry, semantic_entry, identity
-from producers.equational import Tactic, convert
+from producers.equational import Tactic, convert, fresh_alpha
 from producers.action_replacement import var, cons
 from producers.point_delta import sub, normal
 from producers.beta_specialization15 import beta_normalize
+from producers.proof_composition import fresh_bindings
 
 MATH='first-order-inductive-equality-v1'
 
@@ -227,6 +228,11 @@ def _state_proof(objects,a,z,params,hyp=(),depth=0,serial=None,aliases=None,scal
     if serial[1]>100000:raise ValueError("contract proof search node budget")
     class ContractTactic(Tactic):
         def norm(self, value):
+            # Canonical names remain proposals, and must avoid even unused
+            # ambient parameters. Alpha-renaming after a capturing rename would
+            # be too late to recover the original variable's meaning.
+            def normalize(t):
+                return fresh_alpha(normal(t,self.objects,opaque=self.opaque),{n:n for n in params})
             def reflexive(t):
                 if isinstance(t,list):return [reflexive(x) for x in t]
                 if not isinstance(t,dict):return t
@@ -235,15 +241,17 @@ def _state_proof(objects,a,z,params,hyp=(),depth=0,serial=None,aliases=None,scal
                     b=t['Binary']
                     if b['op']=='==' and b['left']==b['right']:return {'Bool':True}
                 return t
-            value=super().norm(value)
+            value=normalize(value)
             for _ in range(32):
                 updated=reflexive(value)
                 if updated==value:return value
-                value=super().norm(updated)
+                value=normalize(updated)
             raise ValueError('contract normalization budget')
     tactic=ContractTactic(objects)
     from producers.action_replacement import trans
-    from producers.point_delta import lift
+    from producers.point_delta import lift as lift_equality
+    hole=fresh_bindings(['delta_hole'],params)[0]
+    def lift(equality,context):return lift_equality(equality,context,variable=hole)
     from producers.equational import alpha
     def replace(t,old,new):
         if alpha(t)==alpha(old):return new
@@ -273,7 +281,7 @@ def _state_proof(objects,a,z,params,hyp=(),depth=0,serial=None,aliases=None,scal
             replacement={'Call':dict(function=target,arguments=found['Call']['arguments'])} if target is not None else {'Bool':True}
             following=replace(current,found,replacement)
             use={'Use':dict(theorem=theorem,arguments=found['Call']['arguments'] if target is not None else found['Call']['arguments'][:1],premises=[])}
-            proof=trans(proof,lift(use,replace(current,found,var('delta_hole'))),convert(following,tactic.norm(following)))
+            proof=trans(proof,lift(use,replace(current,found,var(hole))),convert(following,tactic.norm(following)))
             current=tactic.norm(following)
         raise ValueError('contract alias rewrite budget')
     facts=[]
@@ -312,7 +320,7 @@ def _state_proof(objects,a,z,params,hyp=(),depth=0,serial=None,aliases=None,scal
             constructors=objects[a['datatype']]['payload']['declaration']['Datatype']['constructors']
             if a['constructor']!=b['constructor']:
                 branches=[dict(bindings=bindings(i,c),body={'Bool':i==a['constructor']}) for i,c in enumerate(constructors)]
-                projected=lift(proof,{'Match':dict(scrutinee=var('delta_hole'),branches=branches)})
+                projected=lift(proof,{'Match':dict(scrutinee=var(hole),branches=branches)})
                 facts.append(({'Bool':True},{'Bool':False},projected));continue
             for field,(left,right) in enumerate(zip(a['arguments'],b['arguments'])):
                 if left==right:continue
@@ -320,7 +328,7 @@ def _state_proof(objects,a,z,params,hyp=(),depth=0,serial=None,aliases=None,scal
                 for i,c in enumerate(constructors):
                     names=bindings(i,c)
                     branches.append(dict(bindings=names,body=var(names[field]) if i==a['constructor'] else left))
-                projected=lift(proof,{'Match':dict(scrutinee=var('delta_hole'),branches=branches)})
+                projected=lift(proof,{'Match':dict(scrutinee=var(hole),branches=branches)})
                 if 'Var' in right and 'Var' not in left:left,right,projected=right,left,{'Sym':projected}
                 if not any(alpha(left)==alpha(a) and alpha(right)==alpha(b) for a,b,_ in facts):
                     facts.append((left,right,projected))
@@ -328,8 +336,8 @@ def _state_proof(objects,a,z,params,hyp=(),depth=0,serial=None,aliases=None,scal
     def contradiction():
         for x,y,proof in facts:
             if 'Bool' in x and 'Bool' in y and x!=y:
-                context={'If':dict(condition=var('delta_hole'),on_true=a if x['Bool'] else z,on_false=z if x['Bool'] else a)}
-                return trans(convert(a,sub(context,{'delta_hole':x})),lift(proof,context),convert(sub(context,{'delta_hole':y}),z))
+                context={'If':dict(condition=var(hole),on_true=a if x['Bool'] else z,on_false=z if x['Bool'] else a)}
+                return trans(convert(a,sub(context,{hole:x})),lift(proof,context),convert(sub(context,{hole:y}),z))
         return None
     impossible=contradiction()
     if impossible:return impossible
@@ -342,7 +350,7 @@ def _state_proof(objects,a,z,params,hyp=(),depth=0,serial=None,aliases=None,scal
                 following=replace(current,x,y)
                 if following!=current:
                     updated,computed=canonical(following)
-                    proof=trans(proof,lift(p,replace(current,x,var('delta_hole'))),computed)
+                    proof=trans(proof,lift(p,replace(current,x,var(hole))),computed)
                     current=updated;changed=True;break
             if not changed:return current,proof
         raise ValueError('contract fact rewrite budget')
@@ -407,7 +415,7 @@ def _state_proof(objects,a,z,params,hyp=(),depth=0,serial=None,aliases=None,scal
                     use={'Use':dict(theorem=theorem,arguments=[var(n) for n in local],premises=[])}
                     following=replace(na,term,value)
                     proof=state_proof(objects,following,nz,params,hyp,depth+1,serial,aliases,scalar,lemma_attempts,strengthen)
-                    return trans(pa,lift(use,replace(na,term,var('delta_hole'))),proof,{'Sym':pz})
+                    return trans(pa,lift(use,replace(na,term,var(hole))),proof,{'Sym':pz})
     # A whole-action induction hypothesis can be too weak for a recursive helper
     # reached through a different branch. Propose a stronger, separately proved
     # conditional lemma about the residual computation itself. Dependent outer
@@ -437,8 +445,8 @@ def _state_proof(objects,a,z,params,hyp=(),depth=0,serial=None,aliases=None,scal
                 theorem=scalar.add({'Theorem':dict(params=list(params.items()),conditions=conditions,
                     **{'from':statement,'to':nz},proof=proof)})
                 use={'Use':dict(theorem=theorem,arguments=[var(n) for n in params],premises=[p for _,_,p in independent])}
-                context={'If':dict(condition=var('delta_hole'),on_true=na,on_false=nz)}
-                return trans(pa,convert(na,sub(context,{'delta_hole':{'Bool':True}})),
+                context={'If':dict(condition=var(hole),on_true=na,on_false=nz)}
+                return trans(pa,convert(na,sub(context,{hole:{'Bool':True}})),
                     {'Sym':lift(predicate_proof,context)},use,{'Sym':pz})
     from producers.point_delta import free_variables
     # An inconsistent branch can reduce the goal to false=true while retaining
@@ -482,7 +490,7 @@ def _state_proof(objects,a,z,params,hyp=(),depth=0,serial=None,aliases=None,scal
         if not isinstance(sort,dict) or 'Data' not in sort:continue
         datatype=sort['Data'];cases=[]
         for i,c in enumerate(objects[datatype]['payload']['declaration']['Datatype']['constructors']):
-            serial[0]+=1;names=[f'contract_observed_{serial[0]}_{j}' for j in range(len(c['fields']))]
+            serial[0]+=1;names=fresh_bindings((f'contract_observed_{serial[0]}_{j}' for j in range(len(c['fields']))),params)
             fields=[sort if t=='SelfType' else t for t in c['fields']];local={**params,**dict(zip(names,fields))}
             value=cons(datatype,i,[var(n) for n in names])
             proof=state_proof(objects,na,nz,local,[*hyp,(scrutinee,value,len(hyp))],depth+1,serial,aliases,scalar,lemma_attempts,strengthen)
@@ -516,7 +524,7 @@ def _state_proof(objects,a,z,params,hyp=(),depth=0,serial=None,aliases=None,scal
         induct=all(variable not in free_variables(x)|free_variables(y) for x,y,_ in hyp)
         cases=[]
         for i,c in enumerate(d['Datatype']['constructors']):
-            serial[0]+=1;names=[f'contract_case_{serial[0]}_{j}' for j in range(len(c['fields']))]
+            serial[0]+=1;names=fresh_bindings((f'contract_case_{serial[0]}_{j}' for j in range(len(c['fields']))),params)
             value=cons(datatype,i,[var(n) for n in names]);binding={variable:value};local={n:t for n,t in params.items() if n!=variable}
             fields=[sort if t=='SelfType' else t for t in c['fields']];local.update(zip(names,fields))
             premises=list(hyp) if induct else [(sub(x,binding),sub(y,binding),j) for x,y,j in hyp]

@@ -103,7 +103,7 @@ def normal(t,objects,depth=0,opaque=(),*,blocked=(),eager=()):
         return binary(x['op'],a,z)
     return t
 
-def lift(eq,context):return {'Substitute':dict(variable='delta_hole',context=context,equality=eq)}
+def lift(eq,context,variable='delta_hole'):return {'Substitute':dict(variable=variable,context=context,equality=eq)}
 def equality(a,z,objects,hyp=None,facts=(),rewrite=replace):
     facts=tuple((normal(left,objects),normal(right,objects),index) for left,right,index in facts)
     def simplify(t):
