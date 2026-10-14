@@ -24,7 +24,7 @@ def specialize(subject,core):
         params={name:{'Value':ty}for name,ty in function['params']}
         fields=[]
         def visit(term,depth=0):
-            node=term['node'];value=term['sort'].get('Value')
+            node=term['node'];sort=term['sort'];value=sort.get('Value')if isinstance(sort,dict)else None
             if depth and isinstance(value,str)and value in SCALARS and isinstance(node,dict)and'Op'in node and node['Op'][0].startswith('field:')and root(term)in params and term not in fields:fields.append(term)
             for child in children(term):visit(child,depth+int(isinstance(node,dict)and'Lambda'in node))
         visit(body)
