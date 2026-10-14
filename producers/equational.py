@@ -3,8 +3,60 @@
 No tactic result is authority. Convert, Use, Substitute and BoolSplit are
 independently checked by the existing first-order kernel.
 """
-from producers.action_replacement import var, call, cons, convert, trans
+from producers.action_replacement import var, call, cons, trans
+from producers.action_replacement import convert as _convert
 from producers.point_delta import normal, sub, replace, lift
+
+
+def unshadow(t):
+    """The same term with no binder shadowing a variable already in scope.
+
+    `alpha` names binders by depth, so replacing a subterm under a binder with
+    a separately normalised term can repeat a canonical name, which the kernel
+    rejects. Renaming the inner binder apart is alpha-equivalent, and the
+    kernel compares proof junctions modulo alpha.
+    """
+    used, free = set(), set()
+    def collect(t, bound):
+        if isinstance(t, list):
+            for x in t: collect(x, bound)
+        elif isinstance(t, dict):
+            if set(t) == {'Var'}:
+                used.add(t['Var'])
+                if t['Var'] not in bound: free.add(t['Var'])
+            elif 'Match' in t and isinstance(t['Match'], dict) and 'branches' in t['Match']:
+                collect(t['Match']['scrutinee'], bound)
+                for b in t['Match']['branches']:
+                    if len(set(b['bindings'])) < len(b['bindings']) or bound & set(b['bindings']): clash.append(True)
+                    binders.update(b['bindings']); used.update(b['bindings'])
+                    collect(b['body'], bound | set(b['bindings']))
+            else:
+                for v in t.values(): collect(v, bound)
+    clash, binders = [], set()
+    collect(t, frozenset())
+    if not clash and not binders & free: return t
+    serial = [0]
+    def fresh():
+        while 'eq_apart_' + str(serial[0]) in used: serial[0] += 1
+        name = 'eq_apart_' + str(serial[0]); used.add(name); return name
+    def go(t, bound, env):
+        if isinstance(t, list): return [go(x, bound, env) for x in t]
+        if not isinstance(t, dict): return t
+        if set(t) == {'Var'}: return var(env.get(t['Var'], t['Var']))
+        if 'Match' in t and isinstance(t['Match'], dict) and 'branches' in t['Match']:
+            x = t['Match']; branches = []
+            for b in x['branches']:
+                local, names = dict(env), []
+                for n in b['bindings']:
+                    m = fresh() if n in bound or n in names else n
+                    local[n] = m; names.append(m)
+                branches.append({**b, 'bindings': names, 'body': go(b['body'], bound | set(names), local)})
+            return {'Match': {**x, 'scrutinee': go(x['scrutinee'], bound, env), 'branches': branches}}
+        return {k: go(v, bound, env) for k, v in t.items()}
+    return go(t, frozenset(free), {})
+
+
+def convert(a, b): return _convert(unshadow(a), unshadow(b))
 
 
 def factor(proof, params, conditions, add, objects=None):

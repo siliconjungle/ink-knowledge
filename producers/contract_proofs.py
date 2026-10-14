@@ -6,8 +6,8 @@ The catalogue records correctness; measurements separately establish profitabili
 import argparse, json, subprocess
 from pathlib import Path
 from ink_knowledge.store import Store, entry, semantic_entry, identity
-from producers.equational import Tactic
-from producers.action_replacement import var, cons, convert
+from producers.equational import Tactic, convert
+from producers.action_replacement import var, cons
 from producers.point_delta import sub, normal
 from producers.beta_specialization15 import beta_normalize
 
