@@ -68,3 +68,10 @@ a conditional increment comparison and Boolean choice. They need the new word
 proof checker; older compilers reject this proof variant. Unsigned shifts and
 rotations, signed arithmetic and whole scanner replacement are not admitted by
 these laws. Conditional laws still require checked premises at each application.
+
+V8-inspired fixed-width and branch proposals live in `v8_word_laws.py`.
+`author_word_identities --family v8 --library` authors them offline with the
+ordinary hinted-RUP checker. `frozen_laws.py` maintains an atomic pattern index
+and separate content-addressed proof files; discovery opens matched proofs only.
+The index is an untrusted discovery aid. Conditions, source binding and every
+proof still require independent checking; no V8 feedback grants authority.

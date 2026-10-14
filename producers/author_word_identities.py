@@ -65,15 +65,22 @@ def main():
     p.add_argument('--compiler', type=Path, required=True)
     p.add_argument('--output-store', type=Path, required=True)
     p.add_argument('--data', type=Path, required=True)
+    p.add_argument('--library', action='store_true', help='Write an indexed, immutable proof library')
     p.add_argument('--seconds', type=int, default=10)
     p.add_argument('--case', action='append')
+    p.add_argument('--family', choices=('word', 'v8'), default='word',
+                   help='Offline proposal family; all use the same independent checker')
     a = p.parse_args()
     if not 1 <= a.seconds <= 120:
         p.error('seconds must be in 1..120')
     compiler = a.compiler.resolve()
     compiler_hash = hashlib.sha256(compiler.read_bytes()).hexdigest()
     rows, failures = [], []
-    requested = templates()
+    if a.family == 'v8':
+        from .v8_word_laws import templates as family_templates
+    else:
+        family_templates = templates
+    requested = family_templates()
     if a.case:
         unknown = set(a.case) - {row['name'] for row in requested}
         if unknown:
@@ -100,12 +107,17 @@ def main():
             raise ValueError('Compiler changed during certificate authoring')
         # Receipts contain timings/diagnostics; immutable runtime data contains
         # only reusable laws and names, without source-specific authoring state.
-        frozen_count = update_frozen_data(a.data, rows)
+        if a.library:
+            from .frozen_laws import update
+            frozen_count = update(a.data, rows)
+        else:
+            frozen_count = update_frozen_data(a.data, rows)
         objects = [semantic_entry(r['law']) for r in rows]
-        names = {'word-identities/'+r['name']: identity(semantic_entry(r['law'])) for r in rows}
+        namespace = 'v8-word-laws/' if a.family == 'v8' else 'word-identities/'
+        names = {namespace+r['name']: identity(semantic_entry(r['law'])) for r in rows}
         store = (Store(a.output_store).extend(objects, names) if Store.is_published(a.output_store)
                  else Store.publish(a.output_store, objects, names))
-        receipt = dict(compiler_sha256=compiler_hash, requested=len(requested), checked=len(rows),
+        receipt = dict(family=a.family, compiler_sha256=compiler_hash, requested=len(requested), checked=len(rows),
                        frozen_laws=frozen_count, failures=failures, snapshot=store.snapshot_id, rows=rows)
         (a.output_store / 'authoring.json').write_bytes(canonical(receipt))
         print(json.dumps({k: v for k, v in receipt.items() if k != 'rows'}))
