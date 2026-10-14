@@ -6,8 +6,8 @@ The catalogue records correctness; measurements separately establish profitabili
 import argparse, json, subprocess
 from pathlib import Path
 from ink_knowledge.store import Store, entry, semantic_entry, identity
-from producers.equational import Tactic
-from producers.action_replacement import var, cons, convert
+from producers.equational import Tactic, convert
+from producers.action_replacement import var, cons
 from producers.point_delta import sub, normal
 from producers.beta_specialization15 import beta_normalize
 
@@ -537,8 +537,9 @@ def author(compiler,source,directory,bodies=None,source_evidence=None):
     export=directory/'obligations.json'
     subprocess.run([compiler,'emit-contract-obligations',source,'-o',str(export),*options],check=True,capture_output=True,text=True)
     goals=json.loads(export.read_text())
+    supplied=json.loads(Path(source_evidence).read_text()) if source_evidence else None
     with ProofSession(compiler,source,options,goals['source_sha256']) as session:
-        return author_obligations(compiler,source,directory,bodies,options,goals,session)
+        return author_obligations(compiler,source,directory,bodies,options,goals,session,supplied)
 
 class ProofSession:
     """Reuse source derivation, never a previous proof verdict."""
@@ -572,7 +573,7 @@ class ProofSession:
             self.process.stdout.close();self.process.stderr.close()
 
 
-def author_obligations(compiler,source,directory,bodies,options,goals,session):
+def author_obligations(compiler,source,directory,bodies,options,goals,session,supplied=None):
     pure_objects={};state_objects=dict((goals['state'] or {}).get('objects',{}));pure_roots=[];state_roots=[]
     proofs={};state_proofs={};names={};installed=Store(Path(__file__).resolve().parents[1])
     def check(g,proof,bundle=None):
@@ -581,7 +582,28 @@ def author_obligations(compiler,source,directory,bodies,options,goals,session):
         if answer['status']=='rejected':(directory/"last-check-error.txt").write_text(answer['error'])
         return answer['status']=='checked'
     for g in goals['pure']:
-        proof=next((p for p in pure_proposals(g) if check(g,p)),None);dependencies=[]
+        proof=None;dependencies=[]
+        if supplied and g['name'] in supplied.get('proofs',{}):
+            candidate=supplied['proofs'][g['name']];bundle=supplied.get('knowledge')
+            if not check(g,candidate,bundle):raise ValueError('supplied pure proof failed replay for '+g['name'])
+            proof=candidate
+            def uses(value):
+                if isinstance(value,dict):
+                    if 'Use' in value and 'law' in value['Use']:yield value['Use']['law']
+                    for child in value.values():yield from uses(child)
+                elif isinstance(value,list):
+                    for child in value:yield from uses(child)
+            dependencies=sorted(set(uses(proof)))
+            if bundle:pure_objects.update(bundle['objects'])
+            # A replayed direct use already carries its exact statement and
+            # portable source context. Preserve that proof instead of creating
+            # another theorem whose only content is a use of the old theorem.
+            if set(proof)=={'Use'}:
+                root=proof['Use']['law']
+                pure_roots.append(root);names['contract.'+g['name']]=root
+                proofs[g['name']]=proof
+                continue
+        if proof is None:proof=next((p for p in pure_proposals(g) if check(g,p)),None)
         if proof is None:
             from producers.owned_fold_contracts import proposals as owned_proposals
             for candidate,bundle in owned_proposals(g,installed,goals['definition_context']):

@@ -36,3 +36,30 @@ def balance_transitivity(proof):
             return tree(0,len(leaves))
         return {k:visit(v,depth+1) for k,v in value.items()}
     return visit(proof)
+
+
+def freshen_match_terms(proof,parameters=()):
+    """Avoid lexical shadowing when closed terms are composed under proof scopes.
+
+    Only Match-bound names and their lexical references change. The source
+    statement, free variables, theorem references and hypotheses stay fixed.
+    The kernel still checks alpha-equivalence and the entire resulting proof.
+    """
+    from producers.equational import fresh_alpha
+    work=[0]
+    def visit(value,env,depth=0):
+        work[0]+=1
+        if work[0]>1_000_000 or depth>256:raise ValueError('proof hygiene resource limit')
+        if isinstance(value,list):return [visit(x,env,depth+1)for x in value]
+        if not isinstance(value,dict):return value
+        if set(value)=={'Match'}:return fresh_alpha(value,{n:n for n in env})
+        if set(value)=={'Substitute'}:
+            x=value['Substitute']
+            return {'Substitute':{**x,'context':visit(x['context'],env|{x['variable']},depth+1),'equality':visit(x['equality'],env,depth+1)}}
+        for kind in ['Cases','Induction','GeneralizedInduction']:
+            if set(value)=={kind}:
+                x=value[kind];out={k:visit(v,env,depth+1)for k,v in x.items()if k!='cases'}
+                out['cases']=[{**case,'proof':visit(case['proof'],env|set(case['bindings']),depth+1)}for case in x['cases']]
+                return {kind:out}
+        return {k:visit(v,env,depth+1)for k,v in value.items()}
+    return visit(proof,set(parameters))
