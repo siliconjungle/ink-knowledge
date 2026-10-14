@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "scope": "Bounded synthetic typed selection inputs; not observed user usage or correctness evidence",
+  "scope": "Bounded synthetic typed selection inputs; not observed user usage or correctness evidence. Each measured phase must also meet the tolerated loss at its upper bootstrap cost bound; absence of a demonstrated regression is insufficient.",
   "sizes": [
     0,
     8,
