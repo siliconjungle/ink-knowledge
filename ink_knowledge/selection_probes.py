@@ -21,6 +21,11 @@ def policy():
         if type(value.get(name)) is not int or not lo<=value[name]<=hi:raise ValueError('automatic selection '+name)
     if not isinstance(value.get('sizes'),list) or not 1<=len(value['sizes'])<=8 or any(type(n)is not int or not 0<=n<=4096 for n in value['sizes']):raise ValueError('automatic selection sizes')
     if not isinstance(value.get('patterns'),list) or not value['patterns'] or not set(value['patterns'])<=PATTERNS:raise ValueError('automatic selection patterns')
+    boundaries=value.get('boundaries',{})
+    if not isinstance(boundaries,dict) or set(boundaries)!={'default','javascript','rust'}:raise ValueError('automatic selection boundary profiles')
+    for target,modes in boundaries.items():
+        if not isinstance(modes,list) or not modes or len(modes)!=len(set(modes)) or not set(modes)<={'trusted','portable','compact'}:raise ValueError('automatic selection boundary modes')
+        if target!='javascript' and modes!=['trusted']:raise ValueError('unavailable boundary adapter')
     return value
 
 def supported(t,records,active=()):
@@ -33,7 +38,7 @@ def supported(t,records,active=()):
         return name in records and len(records[name])<=64 and name not in active and all(supported(s,records,(*active,name))for _,s in records[name])
     return False
 
-def create(core):
+def create(core,target=None):
     p=policy();program=core['program'];records=program.get('records',{});declined=[]
     if program.get('states') or program.get('actions') or program.get('events'):
         return None,dict(reason='state/action/event lifecycle requires supplied workload evidence')
@@ -47,7 +52,10 @@ def create(core):
             for x in v:walk(x)
     walk(program)
     pivot=min(constants,default=1)
-    pivot=max(1,min(pivot,65535));phases={};count=0;cells=0
+    modes=p['boundaries'].get(target,p['boundaries']['default']);encoded=modes!=['trusted']
+    pivot=max(1,min(pivot,65535));phases={};count=0;cells=0;function_count=0
+    eligible=sum(all(supported(t,records)for _,t in f['params'])and supported(f['result'],records)for f in program['functions'])
+    per_function=max(1,p['calls']//len(modes)//max(1,min(p['functions'],eligible)))
     def scalar(t,index,high=False):
         if t=='Bool':return True if index else False
         if t=='String':return ['','probe','λ雪😀'][index%3]
@@ -85,18 +93,23 @@ def create(core):
     for function in program['functions']:
         if not all(supported(t,records)for _,t in function['params']) or not supported(function['result'],records):
             declined.append(dict(function=function['name'],reason='unsupported exact probe transfer type'));continue
-        if len(phases)>=p['functions']:declined.append(dict(function=function['name'],reason='probe function budget'));continue
-        calls=[]
-        for n in p['sizes']:
-            for pattern in p['patterns']:
-                if count>=p['calls']:break
+        if function_count>=p['functions']:declined.append(dict(function=function['name'],reason='probe function budget'));continue
+        calls=[];combinations=[(n,pattern)for n in p['sizes']for pattern in p['patterns']]
+        indices=set(int(i*len(combinations)/min(per_function,len(combinations)))for i in range(min(per_function,len(combinations))))
+        for index,(n,pattern)in enumerate(combinations):
+                if index not in indices:continue
+                if count+len(modes)>p['calls']:break
                 rng=random.Random(0x1491+n)
                 calls.append(dict(function=function['name'],args=[argument(t,n,pattern,rng)for _,t in function['params']]))
-                count+=1
-        if calls:phases['call:'+function['name']]=calls
+                count+=len(modes)
+        if calls:
+            function_count+=1
+            for mode in modes:
+                phase='call:'+function['name']+(':'+mode if encoded else '')
+                phases[phase]=[dict(copy.deepcopy(c),**({'boundary':mode}if encoded else {}))for c in calls]
     if not phases:return None,dict(reason='no supported pure signatures',declined=declined)
-    spec=dict(schema=1,phases=phases,profile={k:p['expected_calls']for k in phases},
+    spec=dict(schema=3 if encoded else 1,phases=phases,profile={k:p['expected_calls']for k in phases},
               workload=dict(shape=dict(policy=identity(p),sizes=p['sizes']),distribution=dict(kind='synthetic typed probes',patterns=p['patterns']),
-                            concurrency=1,residency='captured immutable inputs; complete owned outputs'))
-    return spec,dict(policy_sha256=identity(p),calls=count,functions=len(phases),declined=declined,
+                            concurrency=1,residency='prepared source inputs; complete owned outputs and selected transfer boundaries'))
+    return spec,dict(policy_sha256=identity(p),calls=count,functions=function_count,boundaries=modes,declined=declined,
                      scope=p['scope'])
