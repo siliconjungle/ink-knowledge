@@ -89,4 +89,5 @@ def specialize(subject, core=None):
             rows.append((function + '_ordered_product_' + '_'.join(map(str, path)), proposed))
             if len(rows) >= 64:
                 return rows
-    return rows
+    from producers.loop_product_fusion import specialize as loop_products
+    return rows + loop_products(subject, core)

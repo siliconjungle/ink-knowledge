@@ -148,3 +148,14 @@ Different input sequences are not fused. The source-bound proof covers captured
 callbacks; cross-coupling an accumulator is rejected. These are reusable building
 blocks for tiled algorithms, not a claim that arbitrary matrix blocking is already
 automatically discovered or profitable.
+
+The same installed product discovery delegates to `producers.loop_product_fusion`
+for equally bounded `repeat_until` reductions with constant-false stop callbacks.
+A generalised unsigned induction proves the internal counted-loop equation; a
+checked bridge returns to executable source loops. Different counts, early-stop
+callbacks, changed indices and coupled lanes receive no authority from matching.
+The mandatory product test discovers and emits a four-column matrix reduction
+and checks its complete values, alongside mixed-carrier folds and ordered F32
+loops. This proves a register-tile transformation for existing independent lanes;
+automatically choosing dimensions or blocking an arbitrary scalar matrix loop
+remains outside this producer's coverage.
