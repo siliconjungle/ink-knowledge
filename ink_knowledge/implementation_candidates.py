@@ -5,7 +5,7 @@ membership do not establish equality, applicability, or profitability.
 """
 from pathlib import Path
 from copy import deepcopy
-from .store import Store, entry, identity, hash_id, read
+from .store import Store, entry, identity, hash_id
 
 SEMANTICS = 'ink-implementation-candidate-v1'
 
@@ -48,10 +48,9 @@ def candidate_entry(package, *, shared_knowledge=False):
 def publish_candidates(root, packages, *, shared_knowledge=False):
     """Extend a publication without dropping existing entries or names."""
     root = Path(root)
-    objects = {}; names = {}; previous=None
+    objects = {}; previous=None
     if (root/'store/snapshot.json').exists():
         previous = Store(root)
-        names = read(root/'store/names.json')
     candidates = []
     for package in packages:
         for view in proof_views(package):
@@ -61,6 +60,9 @@ def publish_candidates(root, packages, *, shared_knowledge=False):
                 objects[i] = obj
         obj = candidate_entry(package, shared_knowledge=shared_knowledge); i = identity(obj)
         objects[i] = obj; candidates.append(i)
-    store = previous.extend(objects.values(), names) if previous is not None else Store.publish(root, objects.values(), names)
+    # This producer adds unnamed candidates. Let extend merge the names that
+    # are current under its publication lock; replaying an earlier names map
+    # would overwrite a concurrent names-only update with the same snapshot ID.
+    store = previous.extend(objects.values()) if previous is not None else Store.publish(root, objects.values())
     store.ensure_index()
     return store, candidates

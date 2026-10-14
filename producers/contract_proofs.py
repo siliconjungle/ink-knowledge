@@ -123,6 +123,7 @@ def rewrite_proposals(goal,store,limit=64):
     """
     from ink_planner.semantic_search import children,match,substitute,replace,key
     from producers.beta_specialization15 import lift_use
+    from ink_knowledge.pattern_index import Reader
     def positions(term,path=()):
         yield path,term
         if isinstance(term['node'],dict)and 'Lambda'in term['node']:return
@@ -138,18 +139,22 @@ def rewrite_proposals(goal,store,limit=64):
                 if not isinstance(node,dict)or 'Op'not in node:continue
                 operation=node['Op'][0];query_key=(key(target['sort']),operation)
                 if query_key not in cache:
-                    # The operation index also returns nested occurrences. Count
-                    # every scanned row, not only matching rewrite heads.
+                    # Use one discovery connection per typed head. Without head
+                    # metadata, retain operation-filtered canonical/legacy search
+                    # so unrelated operators do not consume its scan budget.
                     rows=[];after=None;scanned=0
-                    while scanned<1024:
-                        page=store.query(kind='rewrite',semantics='ink-conditional-laws-v1',result=target['sort'],operation=operation,after=after,limit=min(128,1024-scanned))
-                        scanned+=len(page)
-                        for ident in page:
-                            payload=store.object(ident)['payload']
-                            head=payload['from'].get('node',{})
-                            if isinstance(head,dict)and head.get('Op',[None])[0]==operation:rows.append((ident,payload))
-                        if len(page)<128:break
-                        after=page[-1]
+                    with Reader(store) as reader:
+                        while scanned<1024:
+                            count=min(128,1024-scanned)
+                            page=(reader.candidates(target['sort'],'Op:'+operation,after=after,limit=count)
+                                  if reader.db is not None else store.query(kind='rewrite',semantics='ink-conditional-laws-v1',result=target['sort'],operation=operation,after=after,limit=count))
+                            scanned+=len(page)
+                            for ident in page:
+                                payload=store.object(ident)['payload']
+                                head=payload['from'].get('node',{})
+                                if isinstance(head,dict)and head.get('Op',[None])[0]==operation:rows.append((ident,payload))
+                            if len(page)<128:break
+                            after=page[-1]
                     # Prefer laws describing more of the target structure over
                     # broad wildcard uses that can exhaust the proposal budget.
                     # This is search order only; premises and source contexts
