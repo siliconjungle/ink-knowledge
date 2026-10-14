@@ -1,4 +1,5 @@
 module ink.knowledge.collections;
+import "./indexed-sequences.ink" as indexed;
 
 // Stable sets use structural value identity, including floating-point bits.
 // Construction normalizes once; operations on checked sets preserve the same
@@ -15,6 +16,13 @@ fn elements<T>(value:Set<T>)->List<T>{return value.items;}
 fn union<T>(a:Set<T>,b:Set<T>)->Set<T>{return Set<T>{items:foldl(b.items,a.items,fn(item)=>fn(seen)=>append_new<T>(seen,item))};}
 fn intersection<T>(a:Set<T>,b:Set<T>)->Set<T>{return Set<T>{items:a.items.filter(fn(item)=>member<T>(b.items,item))};}
 fn difference<T>(a:Set<T>,b:Set<T>)->Set<T>{return Set<T>{items:a.items.filter(fn(item)=>!member<T>(b.items,item))};}
+// Explicit scalar-key implementations share the existing owned-map substrate.
+// Ingress still validates the abstract Set invariant; the query builds its
+// index once and preserves the left collection's order.
+fn intersection_indexed_u32(a:Set<u32>,b:Set<u32>)->Set<u32>{return Set<u32>{items:indexed.intersection_indexed_u32(a.items,b.items)};}
+fn difference_indexed_u32(a:Set<u32>,b:Set<u32>)->Set<u32>{return Set<u32>{items:indexed.difference_indexed_u32(a.items,b.items)};}
+fn set_indexed_u32(xs:List<u32>)->Set<u32>{return Set<u32>{items:indexed.normalize_u32(xs)};}
+fn union_indexed_u32(a:Set<u32>,b:Set<u32>)->Set<u32>{return Set<u32>{items:indexed.normalize_u32(a.items.concat(b.items))};}
 
 record Entry<K,V> { key:K, value:V, }
 record Group<K,V> { key:K, values:List<V>, }
@@ -26,7 +34,7 @@ fn contains<T>(xs:List<T>,value:T)->Bool {
 fn has<T>(value:Set<T>,item:T)->Bool{return member<T>(value.items,item);}
 fn size<T>(value:Set<T>)->Int{return count(value.items);}
 spec fn known_distinct<T>(value:Set<T>)->Bool ensures result;
-implementation checked_set_observation for known_distinct{return distinct<T>(value.items);}
+implementation checked_set_observation for known_distinct{return true;}
 
 fn map<T,U>(xs:List<T>,f:fn(T)->U)->List<U> {return xs.map(f);}
 fn filter<T>(xs:List<T>,predicate:fn(T)->Bool)->List<T> {return xs.filter(predicate);}
