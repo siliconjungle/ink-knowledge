@@ -10,6 +10,7 @@
     "producers.carrier_fusion",
     "producers.established_facts",
     "producers.word_laws",
+    "producers.word_identities",
     "producers.capture_projections",
     "producers.product_fusion",
     "producers.ordered_affine_tiles",

@@ -10,7 +10,9 @@ class ProposalViews:
         # Unused discovery bodies are never copied or treated as admitted laws.
         # Reused laws need membership in this transport snapshot as well as
         # their bytes. A closure may mix newly authored and published objects.
-        identities=set(objects);pending=[dep for obj in objects.values()for dep in obj['dependencies']]
+        self._refresh_transport()
+    def _refresh_transport(self):
+        identities=set(self.objects);pending=[dep for obj in self.objects.values()for dep in obj['dependencies']]
         while pending:
             ident=pending.pop()
             if ident in identities:continue
@@ -24,8 +26,9 @@ class ProposalViews:
             if identity(obj)!=ident:raise ValueError('proposal object content mismatch')
             if ident not in self.objects:self.objects[ident]=obj;changed=True
         if changed:
-            self.transport=Store._publish_ids(self.directory,self.objects.keys(),{},64)
-            self.members=self.transport.members()
+            # The new membership tree must include the transitive external
+            # dependencies of both previous and newly discovered proposals.
+            self._refresh_transport()
             self.views.clear();self.bytes=0
     def bundle(self,roots):
         roots=tuple(sorted(set(roots)))

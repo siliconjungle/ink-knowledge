@@ -51,14 +51,37 @@ def hygienic_body(term,parameters):
         return {k:walk(v,scope)for k,v in value.items()}
     return walk(term,{name:name for name in parameters})
 
+def declaration_dependencies(declaration, objects):
+    """Include referenced declarations and their type signatures, not sibling carriers."""
+    dependencies = refs(declaration)
+    pending = list(dependencies)
+    seen = set()
+    while pending:
+        ident = pending.pop()
+        if ident in seen:
+            continue
+        seen.add(ident)
+        declared = objects.get(ident, {}).get('payload', {}).get('declaration', {})
+        referenced_types = set()
+        for kind in ('Function', 'Theorem', 'AbstractFunction'):
+            if kind in declared:
+                signature = declared[kind]
+                referenced_types |= refs([signature.get('params', []), signature.get('result')])
+        if 'Datatype' in declared:
+            referenced_types |= refs(declared['Datatype'])
+        for dependency in referenced_types:
+            if dependency not in dependencies:
+                dependencies.add(dependency)
+                pending.append(dependency)
+    return dependencies
+
+
 def attach(request,directory):
-    request=copy.deepcopy(request);objects=request['knowledge']['objects'];old=request['representation'];plan=objects[old]['payload'];carriers=[i for i,o in objects.items()if 'Datatype'in o.get('payload',{}).get('declaration',{})]
+    request=copy.deepcopy(request);objects=request['knowledge']['objects'];old=request['representation'];plan=objects[old]['payload']
     def add(declaration):
-        body=next(iter(declaration.values()));deps=refs(declaration)
-        if 'Datatype'not in declaration:deps|=set(carriers)
+        body=next(iter(declaration.values()));deps=declaration_dependencies(declaration,objects)
         obj=entry('theorem'if'Theorem'in declaration else'definition','first-order-inductive-equality-v1',{'declaration':declaration},deps,parameters=dict(body.get('params',[])),result=body.get('result'),conditions=body.get('conditions',[]))
         key=identity(obj);objects[key]=obj
-        if 'Datatype'in declaration:carriers.append(key)
         return key
     def projected_body(t,datatype,depth=0):
         if depth>64:raise ValueError('compact authoring depth limit')
@@ -120,7 +143,7 @@ def attach(request,directory):
     # Wide proof closures need small authenticated leaves: each included entry
     # carries its membership witness, so repeating 64-entry leaves can dominate
     # transport size. This changes neither object identities nor proof admission.
-    store=Store.publish(directory,list(objects.values()),names,leaf_size=2 if len(objects)>64 else 64)
+    store=Store.publish(directory,list(objects.values()),names,leaf_size=2)
     request['representation']=new;request['knowledge']=store.bundle([new])
     return request
 

@@ -30,22 +30,29 @@ def source(term):
 
 class HintBuilder:
     """Untrusted watched-literal RUP search. Rust replays every returned hint."""
-    def __init__(self, clauses):
+    def __init__(self, clauses, deadline=None):
+        self.deadline=deadline
         self.clauses=[];self.positions=[];self.watches={};self.units=[];self.empty=[]
         for clause in clauses:self.add(clause)
+    def check_deadline(self):
+        if self.deadline is not None and time.monotonic()>=self.deadline:
+            raise ValueError('Proof authoring exceeded its total time budget')
     def add(self, clause):
+        self.check_deadline()
         index=len(self.clauses);self.clauses.append(list(clause))
         if not clause:self.empty.append(index);self.positions.append([]);return
         if len(clause)==1:self.units.append(index);self.positions.append([0]);return
         self.positions.append([0,1])
         for lit in clause[:2]:self.watches.setdefault(lit,[]).append(index)
     def hints(self, clause):
+        self.check_deadline()
         values={};queue=[];hints=[];reasons={}
         def state(lit):return None if abs(lit)not in values else values[abs(lit)]==(lit>0)
         def assign(lit,reason=None):values[abs(lit)]=lit>0;reasons[abs(lit)]=reason;queue.append(lit)
         def finish(conflict):
             needed={conflict};pending=[conflict]
             while pending:
+                self.check_deadline()
                 index=pending.pop()
                 for lit in self.clauses[index]:
                     reason=reasons.get(abs(lit))
@@ -62,8 +69,10 @@ class HintBuilder:
             if state(lit)is None:hints.append(index);assign(lit,index)
         head=0
         while head<len(queue):
+            self.check_deadline()
             false=-queue[head];head+=1;watched=self.watches.setdefault(false,[]);position=0
             while position<len(watched):
+                if position%256==0:self.check_deadline()
                 index=watched[position];candidate=self.clauses[index];ps=self.positions[index]
                 slot=0 if candidate[ps[0]]==false else 1;other=candidate[ps[1-slot]]
                 if state(other)is True:position+=1;continue
@@ -78,11 +87,20 @@ def hints_for(clause, clauses):
     return HintBuilder(clauses).hints(clause)
 
 
-def certificate(problem, seconds=60, conflicts=100_000):
+def certificate(problem, seconds=60, conflicts=100_000, total_seconds=None):
+    # SAT solving is only part of authoring: expanding proof hints can dominate.
+    # Callers can bound the whole acquisition without changing core authority.
+    if total_seconds is not None and not 0<total_seconds<=600:
+        raise ValueError('total proof authoring budget must be in (0,600] seconds')
+    deadline=None if total_seconds is None else time.monotonic()+total_seconds
+    def check_deadline():
+        if deadline is not None and time.monotonic()>=deadline:
+            raise ValueError('Proof authoring exceeded its total time budget')
     from pysat.solvers import Glucose3
     with Glucose3(bootstrap_with=problem['clauses'], with_proof=True) as solver:
+        check_deadline()
         solver.conf_budget(conflicts)
-        timer = threading.Timer(seconds, solver.interrupt)
+        timer = threading.Timer(seconds if deadline is None else min(seconds,max(0.001,deadline-time.monotonic())), solver.interrupt)
         timer.daemon = True
         timer.start()
         try:
@@ -92,8 +110,10 @@ def certificate(problem, seconds=60, conflicts=100_000):
         if result is None: raise ValueError('Proof search exhausted its time or conflict budget')
         if result: raise ValueError('Proposed equality is false; solver found a counterexample')
         trace = solver.get_proof()
-    clauses = [list(c) for c in problem['clauses']]; steps = []; builder=HintBuilder(clauses)
+    check_deadline()
+    clauses = [list(c) for c in problem['clauses']]; steps = []; builder=HintBuilder(clauses,deadline)
     for line in trace:
+        check_deadline()
         if line.startswith('d '): continue  # Retaining earlier proved clauses is sound.
         numbers = [int(n) for n in line.split()]
         if not numbers or numbers[-1] != 0: raise ValueError('Malformed solver proof')
@@ -107,11 +127,13 @@ def certificate(problem, seconds=60, conflicts=100_000):
     # clause still carries its complete RUP justification, with remapped ids.
     original=len(problem['clauses']); needed={len(steps)-1}; pending=list(needed)
     while pending:
+        check_deadline()
         for hint in steps[pending.pop()]['hints']:
             if hint>=original and hint-original not in needed:
                 needed.add(hint-original);pending.append(hint-original)
     order=sorted(needed);remap={old:original+i for i,old in enumerate(order)}
     steps=[dict(clause=steps[i]['clause'],hints=[h if h<original else remap[h-original] for h in steps[i]['hints']])for i in order]
+    check_deadline()
     return dict(problem_sha256=problem['sha256'], steps=steps)
 
 

@@ -1,0 +1,189 @@
+"""Untrusted known-bit and unsigned-range analysis for offline law discovery.
+
+Facts are suggestions, never core assumptions. Every generated replacement must
+still carry an independently checked equality proof. Unknown operations lose
+information; wrapping arithmetic never inherits LLVM's nowrap assumptions.
+"""
+from dataclasses import dataclass
+from .semantic_laws import value, word, term, op
+
+
+@dataclass(frozen=True)
+class Facts:
+    width: int
+    zero: int = 0
+    one: int = 0
+    minimum: int = 0
+    maximum: int | None = None
+
+    def __post_init__(self):
+        if self.width not in (1, 32, 64):
+            raise ValueError('Unsupported word fact width')
+        mask = (1 << self.width) - 1
+        maximum = mask if self.maximum is None else self.maximum
+        if self.width not in (1, 32, 64) or (self.zero | self.one) & ~mask or self.zero & self.one:
+            raise ValueError('Inconsistent word facts')
+        lo, hi = max(self.minimum, self.one), min(maximum, mask ^ self.zero)
+        if not 0 <= lo <= hi <= mask:
+            raise ValueError('Inconsistent unsigned range')
+        # Every value in an unsigned interval shares the prefix above the
+        # highest differing endpoint bit. This does not assume no overflow.
+        prefix = mask ^ ((1 << (lo ^ hi).bit_length()) - 1)
+        zero, one = self.zero | (prefix & ~lo), self.one | (prefix & lo)
+        if zero & one:
+            raise ValueError('Conflicting interval and known bits')
+        object.__setattr__(self, 'zero', zero)
+        object.__setattr__(self, 'one', one)
+        object.__setattr__(self, 'minimum', lo)
+        object.__setattr__(self, 'maximum', hi)
+
+    @property
+    def constant(self):
+        return self.minimum if self.minimum == self.maximum else None
+
+
+def constant(width, n):
+    mask=(1<<width)-1;n &= mask
+    return Facts(width, mask ^ n, n, n, n)
+
+
+def trailing_ones(bits, width):
+    return min(width, ((bits ^ (bits + 1)).bit_length() - 1))
+
+
+def add_bits(a, b, carry_in=0):
+    """Independent bit possibilities lose correlations conservatively."""
+    zeros = ones = 0
+    carry = {carry_in}
+    for i in range(a.width):
+        bit = 1 << i
+        left = {1} if a.one & bit else {0} if a.zero & bit else {0, 1}
+        right = {1} if b.one & bit else {0} if b.zero & bit else {0, 1}
+        sums = {x + y + c for x in left for y in right for c in carry}
+        digits, carry = {n & 1 for n in sums}, {n >> 1 for n in sums}
+        if digits == {0}: zeros |= bit
+        if digits == {1}: ones |= bit
+    return zeros, ones
+
+
+def analyse(source, max_nodes=4096):
+    remaining=max_nodes
+    def visit(t, depth=0):
+        nonlocal remaining
+        remaining-=1
+        if remaining<0 or depth>64:
+            raise ValueError('Word fact analysis budget')
+        sort=t.get('sort',{});kind=sort.get('Value') if isinstance(sort,dict) else None
+        if not isinstance(kind,str) or kind not in ('Bool','U32','U64'):
+            raise ValueError('Word fact analysis supports unsigned words and Bool')
+        width={'Bool':1,'U32':32,'U64':64}[kind];mask=(1<<width)-1
+        node=t['node']
+        if 'Word' in node:return constant(width,node['Word'])
+        if 'Bool' in node:return constant(1,int(node['Bool']))
+        if 'Op' not in node:return Facts(width)
+        name,args=node['Op']
+        # Unsupported calls can contain other carriers or binders. Their values
+        # remain unconstrained; neither contracts nor metadata become facts.
+        names={'call:word_and','call:word_or','call:word_xor','call:word_not',
+               'binary:+','binary:-','binary:*','binary:==','binary:!=','binary:<',
+               'binary:<=','binary:>','binary:>=','call:choose','call:wrapping_shl',
+               'call:wrapping_shr','call:word_widen_u32_to_u64','call:word_narrow_u64_to_u32',
+               'binary:&&','binary:||','unary:!'}
+        if name not in names:return Facts(width)
+        facts=[visit(a,depth+1) for a in args]
+        if name=='call:choose' and len(facts)==3:
+            cond,a,b=facts
+            if cond.constant is not None:return a if cond.constant else b
+            return Facts(width,a.zero&b.zero,a.one&b.one,min(a.minimum,b.minimum),max(a.maximum,b.maximum))
+        if len(facts)==1:
+            a=facts[0]
+            if name in ('call:word_not','unary:!'):return Facts(width,a.one,a.zero,mask-a.maximum,mask-a.minimum)
+            if name=='call:word_widen_u32_to_u64':return Facts(64,a.zero|(((1<<32)-1)<<32),a.one,a.minimum,a.maximum)
+            if name=='call:word_narrow_u64_to_u32':
+                return Facts(32,a.zero&mask,a.one&mask,a.minimum if a.maximum<=mask else 0,a.maximum if a.maximum<=mask else mask)
+            return Facts(width)
+        if len(facts)!=2:return Facts(width)
+        a,b=facts
+        same = args[0] == args[1]
+        if same and name in ('binary:-','call:word_xor'):return constant(width,0)
+        if same and name in ('binary:==','binary:!=','binary:<','binary:<=','binary:>','binary:>='):
+            return constant(1,int(name in ('binary:==','binary:<=','binary:>=')))
+        if name in ('call:word_and','binary:&&'):return Facts(width,a.zero|b.zero,a.one&b.one,0,min(a.maximum,b.maximum))
+        if name in ('call:word_or','binary:||'):return Facts(width,a.zero&b.zero,a.one|b.one,max(a.minimum,b.minimum),mask)
+        if name=='call:word_xor':return Facts(width,(a.zero&b.zero)|(a.one&b.one),(a.zero&b.one)|(a.one&b.zero))
+        if name in ('call:wrapping_shl','call:wrapping_shr'):
+            # Ink masks oversized counts. Enumerate the at most 64 feasible
+            # residues, including values LLVM would otherwise call poison.
+            counts = ([b.constant % width] if b.constant is not None else
+                      [n for n in range(width) if not n & b.zero and n & (b.one & (width-1)) == b.one & (width-1)])
+            possibilities=[]
+            for count in counts:
+                if name.endswith('shl'):
+                    possibilities.append(Facts(width,((a.zero<<count)|((1<<count)-1))&mask,(a.one<<count)&mask))
+                else:
+                    possibilities.append(Facts(width,(a.zero>>count)|(mask^(mask>>count)),a.one>>count,a.minimum>>count,a.maximum>>count))
+            zeros=ones=mask
+            for possibility in possibilities:
+                zeros &= possibility.zero; ones &= possibility.one
+            return Facts(width,zeros,ones,min(p.minimum for p in possibilities),max(p.maximum for p in possibilities))
+        if name=='binary:+':
+            zeros,ones=((((a.zero<<1)|1)&mask,(a.one<<1)&mask) if same else add_bits(a,b))
+            lo,hi=a.minimum+b.minimum,a.maximum+b.maximum
+            return Facts(width,zeros,ones,lo if hi<=mask else 0,hi if hi<=mask else mask)
+        if name=='binary:-':
+            zeros,ones=add_bits(a,Facts(width,b.one,b.zero),1)
+            nowrap=a.minimum>=b.maximum
+            return Facts(width,zeros,ones,a.minimum-b.maximum if nowrap else 0,a.maximum-b.minimum if nowrap else mask)
+        if name=='binary:*':
+            za,zb=trailing_ones(a.zero,width),trailing_ones(b.zero,width)
+            ka,kb=trailing_ones(a.zero|a.one,width),trailing_ones(b.zero|b.one,width)
+            suffix=(1<<min(width,ka+zb,kb+za))-1
+            product=a.one*b.one
+            zeros,ones=(~product)&suffix,product&suffix
+            if same:
+                # Squaring a deterministic word has stronger low-bit facts
+                # than multiplying two independently unknown words.
+                if 2*za+1<width:zeros|=1<<(2*za+1)
+                if za<width and a.one&(1<<za) and 2*za+2<width:zeros|=1<<(2*za+2)
+            hi=a.maximum*b.maximum
+            return Facts(width,zeros,ones,a.minimum*b.minimum if hi<=mask else 0,hi if hi<=mask else mask)
+        if name in ('binary:==','binary:!=','binary:<','binary:<=','binary:>','binary:>='):
+            answer=None
+            if name in ('binary:==','binary:!='):
+                if a.constant is not None and b.constant is not None:answer=a.constant==b.constant
+                elif a.maximum<b.minimum or b.maximum<a.minimum or (a.zero&b.one)|(a.one&b.zero):answer=False
+                if answer is not None and name=='binary:!=':answer=not answer
+            else:
+                if name in ('binary:>','binary:>='):a,b=b,a
+                strict=name in ('binary:<','binary:>')
+                if a.maximum<b.minimum or (not strict and a.maximum==b.minimum):answer=True
+                elif a.minimum>b.maximum or (strict and a.minimum==b.maximum):answer=False
+            if answer is not None:return constant(1,int(answer))
+        return Facts(width)
+    return visit(source)
+
+
+def candidates(source):
+    """Propose total whole-expression simplifications, with no proof authority."""
+    facts=analyse(source);kind=source['sort']['Value']
+    if facts.constant is not None:
+        candidate=(term(value('Bool'),{'Bool':bool(facts.constant)}) if kind=='Bool'
+                   else word(kind,facts.constant))
+        if candidate!=source:yield 'constant-from-bits-or-range',candidate
+    node=source['node']
+    if 'Op' not in node:return
+    name,args=node['Op']
+    if name=='call:choose' and len(args)==3:
+        condition=analyse(args[0]).constant
+        if condition is not None:yield 'known-condition',args[1 if condition else 2]
+    if name in ('binary:+','call:word_xor') and len(args)==2 and kind!='Bool':
+        a,b=map(analyse,args);mask=(1<<facts.width)-1
+        if (mask^a.zero)&(mask^b.zero)==0:
+            yield 'disjoint-fields',op(source['sort'],'call:word_or',*args)
+    if name=='call:word_and' and len(args)==2:
+        for i in (0,1):
+            literal=args[i]['node'].get('Word')
+            if literal is not None:
+                other=analyse(args[1-i]);mask=(1<<facts.width)-1
+                if (mask^literal)&(mask^other.zero)==0:
+                    yield 'redundant-mask',args[1-i]

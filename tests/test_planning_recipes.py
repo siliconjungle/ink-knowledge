@@ -106,6 +106,17 @@ class RegistryCoverage(unittest.TestCase):
             self.assertEqual(coverage(store)['roles']['recipe-discovery'],1)
 
 class ExternalAnalysis(unittest.TestCase):
+    def test_let_retains_body_captures_and_nested_lambdas_shadow_outer_names(self):
+        p=self.program();f=p['functions'][0]
+        f['params'] += [['ys',{'List':'U32'}],['x','U32'],['offset','U32']]
+        f['body']={'Let':['local',{'List':'U32'},{'Var':'xs'},{'Var':'ys'}]}
+        facts=analyse(p,'mapped')
+        self.assertEqual(facts['captures'],['xs','ys'])
+        self.assertEqual(facts['aliases'],['ys'])
+        f['body']={'Method':[{'Var':'xs'},'map',[{'Lambda':['i',{'Lambda':['x',{'Binary':['+',{'Var':'x'},{'Var':'offset'}]}]}]}]]}
+        facts=analyse(p,'mapped')
+        self.assertEqual(facts['captures'],['offset','xs'])
+
     def test_pure_source_does_not_spend_stateful_representation_search_budget(self):
         context=dict(core=dict(program=dict(states=[],actions=[],functions=[])))
         def unexpected(*args):

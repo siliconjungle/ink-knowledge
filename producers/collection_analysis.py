@@ -30,7 +30,11 @@ def analyse(program,function,node_budget=16384,helper_depth=32):
             return merge(copy.deepcopy(value['fields'].get(name,unknown())),[value])
         if 'Let'in e:
             name,_,value,body=e['Let'];value=walk(value,env,depth+1)
-            return merge(walk(body,dict(env,**{name:value}),depth+1),[value])
+            result=walk(body,dict(env,**{name:value}),depth+1)
+            return merge(result,[value,result])
+        if 'Lambda'in e:
+            name,body=e['Lambda'];local=dict(env);local.pop(name,None)
+            return walk(body,local,depth+1)
         if 'Call'in e:
             name,args=e['Call'];values=[walk(a,env,depth+1)for a in args]
             if name=='choose'and len(values)==3:
