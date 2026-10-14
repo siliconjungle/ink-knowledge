@@ -7,6 +7,17 @@ from ink_knowledge.recipes import load,role
 from producers.capacity_plans import expression
 from producers.semantic_laws import value,var,op,bound,law
 class DatabaseAlgorithms(unittest.TestCase):
+ def test_incremental_transport_preserves_old_and_new_external_dependencies(self):
+  x=var(value('U32'),'x');old=semantic_entry(law({'x':value('U32')},x,x));oid=identity(old)
+  derived=semantic_entry(law({'x':value('U32')},x,x,{'Use':{'law':oid,'arguments':{'x':x},'premises':[]}},dependencies=[oid]));did=identity(derived)
+  second=semantic_entry(law({'x':value('U32')},x,x,{'Use':{'law':did,'arguments':{'x':x},'premises':[]}},dependencies=[did]));sid=identity(second)
+  with tempfile.TemporaryDirectory() as temporary:
+   d=Path(temporary);store=Store.publish(d/'knowledge',[old,derived])
+   view=ProposalViews(store,{},d/'transport');view.update({sid:second})
+   self.assertEqual(set(view.bundle([sid])['membership']),{oid,did,sid})
+   fresh=semantic_entry(law({'x':value('U32')},op(value('U32'),'binary:+',x,x),op(value('U32'),'binary:*',x,{'sort':value('U32'),'node':{'Word':2}})))
+   view.update({identity(fresh):fresh})
+   self.assertEqual(set(view.bundle([sid])['membership']),{oid,did,sid})
  def test_new_proof_can_reuse_published_law_with_checked_membership(self):
   x=var(value('U32'),'x');old=semantic_entry(law({'x':value('U32')},x,x));oid=identity(old)
   new=semantic_entry(law({'x':value('U32')},x,x,{'Use':{'law':oid,'arguments':{'x':x},'premises':[]}},dependencies=[oid]));nid=identity(new)
