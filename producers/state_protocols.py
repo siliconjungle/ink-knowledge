@@ -9,7 +9,7 @@ from ink_knowledge import Store,canonical,identity
 from .physical_capabilities import invoke,write,codec_objects,bit_proof
 
 def base(source):
-    return dict(schema=1,semantics='ink-state-protocol-v1',input_core_sha256=source,actions=[],direct_reads=[],output_publication=False,snapshot_rows=False,event_columns=False,inline_maintenance=False,columns=[])
+    return dict(schema=1,semantics='ink-state-protocol-v1',input_core_sha256=source,actions=[],direct_reads=[],output_publication=False,snapshot_rows=False,event_columns=False,event_runs=False,inline_maintenance=False,columns=[])
 
 def column_codec(context,record,exact,directory):
     source=write(directory/'core.json',context['core']);out=directory/'schema.json'
@@ -44,7 +44,10 @@ def candidates(context,capacities=(256,4096),integer_lanes=(False,True)):
         else:p['compact_commits']=json.loads(gzip.decompress(Path(__file__).with_name('data').joinpath('commit-word53.json.gz').read_bytes()))
         alternatives.append(('compact-commits',p))
     if program.get('events'):
-        p=copy.deepcopy(current);p['event_columns']=not current.get('event_columns',False);alternatives.append(('event-columns',p))
+        p=copy.deepcopy(current);p['event_columns']=not current.get('event_columns',False)
+        if not p['event_columns']:p['event_runs']=False
+        alternatives.append(('event-columns',p))
+        p=copy.deepcopy(current);p['event_columns']=True;p['event_runs']=not current.get('event_runs',False);alternatives.append(('event-runs',p))
     if program['states']:
         p=copy.deepcopy(current);p['snapshot_rows']=not current.get('snapshot_rows',False);alternatives.append(('snapshot-row-cache',p))
     if actions:
