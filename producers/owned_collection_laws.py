@@ -48,7 +48,7 @@ def examples():
 
 def publish(output):
     output=Path(output);previous=Store(output)
-    objects=[previous.object(i) for i in previous.members()];names=json.loads((output/'store/names.json').read_text());roots=json.loads((output/'store/rewrite-view.json').read_text())['roots'];laws=examples()
+    objects=[previous.object(i) for i in previous.members()];names=previous.names;roots=json.loads((output/'store/rewrite-view.json').read_text())['roots'];laws=examples()
     for name,proof in laws.items():
         obj=semantic_entry(proof);i=identity(obj);objects.append(obj);names['rewrite/'+name]=i;roots.append(i)
     store=Store.publish(output,objects,names);store.rebuild()

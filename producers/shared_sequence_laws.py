@@ -55,9 +55,9 @@ def examples():
 
 def publish(output):
     output = Path(output)
-    previous = Store(output) if (output / 'store/snapshot.json').exists() else None
+    previous = Store(output) if Store.is_published(output) else None
     objects = [previous.object(i) for i in previous.members()] if previous else []
-    names = json.loads((output / 'store/names.json').read_text()) if previous else {}
+    names = previous.names if previous else {}
     roots = json.loads((output / 'store/rewrite-view.json').read_text())['roots'] if previous else []
     new_roots = []
     for name, proof in examples().items():

@@ -64,7 +64,7 @@ def publish(output):
     output = Path(output)
     previous = Store(output)
     objects = [previous.object(i) for i in previous.members()]
-    names = json.loads((output / 'store/names.json').read_text())
+    names = previous.names
     roots = json.loads((output / 'store/rewrite-view.json').read_text())['roots']
     laws, root_names = examples()
     new_roots = []

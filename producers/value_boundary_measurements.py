@@ -18,7 +18,7 @@ def publish(root,report,target,abi_fingerprint,fixture_fingerprint):
         raise ValueError('requires ordinary schema-bound benchmark report')
     for fingerprint in (abi_fingerprint,fixture_fingerprint):
         if len(fingerprint)!=64 or any(c not in '0123456789abcdef'for c in fingerprint):raise ValueError('exact code fingerprint required')
-    store=Store(root)if(Path(root)/'store/snapshot.json').exists()else Store.publish(root,[])
+    store=Store(root)if Store.is_published(Path(root))else Store.publish(root,[])
     source=identity(dict(fixture=report['fixture'],code=fixture_fingerprint))
     plans={label:identity(dict(schema=1,semantics='ink-value-boundary-measurement-v1',candidate=label,abi=abi_fingerprint,fixture=fixture_fingerprint))for label in sorted(LABELS)}
     observations=[];groups={}

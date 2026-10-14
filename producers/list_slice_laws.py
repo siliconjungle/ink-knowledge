@@ -119,7 +119,7 @@ def main():
     # downloaded code or proof authority. Older snapshots do not activate it.
     discovery=entry('definition','ink-semantic-producers-v1',dict(module='producers.list_slice_laws'))
     from ink_knowledge.store import read
-    aliases=read(root/'store/names.json');aliases.update(names)
+    aliases=dict(names)
     current=old.extend([*objects,discovery],aliases,leaf_size=64);current.refresh_index()
     args.report.parent.mkdir(parents=True,exist_ok=True)
     args.report.write_text(json.dumps(dict(schema=1,old_snapshot=old.snapshot_id,snapshot=current.snapshot_id,reusable_endpoints=len(objects),families=3,discovery=identity(discovery),compiler_sha256=__import__('hashlib').sha256(compiler.read_bytes()).hexdigest(),admission=receipt,scope='Universal typed slice equalities; source type/context instantiations require fresh kernel admission; no target profitability claim'),indent=2)+'\n')

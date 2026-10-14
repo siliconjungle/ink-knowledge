@@ -92,6 +92,6 @@ def propose(goal,context,view,names):
 
 def proposals(goal,store,context):
  import json
- names=json.loads((store.data/'names.json').read_text())
+ names=store.names
  selected={name:names['storage-observations/'+name]for name in ('foldl_observe_append','buffer_push_append')}
  yield from propose(goal,context,store.bundle(list(selected.values())),selected)

@@ -88,7 +88,7 @@ def publish(compiler,root):
     generated,mapping=templates(objects);objects.update(generated)
     for name,ident in list(names.items()):
         if ident in mapping:names['templates/'+name]=mapping[ident]
-    previous=Store(root)if(root/'store/snapshot.json').exists()else None
+    previous=Store(root)if Store.is_published(root)else None
     store=previous.extend(objects.values(),names)if previous else Store.publish(root,objects.values(),names)
     store.refresh_index()
     composed,composed_names=sorting_contracts(compiler,store);objects.update(composed);names.update(composed_names)

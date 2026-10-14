@@ -204,7 +204,7 @@ def candidates(context,limit=4,max_applications=64):
   if len(sizes)==1:possible.setdefault(canonical(dict(params=f['params'],result=f['result'])).decode(),set()).add(sizes[0])
  if not any(len(sizes)>1 for sizes in possible.values()):return
  parent=Store(root/'libraries/proofs/until-embedding')
- key=__import__('json').loads((parent.root/'store/names.json').read_text())['until_embedding']
+ key=parent.names['until_embedding']
  with tempfile.TemporaryDirectory(prefix='ink-loop-embedding-')as temporary:
   d=Path(temporary);corefile=d/'core.json';corefile.write_bytes(canonical(context['core']));subjectfile=d/'subject.json'
   r=subprocess.run([context['compiler'],'emit-semantic',corefile,'--core','-o',subjectfile],capture_output=True,text=True,timeout=context.get('check_timeout',120))

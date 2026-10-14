@@ -20,7 +20,7 @@ def publish(root, compiler, report):
     original = Store(root)
     original_ids = set(original.members())
     objects = [original.object(i) for i in sorted(original_ids)]
-    names = json.loads((root / 'store/names.json').read_text())
+    names = original.names
     batch = [semantic_entry(law) for _, law in named_laws()]
     batch_ids = sorted({identity(obj) for obj in batch})
     names.update({f'performance/{name}': identity(semantic_entry(law))

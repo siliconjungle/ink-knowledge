@@ -25,10 +25,10 @@ def publish(compiler, source, output, proofs=None, dependencies=None):
         receipt = json.loads(completed.stdout)
         bundle = json.loads(bundle_path.read_text())
     objects, names, roots = [], {}, []
-    if (output / 'store/snapshot.json').exists():
+    if Store.is_published(output):
         previous = Store(output)
         objects = [previous.object(key) for key in previous.members()]
-        names = json.loads((output / 'store/names.json').read_text())
+        names = previous.names
         roots = json.loads((output / 'store/rewrite-view.json').read_text())['roots']
     objects += list(bundle['objects'].values())
     names.update({'rewrite/source/' + name: key for name, key in receipt['names'].items()})

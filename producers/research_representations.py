@@ -120,7 +120,7 @@ def refresh(compiler, distribution):
         # Append immutable objects and move discovery names; retain every old snapshot.
         existing = Store(knowledge)
         objects = {i: existing.object(i) for i in existing.members()}
-        names = read(existing.data / 'names.json')
+        names = existing.names
         for path, request in requests.items():
             objects.update(request['knowledge']['objects'])
             names[str(path.relative_to(knowledge / 'research')).removesuffix('.json')] = request['representation']

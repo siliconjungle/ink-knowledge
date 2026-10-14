@@ -18,3 +18,5 @@ __pycache__/
 
 **/store/.publication.sqlite*
 **/.ink-object-*
+
+**/store/.ink-pointer-*

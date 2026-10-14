@@ -128,17 +128,61 @@ def _read_canonical(path):
 class Store:
     def __init__(self, root, snapshot=None):
         self.root=Path(root).resolve(); self.data=self.root/'store'
-        self.snapshot=read(Path(snapshot)) if snapshot else read(self.data/'snapshot.json')
+        self._generation=None;self._names=None
+        if snapshot is not None:
+            # An explicit pin always means these exact bytes. Alias lookup is
+            # separate and cannot change the pinned membership/proof context.
+            self.snapshot=read(Path(snapshot))
+        else:
+            from .publication import capture
+            self._generation,self._names=capture(self.data)
+            self.snapshot=self._generation['snapshot']
+            if self.snapshot is None:raise FileNotFoundError('knowledge publication absent')
         fields(self.snapshot, ('schema','semantics','root'))
         if self.snapshot['schema'] != 1 or self.snapshot['semantics'] != SNAPSHOT: raise ValueError('unsupported snapshot')
         hash_id(self.snapshot['root']);self.snapshot_id=identity(self.snapshot)
         self._members=None
         self._explicit_snapshot=snapshot is not None
+    @property
+    def publication_id(self):
+        """Identity of captured snapshot AND aliases; explicit pins have none."""
+        return identity(self._generation) if self._generation is not None else None
+    @property
+    def names(self):
+        """Captured aliases, never proof authority; callers receive a copy.
+
+        A historical snapshot does not pin aliases. On first alias access capture
+        current aliases, restricted to that exact snapshot's members.
+        """
+        from .publication import capture,load_names
+        if self._generation is not None:
+            if self._names is None:self._names=load_names(self.data,self._generation)
+        elif self._names is None:
+            selected,cached=capture(self.data)
+            self._names={k:v for k,v in load_names(self.data,selected,cached).items() if v in self.members()}
+        return dict(self._names)
     @classmethod
-    def publish(cls, root, objects, names=None, *, leaf_size=64):
+    def is_published(cls, root):
+        from .publication import capture
+        return capture(Path(root).resolve()/'store')[0]['snapshot'] is not None
+    @classmethod
+    def recover(cls, root):
+        """Restore legacy mirrors from the selected generation under the lock."""
+        from .publication import capture,load_names,repair
+        with _publication_lock(root):
+            data=Path(root).resolve()/'store';selected,cached=capture(data)
+            repair(data,selected,load_names(data,selected,cached))
+        return selected['snapshot'] is not None
+    @classmethod
+    def publish(cls, root, objects, names=None, *, leaf_size=64, expected_publication=None):
         if type(leaf_size) is not int or not 1<=leaf_size<=64:raise ValueError('snapshot leaf size')
         with _publication_lock(root):
             root=Path(root);data=root/'store';ids=[]
+            if expected_publication is not None:
+                from .publication import capture
+                hash_id(expected_publication)
+                if identity(capture(data)[0])!=expected_publication:
+                    raise ValueError('publication changed before replacement')
             for obj in objects:
                 validate_entry(obj);i=identity(obj);immutable(data/'objects'/f'{i}.json',obj);ids.append(i)
             ids=sorted(set(ids)); known=set(ids)
@@ -166,11 +210,12 @@ class Store:
                 known.add(i);added.append(obj)
             for obj in added:
                 if not set(obj['dependencies'])<=known:raise ValueError('dependency absent from snapshot')
-            if Store(self.root).snapshot_id!=self.snapshot_id:raise ValueError('publication changed during extension')
-            old_names=read(self.data/'names.json')
+            current=Store(self.root)
+            if current.snapshot_id!=self.snapshot_id:raise ValueError('publication changed during extension')
+            old_names=current.names
             names={**old_names,**(names or {})}
             if known==set(members) and names==old_names and all(len(w['entries'])<=leaf_size for w in members.values()):
-                return self
+                return self if current.publication_id==self.publication_id else current
             return self._publish_ids(self.root,known,names,leaf_size)
     @classmethod
     def _publish_ids(cls, root, ids, names, leaf_size):
@@ -195,13 +240,8 @@ class Store:
             nodes=[node(dict(schema=1,left=nodes[at],right=nodes[at+1])) for at in range(0,len(nodes),2)]
         snapshot=dict(schema=1,semantics=SNAPSHOT,root=nodes[0]);sid=identity(snapshot)
         immutable(data/'snapshots'/f'{sid}.json',snapshot)
-        for name,value in [('names.json',names or {}),('snapshot.json',snapshot)]:
-            fd,tmp=tempfile.mkstemp(prefix='.ink-pointer-',dir=data)
-            try:
-                with os.fdopen(fd,'wb') as f:f.write(canonical(value)+b'\n')
-                os.replace(tmp,data/name)
-            finally:
-                if Path(tmp).exists():Path(tmp).unlink()
+        from .publication import commit
+        commit(data,snapshot,names or {})
         result=cls(root)
         # These exact nodes were constructed, hashed and collision-checked above.
         # Reuse them for immediate indexing; later Store instances read/authenticate
@@ -337,7 +377,7 @@ class Store:
                     db.executemany('INSERT INTO applicability VALUES(?,?,?)',[(i,n,encode(c)) for n,c in enumerate(iface['conditions'])])
                     db.executemany('INSERT INTO operations VALUES(?,?)',[(i,x) for x in iface['operations']]);db.executemany('INSERT INTO effects VALUES(?,?)',[(i,x) for x in iface['effects']])
                     db.executemany('INSERT INTO dependencies VALUES(?,?)',[(i,d) for d in obj['dependencies']])
-                for name,i in read(self.data/'names.json').items():
+                for name,i in self.names.items():
                     if i in objects:db.execute('INSERT INTO names VALUES(?,?)',(name,i))
                 for p in sorted((self.data/'observations').glob('*.json')):
                     obj=read(p);self.validate_observation(obj)
@@ -428,7 +468,7 @@ class Store:
             index_member(db,self.snapshot_id,i,members[i],witness_cache)
         prune_index(db,self.snapshot_id)
         db.execute('DELETE FROM names')
-        for name,i in read(self.data/'names.json').items():
+        for name,i in self.names.items():
             if i in members:db.execute('INSERT INTO names VALUES(?,?)',(name,i))
         from .pattern_index import refresh as refresh_patterns
         refresh_patterns(self,db,schema_ready=True)

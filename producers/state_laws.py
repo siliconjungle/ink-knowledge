@@ -109,7 +109,7 @@ def library():
     return objects,names
 
 def publish(root,compiler,report):
-    root=Path(root);compiler=Path(compiler).resolve();old=Store(root);objects,names=library();existing=json.loads((root/'store/names.json').read_text());existing.update({'state-laws/'+k:v for k,v in names.items()})
+    root=Path(root);compiler=Path(compiler).resolve();old=Store(root);objects,names=library();existing=old.names;existing.update({'state-laws/'+k:v for k,v in names.items()})
     allobjects=[old.object(i) for i in old.members()]+list(objects.values())
     with tempfile.TemporaryDirectory(prefix='ink-state-laws-') as tmp:
         d=Path(tmp);source=d/'source.ink';core=d/'core.json';view=d/'view.json';source.write_text('module state_laws; pub fn identity(x: u64) -> u64 { return x; }\n')

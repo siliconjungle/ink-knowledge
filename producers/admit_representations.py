@@ -15,7 +15,7 @@ def publish(root,compiler,candidates,report,mathematics=()):
     root=Path(root).resolve();compiler=Path(compiler).resolve()
     digest=lambda:hashlib.sha256(compiler.read_bytes()).hexdigest()
     before_hash=digest();original=Store(root);members=set(original.members())
-    objects={i:original.object(i)for i in members};names=json.loads((original.data/'names.json').read_text());subjects=[]
+    objects={i:original.object(i)for i in members};names=original.names;subjects=[]
     for name,source,path in candidates:
         request=json.loads(Path(path).read_text());source=Path(source).resolve()
         for i,e in request['knowledge']['objects'].items():

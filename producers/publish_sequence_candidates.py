@@ -18,7 +18,7 @@ def publish(root,request_paths):
     source=next(iter(sources));packages.insert(0,identity_selection(source))
     old=Store(root).snapshot_id
     store,ids=publish_candidates(root,packages,shared_knowledge=True)
-    names=read(root/'store/names.json')
+    names={}
     labels=['ordinary-source',*[p.stem for p in request_paths]]
     names.update(('sequence-candidates/'+n,i)for n,i in zip(labels,ids))
     store=store.extend([],names);store.refresh_index()
