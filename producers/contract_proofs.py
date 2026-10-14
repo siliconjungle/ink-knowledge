@@ -128,7 +128,7 @@ def rewrite_proposals(goal,store,limit=64):
         if isinstance(term['node'],dict)and 'Lambda'in term['node']:return
         for i,child in enumerate(children(term)):yield from positions(child,path+(i,))
     def size(term):return 1+sum(size(child)for child in children(term))
-    frontier=[(goal['goal']['from'],None,())];seen={key(goal['goal']['from'])};attempts=0
+    frontier=[(goal['goal']['from'],None,())];seen=set();attempts=0
     cache={}
     for _ in range(8):
         next_frontier=[]
@@ -138,31 +138,44 @@ def rewrite_proposals(goal,store,limit=64):
                 if not isinstance(node,dict)or 'Op'not in node:continue
                 operation=node['Op'][0];query_key=(key(target['sort']),operation)
                 if query_key not in cache:
-                    rows=[];after=None
-                    while len(rows)<1024:
-                        page=store.query(kind='rewrite',semantics='ink-conditional-laws-v1',result=target['sort'],operation=operation,after=after,limit=128)
+                    # The operation index also returns nested occurrences. Count
+                    # every scanned row, not only matching rewrite heads.
+                    rows=[];after=None;scanned=0
+                    while scanned<1024:
+                        page=store.query(kind='rewrite',semantics='ink-conditional-laws-v1',result=target['sort'],operation=operation,after=after,limit=min(128,1024-scanned))
+                        scanned+=len(page)
                         for ident in page:
                             payload=store.object(ident)['payload']
                             head=payload['from'].get('node',{})
                             if isinstance(head,dict)and head.get('Op',[None])[0]==operation:rows.append((ident,payload))
                         if len(page)<128:break
                         after=page[-1]
-                    cache[query_key]=rows
+                    # Prefer laws describing more of the target structure over
+                    # broad wildcard uses that can exhaust the proposal budget.
+                    # This is search order only; premises and source contexts
+                    # still require independent replay, even for exact matches.
+                    cache[query_key]=sorted(rows,key=lambda row:-size(row[1]['from']))
                 for ident,law in cache[query_key]:
                         args={}
                         if law.get('types')or law.get('assumptions'):continue
                         if not match(law['from'],target,law['params'],args)or set(args)!=set(law['params']):continue
                         replacement=substitute(law['to'],args)
                         if size(replacement)>=size(target):continue
-                        updated=replace(body,path,replacement);fingerprint=key(updated)
-                        if fingerprint in seen:continue
-                        seen.add(fingerprint)
-                        roots=tuple(sorted(set(dependencies)|{ident}));bundle=store.bundle(roots)
+                        updated=replace(body,path,replacement)
                         use={'Use':dict(law=ident,arguments=args,premises=['Normalize']*len(law['conditions']))}
                         step=lift_use(body,path,use)
                         chain=step if prior is None else {'Trans':dict(middle=body,left=prior,right=step)}
+                        # Equal endpoints do not imply interchangeable proofs:
+                        # an earlier use may have premises the checker rejects.
+                        # Retain distinct derivations, including their paths and
+                        # prior steps; only exact duplicate searches collapse.
+                        fingerprint=(key(updated),key(chain))
+                        if fingerprint in seen:continue
+                        seen.add(fingerprint)
+                        roots=tuple(sorted(set(dependencies)|{ident}));bundle=store.bundle(roots)
                         reduced={**goal,'goal':dict(**{'from':updated,'to':goal['goal']['to']})}
-                        # Replay even small proof proposals before retaining a path.
+                        # Offer terminal proofs before extending the unadmitted path.
+                        # The caller must replay each proposal with the checker.
                         for terminal in pure_proposals(reduced):
                             if attempts>=limit:return
                             attempts+=1
