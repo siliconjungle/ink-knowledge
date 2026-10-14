@@ -4,9 +4,12 @@ const files=['runtime-flat.mjs',...fs.readdirSync(new URL('.',import.meta.url)).
 const outcome=fn=>{try{return {value:fn()};}catch(e){return {error:e.message};}};
 for(const file of files){
  const flat=await import('./'+file),inputs=[{Ok:5},{Err:{Ok:'雪'}},{Err:{Err:true}}];
+ const construct=(module,codec,value,limits={})=>{const builder=codec.builder(limits);const feed=(type,value)=>{const t=codec.resolve(type);switch(t.kind){case 'record':builder.open(0);for(const f of t.fields)feed(f.type,value[f.name]);builder.close();break;case 'list':case 'vector':builder.open(0);for(const x of value)feed(t.element,x);builder.close();break;case 'result':{const ok=Object.hasOwn(value,'Ok');builder.open(ok?0:1);feed(ok?t.ok:t.error,ok?value.Ok:value.Err);builder.close();break;}case 'option':{const some=Object.hasOwn(value,'Some');builder.open(some?1:0);if(some)feed(t.element,value.Some);builder.close();break;}default:builder.scalar(value);}};feed(codec.descriptor.root,value);return builder.finish();};
  for(const x of inputs)for(const name of ['identity','mapped','errors','folded','wide']){
   const expected=ordinary.callOwned(name,[x]);assert.deepEqual(flat.call(name,[x]),ordinary.call(name,[x]));assert.deepEqual(flat.callOwned(name,[x]),expected);
   const binding=flat.compiledValues[name],handle=binding.params[0].capture(x),reply=flat.callCompiled(name,[handle]);assert.deepEqual(binding.result.materialize(reply),expected);
+  const built=construct(flat,binding.params[0],x);assert.deepEqual(binding.params[0].materialize(built),binding.params[0].materialize(handle));assert.deepEqual(binding.params[0].encode(built),binding.params[0].encode(handle));
+  for(const limits of [{nodes:0},{nodes:1},{nodes:2},{nodes:4},{depth:0},{depth:1},{bytes:40},{bytes:50},{}])assert.deepEqual(outcome(()=>construct(flat,binding.params[0],x,limits)&&true),outcome(()=>binding.params[0].capture(x,limits)&&true));
   const ordinaryEntry=ordinary.compiledValues[name],ordinaryReply=ordinary.callCompiled(name,[ordinaryEntry.params[0].capture(x)]);
   for(const limits of [{nodes:0},{nodes:1},{nodes:2},{nodes:4},{depth:0},{depth:1},{depth:2},{bytes:4},{bytes:9},{bytes:50},{}]){
    assert.deepEqual(outcome(()=>binding.result.materialize(reply,limits)),outcome(()=>ordinaryEntry.result.materialize(ordinaryReply,limits)));
@@ -32,6 +35,7 @@ for(const file of files){
  const shared=a.invoke('shared',[]).result;assert.strictEqual(shared.whole.Err,shared.tail);shared.tail.Ok[0]=99;assert.equal(a.invoke('shared',[]).result.tail.Ok[0],1);
  for(const x of inputs)for(const name of ['nested','outer']){assert.deepEqual(a.invoke(name,[0,x]),b.invoke(name,[0,x]));assert.deepEqual(a.invoke('get',[0]),b.invoke('get',[0]));assert.deepEqual(await a.checkpoint(),await b.checkpoint());}
  for(const x of inputs)for(const fail of [false,true]){const args=[0,{value:x},fail];assert.deepEqual(a.invoke('put',args),b.invoke('put',args));assert.deepEqual(a.invoke('get',[0]),b.invoke('get',[0]));assert.deepEqual(await a.checkpoint(),await b.checkpoint());}
+ const stored={value:{Err:{Ok:'same'}}};a.invoke('put',[17,stored,false]);b.invoke('put',[17,stored,false]);const reused=a.invoke('reused',[17]).result,plainReused=b.invoke('reused',[17]).result;assert.deepEqual(reused,plainReused);assert.strictEqual(plainReused.first,plainReused.second);assert.strictEqual(reused.first,reused.second);
  const snapshot=await b.checkpoint();await a.restore(snapshot);assert.deepEqual(await a.checkpoint(),snapshot);
  a.beginTransaction();b.beginTransaction();a.invoke('put',[1,{value:inputs[0]},false]);b.invoke('put',[1,{value:inputs[0]},false]);a.rollbackTransaction();b.rollbackTransaction();assert.deepEqual(await a.checkpoint(),await b.checkpoint());
  for(const limits of [{values:0},{values:2},{values:10},{depth:0},{depth:2},{depth:128},{bytes:200}]){const result=async f=>{try{return await f();}catch(e){return e.message;}};assert.deepEqual(await result(()=>a.checkpoint(limits)),await result(()=>b.checkpoint(limits)));}
