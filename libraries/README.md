@@ -13,6 +13,12 @@ contract for syntax, ordering, wire shapes and limitations. Generic templates ar
 checked when instantiated. These libraries require that foundation's core and
 backend revisions.
 
+`invariant-values.ink` defines abstract unique collections, sorted words, bounded
+indices and indices tied to an immutable sequence. Construction and operations
+carry ordinary checked predicates; callers use the public observers. It requires
+the distribution's value-invariant and abstract-record source machinery. Source
+opacity does not remove public input validation or establish faster execution.
+
 The set and join algorithms deliberately expose a baseline for comparison; no
 speedup claim is established by their presence in this repository. The external
 finite-list producer separately supplies locally checked work-skipping laws.
@@ -51,6 +57,43 @@ instances. `producers/json_laws.py` publishes six ordinary checked laws and thei
 dependencies into the active snapshot and `json-view.json`. Conditional premises
 must be proved at use sites. These laws concern source list/value semantics;
 the operational Rust/JavaScript binary codecs remain trusted and tested.
+
+`storage-regions.ink` and `chunked-sequences.ink` are abstract generic storage
+interfaces implemented with ordinary owned buffers and nested finite loops.
+The arena stores variable-size rows in one payload sequence with checked relative
+spans. Chunk construction retains complete and final partial chunks. Successful
+values carry range/width invariants; raw ingress still validates them. Handles
+are relative coordinates without allocation provenance. Result-validity evidence
+is ordinary canonical contract laws; universal codec round trips, broader refined element/owner proofs, direct borrowed views and profitability measurements remain work in
+progress. See the distribution's `docs/storage-regions-foundation.md`.
+
+
+`storage-observations.ink` proves a general observation law for left folds with a
+checked per-step assumption, plus list and owned-buffer instances. Its theorem
+is reusable across element/state types; an instance must establish its own step
+relation. These are ordinary canonical laws and do not establish an arena or
+chunked-sequence codec relation merely by naming that representation.
+
+`owned-values.ink` exercises generic Buffer-backed refined-element copying.
+`local-relations.ink` supplies checked frame, simulation and conditional relation
+laws for ordered folds. `buffer-views.ink` uses scoped read-only clipped ranges;
+`buffer-view-laws.ink` checks their logical slice observations. Algorithms remain
+source, and every use of a law still proves its assumptions.
+
+`checked-trees.ink` supplies an abstract recursive tree whose every nested payload
+retains the checked unique-value interface. Construction, observations and
+immutable replacements have portable recursive definition contexts and 72
+independently replayed pure obligations in the imported conformance fixture.
+
+`recursive-trees.ink` supplies a generic finite tree with ordered leaf traversal,
+leaf counting and mirroring. Source admission checks proper immutable subvalue
+descent; execution does not confer an induction or representation certificate.
+`producers/termination_measures.py` separately proposes source-bound unsigned and
+lexicographic decreasing-measure certificates, replayed by the core RUP checker.
+
+The incremental library retains the both-input join cross term and exact signed
+deletion cancellation. These algebraic laws alone do not admit an executable
+maintained representation or establish profitability.
 
 `math.ink` defines exact float min/max/clamp/absolute value and scaled vector
 length/normalisation, plus explicitly bounded `*_approx` trigonometry, exponentials

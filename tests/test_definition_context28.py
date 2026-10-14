@@ -76,12 +76,19 @@ class DefinitionContexts(unittest.TestCase):
             changed = copy.deepcopy(subject); changed['functions']['leaf'] = word('U32', 0)
             self.assertEqual(applicable_roots(store, [identity(root)], core['program'], changed), [])
 
-    def test_capture_rejects_cycles_and_context_free_bytes_stay_unchanged(self):
+    def test_capture_binds_cycles_and_context_free_bytes_stay_unchanged(self):
         core, subject, equation = self.fixture()
         self.assertNotIn('definition_context', semantic_entry(equation)['payload'])
         subject['functions']['leaf'] = subject['functions']['helper']
-        with self.assertRaisesRegex(ValueError, 'cyclic'):
-            capture(core, subject, ['helper'])
+        context=capture(core,subject,['helper'])
+        group,members=next(iter(context['recursive_groups'].items()))
+        self.assertEqual(members,['leaf'])
+        self.assertEqual(context['definitions']['leaf']['definition']['callees'],{'leaf':group})
+        self.assertEqual(context['definitions']['helper']['definition']['callees'],{'leaf':context['definitions']['leaf']['sha256']})
+        changed=copy.deepcopy(subject);changed['functions']['leaf']=op(value('U32'),'binary:+',subject['functions']['leaf'],word('U32',1))
+        self.assertNotEqual(capture(core,changed,['helper'])['recursive_groups'],context['recursive_groups'])
+        # Binding a cycle is an untrusted proposal. The core independently
+        # rejects its unchanged U32 recursion before checking any equality.
 
 
 if __name__ == '__main__':

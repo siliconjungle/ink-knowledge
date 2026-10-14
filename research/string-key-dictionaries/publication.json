@@ -1,0 +1,7 @@
+{
+  "schema": 1,
+  "before": "12c02889be3f1f2c787a94836439714fa3803f3966473092e28422ede1c96382",
+  "snapshot": "d3cf4ae7d24bf4e13d002cc714b110cba2ea4edebd9b2f388da6f6b38b1644f3",
+  "recipe": "f90174cf4312d0ceee0e8c9864fa228ca3a996910e6b2916cefea8febdc68b50",
+  "scope": "Untrusted discovery strategy; typed physical admission and backend correctness remain separate obligations"
+}
