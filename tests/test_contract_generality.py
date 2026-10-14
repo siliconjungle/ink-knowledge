@@ -36,5 +36,36 @@ class GeneralContracts(unittest.TestCase):
  def test_general_laws_and_invariant_representations_are_discoverable(self):
   self.assertEqual(role(entry('rewrite','ink-general-laws-v1',{})),'general-proof-dependency')
   self.assertEqual(role(entry('representation','ink-source-representation-v2',{})),'representation-search')
+  self.assertEqual(role(entry('definition','ink-source-termination-v1',{})),'source-proof-dependency')
+ def test_contract_variants_are_proposals_with_fresh_payloads(self):
+  from producers.contract_proofs import pure_proposals,proof_semantics
+  scalar=value('U32');x=term(scalar,{'Free':'contract_payload_0'})
+  goal=dict(params={'value':value({'Result':['U32','U32']}),'contract_payload_0':scalar},conditions=[],goal={'from':x,'to':x})
+  proposal=next(p for p in pure_proposals(goal) if isinstance(p,dict) and 'Variants' in p)
+  self.assertEqual(proposal['Variants']['names'],['contract_payload_0_','contract_payload_1'])
+  self.assertEqual(proof_semantics(proposal),'ink-general-laws-v1')
+  nested={'Cases':dict(condition=term(value('Bool'),{'Bool':True}),on_false='Normalize',on_true=proposal)}
+  self.assertEqual(proof_semantics(nested),'ink-general-laws-v1')
+  self.assertEqual(proof_semantics({'Use':dict(law='0'*64,arguments={},premises=['Normalize'])}),'ink-conditional-laws-v1')
+  self.assertEqual(proof_semantics({'Use':dict(law='0'*64,arguments={},premises=[],types={'T':'U32'})}),'ink-general-laws-v1')
+
+ def test_branch_cases_open_known_applications_but_keep_local_binders_closed(self):
+  from producers.contract_proofs import pure_proposals
+  from producers.semantic_laws import op,var
+  boolean=value('Bool');scalar=value('U32');yes=term(boolean,{'Bool':True});no=term(boolean,{'Bool':False})
+  # The fold callback owns its Bound(0); the whole predicate is closed.
+  gate=op(boolean,'call:foldr',var(value({'List':'U32'}),'arbitrary_items'),yes,
+          lam(scalar,lam(boolean,bound(boolean,0))))
+  body=op(boolean,'call:choose',op(boolean,'binary:==',bound(boolean,0),no),yes,bound(boolean,0))
+  expression=op(boolean,'apply',lam(boolean,body),gate)
+  goal=dict(params={'arbitrary_items':value({'List':'U32'})},conditions=[],goal={'from':expression,'to':yes})
+  proposal=next(p for p in pure_proposals(goal) if isinstance(p,dict) and 'Cases'in p)
+  self.assertEqual(proposal['Cases']['condition'],gate)
+  self.assertEqual(proposal['Cases']['on_false'],'Normalize')
+  self.assertEqual(proposal['Cases']['on_true'],'Normalize')
+  # A genuinely escaping binder never becomes a Boolean case assumption.
+  escaped=op(boolean,'call:choose',bound(boolean,0),yes,no)
+  proposals=list(pure_proposals(dict(params={},conditions=[],goal={'from':escaped,'to':yes})))
+  self.assertFalse(any(isinstance(p,dict) and 'Cases'in p for p in proposals))
 
 if __name__=='__main__':unittest.main()

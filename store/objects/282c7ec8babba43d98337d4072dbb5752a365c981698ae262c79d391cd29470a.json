@@ -1,0 +1,1 @@
+{"dependencies":[],"interface":{"conditions":[],"effects":[],"operations":[],"parameters":{},"result":null},"kind":"definition","payload":{"declaration":{"Datatype":{"constructors":[{"fields":["U64","Bool"],"name":"ink_223d23933e8d4ee9e38923aa9d65654f61eaf1846c967d5e42d7b79f3a6d"}]}}},"schema":1,"semantics":"first-order-inductive-equality-v1"}

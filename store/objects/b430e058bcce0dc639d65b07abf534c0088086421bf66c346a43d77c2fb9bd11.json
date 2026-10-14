@@ -1,0 +1,1 @@
+{"dependencies":["b9e87a0faee9d5db93460b30acdc3ff3d0afd0ee53122e6027de27c18a44ce4c"],"interface":{"conditions":[],"effects":[],"operations":[],"parameters":{},"result":null},"kind":"definition","payload":{"declaration":{"Datatype":{"constructors":[{"fields":[],"name":"None"},{"fields":["U64"],"name":"Some"}]}}},"schema":1,"semantics":"first-order-inductive-equality-v1"}
