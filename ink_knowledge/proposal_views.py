@@ -1,6 +1,6 @@
 """Materialise only requested proof closures, never unused discovery catalogues."""
 from pathlib import Path
-from .store import Store,identity,MAX_VIEW_ENTRIES,MAX_VIEW_BYTES,canonical
+from .store import Store,identity,MAX_VIEW_ENTRIES,MAX_VIEW_BYTES,canonical,_publication_lock
 class ProposalViews:
     def __init__(self,source,objects,directory):
         self.source,self.objects,self.directory=source,objects,Path(directory)
@@ -17,7 +17,8 @@ class ProposalViews:
             ident=pending.pop()
             if ident in identities:continue
             obj=self.source.object(ident);identities.add(ident);pending.extend(obj['dependencies'])
-        self.transport=Store._publish_ids(self.directory,identities,{},64)
+        with _publication_lock(self.directory):
+            self.transport=Store._publish_ids(self.directory,identities,{},64)
         self.members=self.transport.members()
     def update(self,extra):
         """Extend proposal transport; every new closure still needs kernel admission."""

@@ -39,6 +39,25 @@ Identity is SHA-256 of UTF-8 JSON with lexically sorted object keys, no whitespa
 
 `store/trees/` contains authenticated sorted leaves of at most 64 IDs and binary branch nodes. `store/snapshots/<id>.json` pins a Merkle root; `store/snapshot.json` selects the current snapshot. A bounded exported view carries selected roots, their exact dependency closure and membership proofs. The core authenticates membership, hashes, semantics, proof terms and applicability. It never needs the complete database. New snapshots do not invalidate replay of a plan carrying an older pinned view.
 
+Publication serializes writers with a private SQLite transaction at
+`store/.publication.sqlite` (a coordination file, never a proof or index).
+Keep that file at its stable path. Acquisition waits at most 60 seconds; process
+exit releases the operating-system lock. `extend` checks its expected snapshot
+while holding the lock and reports a conflict if another writer has changed it.
+Retry a conflicted extension from a freshly opened `Store`; historical explicit
+pins remain read-only. Complete replacement publication remains an explicit
+replacement, rather than an automatic merge. Temporary proposal transports use
+the same coordination when publishing their membership trees.
+
+Immutable files are completed privately and linked into place without replacing
+an existing path. Concurrent identical creators can both succeed; differing
+bytes report a collision. These guarantees concern concurrent visibility and
+normal process termination. The two mutable name/snapshot pointers are still
+replaced separately: interruption or I/O failure between replacements can leave
+names from a different publication. Membership checks reject references absent
+from the selected snapshot. Content and proofs still authenticate on retrieval
+and admission.
+
 `store/observations/<id>.json` stores performance evidence separately. Each observation pins program, plan and knowledge IDs; hardware, driver, toolchain, backend and bridge; shape, distribution, concurrency and residency; full-call nanosecond samples and peak allocation (`null` when unmeasured, distinct from measured zero). Observations do not change the proof snapshot or become proof premises.
 
 Formal storage schemas are in `schemas/`. Canonicalization, sortedness, hashes, exact dependency closure and mathematical validity require the library/checker in addition to JSON Schema validation.

@@ -15,3 +15,6 @@ __pycache__/
 /.ink-published-*
 
 /libraries/proofs/ordered-affine-tiles/index.sqlite*
+
+**/store/.publication.sqlite*
+**/.ink-object-*
