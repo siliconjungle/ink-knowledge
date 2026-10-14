@@ -38,7 +38,7 @@ def load(path=None,store=None):
             raise ValueError('recipe fields or duplicate identity')
         if not MODULE.fullmatch(recipe['module']) or not re.fullmatch('[a-z][a-z0-9_]*',recipe['function']):
             raise ValueError('recipes must name installed knowledge producers')
-        if recipe['stage'] not in {'rewrite','representation','definitions','properties','physical','routing','resources','migration','extension','maintained'}:
+        if recipe['stage'] not in {'rewrite','representation','definitions','properties','physical','routing','resources','migration','extension','maintained','protocol'}:
             raise ValueError('recipe stage')
         if not isinstance(recipe['parameters'],dict):raise ValueError('recipe parameters')
         for field in ['requires','obligations','inputs']:

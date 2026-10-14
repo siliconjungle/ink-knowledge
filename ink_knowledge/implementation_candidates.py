@@ -18,6 +18,8 @@ def proof_views(package):
             yield from proof_views(payload)
             if step['kind']=='routing'and payload.get('equivalence'):
                 yield payload['equivalence']['knowledge']
+    elif package.get('semantics')=='ink-state-protocol-v1':
+        for column in package.get('columns',[]):yield column['codec']['knowledge']
     elif 'knowledge'in package:yield package['knowledge']
     refinement=package.get('contract_refinement')
     if refinement:
