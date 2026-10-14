@@ -537,3 +537,10 @@ instantiator and checker, including renamed parameters and concrete type instanc
 Disposable pattern-index queries also enforce the public store's 0–1024 page
 limit and explicitly close failed reader opens; these are discovery resource
 controls, never mathematical authority.
+
+The installed `producers.common_subexpressions` producer proposes explicit lexical
+sharing for exact repeated pure scalar terms. It keeps callback scopes separate
+and preserves captured de Bruijn references when inserting a binder. These are
+whole-function source-bound `Normalize` laws using existing application/lambda
+syntax. Proposal size and count bounds grant no correctness or profitability
+authority; original and shared alternatives remain available to generic search.
