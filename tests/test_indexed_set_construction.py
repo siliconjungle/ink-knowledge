@@ -2,6 +2,7 @@ import json,os,subprocess,tempfile,unittest
 from pathlib import Path
 from producers.set_contracts import derive as prefix
 from producers.indexed_set_construction import derive
+from producers.indexed_set_equivalence import derive as equivalent
 
 ROOT=Path(__file__).resolve().parents[2]
 COMPILER=Path(os.environ.get('INK_COMPILER',ROOT/'target/debug/ink'))
@@ -30,16 +31,22 @@ implementation constructed for make{let built:Build=foldl(xs,Build{seen:Map.empt
 '''%json.dumps(str(LIBRARIES/'collections.ink'))
  @classmethod
  def tearDownClass(cls):cls.temp.cleanup()
- def author(self,source,stem):
+ def author(self,source,stem,full=False):
   d=self.d/stem;d.mkdir();p=d/'source.ink';p.write_text(source);goals=d/'goals.json'
   subprocess.run([str(COMPILER),'emit-contract-obligations',str(p),'-o',str(goals)],check=True,capture_output=True,text=True)
   context=json.loads(goals.read_text())['definition_context']
   component=prefix(COMPILER,context,d/'prefix',self.framework,self.empty)
+  if full:return equivalent(COMPILER,context,component,d,self.empty)
   return derive(COMPILER,context,component,d,self.framework,self.empty)
  def test_map_buffer_relation_proves_complete_construction(self):
   result=self.author(self.source,'good');self.assertIn(result['construction'],result['objects'])
  def test_duplicate_push_cannot_preserve_the_set_interface(self):
   with self.assertRaisesRegex(ValueError,'indexed_step_preserves: error:.*semantic normal forms differ'):
    self.author(self.source.replace('out:out.push(item)','out:out.push(item).push(item)'),'duplicate')
+ def test_complete_indexed_construction_matches_the_generic_ordered_value(self):
+  result=self.author(self.source,'equivalent',full=True);self.assertIn(result['equivalence'],result['objects'])
+ def test_dropping_absent_items_cannot_prove_complete_value_equivalence(self):
+  with self.assertRaisesRegex(ValueError,'indexed_step_simulates: error:.*semantic normal forms differ'):
+   self.author(self.source.replace('out:out.push(item)','out:out'),'drop',full=True)
 
 if __name__=='__main__':unittest.main()
