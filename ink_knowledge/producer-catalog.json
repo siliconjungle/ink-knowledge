@@ -8,6 +8,7 @@
     "producers.bulk_collection_laws",
     "producers.collect_before_build",
     "producers.carrier_fusion",
-    "producers.established_facts"
+    "producers.established_facts",
+    "producers.word_laws"
   ]
 }
