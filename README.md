@@ -630,7 +630,10 @@ Modular semantic discovery also offers checked guarded versions of its completed
 selection at the database's existing count cutoffs (8, 128 and 2048). Each eligible
 independent whole-function rewrite uses the conjunction of all its List parameter
 bounds; the other branch evaluates the original expression. Original equality
-conditions and external premise roots remain explicit. Repeated rewrites of the
-same function and interior paths still need a whole-body equality before this
-adapter can guard them. The cutoffs propose alternatives; measurement must establish
-profitability. A guard's existence does not promise a win on small inputs.
+conditions and external premise roots remain explicit. Repeated rewrites and
+interior paths first propose whole-function equalities using ordinary transitivity,
+congruence, explicit lambda extensionality and branch cases. Both application
+arguments and premise terms retain their binder scopes. The composed proof must
+replay; unsupported ambient contract or known-argument facts can still decline.
+The cutoffs propose alternatives; measurement must establish profitability. A
+guard's existence does not promise a win on small inputs.

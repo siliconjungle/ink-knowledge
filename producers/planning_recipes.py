@@ -211,9 +211,13 @@ def semantic(context,modular=False,guard_cutoffs=()):
                 if process.returncode not in (None,0):yield decline('semantic search',(d/'stderr.log').read_text()[-2000:])
                 elif not count:yield decline('semantic search','fixed point within supplied search budget')
                 if process.returncode==0 and guard_cutoffs and out.exists():
-                    selected=row('rewrite',json.loads(out.read_bytes()),'semantic selected')
+                    packet=json.loads(out.read_bytes());applications=packet['applications'];subject=None
+                    if any(a['path']for a in applications)or len({a['function']for a in applications})!=len(applications):
+                        semantic=d/'source-semantic.json';compiler(context,'emit-semantic',core,'--core','-o',semantic)
+                        subject=json.loads(semantic.read_bytes())
+                    selected=row('rewrite',packet,'semantic selected')
                     for cutoff in guard_cutoffs:
-                        try:yield from guarded_rows(selected,store,d/('guards-'+str(cutoff)),cutoff,joint=True)
+                        try:yield from guarded_rows(selected,store,d/('guards-'+str(cutoff)),cutoff,joint=True,subject=subject,core=context['core'])
                         except (ValueError,KeyError,TypeError)as error:yield decline('semantic guarded choice',error)
                 # Near-miss observations explain matched laws the checker did not
                 # admit. They are diagnostics, never proposals or proof authority.

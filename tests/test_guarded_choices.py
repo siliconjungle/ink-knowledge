@@ -254,6 +254,25 @@ for(const n of [0,1,7,8,9,64])for(const count of [0,1,7,8,9]){
             for cutoffs in [[True],list(range(1,10))]:
                 with self.assertRaises(ValueError):list(semantic(context,modular=True,guard_cutoffs=cutoffs))
 
+    def test_semantic_recipe_composes_local_steps_before_guarding(self):
+        import sys
+        from producers.planning_recipes import semantic
+        from producers.semantic_laws import op,term
+        with tempfile.TemporaryDirectory()as temporary:
+            d=Path(temporary)
+            store,context=self.context(d,'module local_steps; fn run(xs:List<Bool>)->List<Bool>{return xs.map(fn(x)=>(x && true) && true);}')
+            boolean=value('Bool');x=var(boolean,'x')
+            obj=semantic_entry(law({'x':boolean},op(boolean,'binary:&&',x,term(boolean,{'Bool':True})),x,'Normalize'))
+            store=store.extend([obj]);context.update(python=sys.executable,knowledge_snapshot=store.snapshot_id,
+                semantic_budget=128,semantic_seconds=10,proposal_timeout=30)
+            rows=list(semantic(context,modular=True,guard_cutoffs=[8]))
+            unguarded=[r['step']['package']for r in rows if r['status']=='proposal'and 'step'in r]
+            self.assertTrue(any(any(a['path']for a in p['applications'])for p in unguarded))
+            guarded=[r for r in rows if r['status']=='proposal'and '/guard-count-'in r['label']]
+            self.assertEqual(len(guarded),1,rows);self.check(d,context,guarded[0],'local-stream-guard')
+            self.node(d,"""import assert from 'node:assert/strict';import * as m from './local-stream-guard.mjs';
+for(const n of [0,1,7,8,9]){const xs=Array.from({length:n},(_,i)=>!!(i%2));assert.deepEqual(m.call('run',[xs]),xs);} """)
+
     def test_base_recipe_comes_from_the_pinned_snapshot(self):
         with tempfile.TemporaryDirectory() as temporary:
             registry, _ = load()

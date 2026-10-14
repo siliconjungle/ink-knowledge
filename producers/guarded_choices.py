@@ -73,19 +73,24 @@ def has_size_guard(term):
     return isinstance(term,list) and any(has_size_guard(v)for v in term)
 
 
-def guarded_rows(row, store, directory, cutoff, equivalence=None, joint=False):
+def guarded_rows(row, store, directory, cutoff, equivalence=None, joint=False, subject=None, core=None):
     """Guard independent root equalities; preserve extensions and premises.
 
     Joint mode guards every eligible function with the conjunction of its List
-    parameter bounds. Repeated functions and interior paths need a whole-body
-    equality before they can be guarded as a complete implementation.
+    parameter bounds. Given the exact source subject, repeated/local steps first
+    become ordinary whole-body proof proposals and still require full replay.
     """
     steps=row.get('steps',[row['step']]if 'step'in row else [])
     if row.get('status')!='proposal' or not steps or steps[-1].get('kind')!='rewrite':return
     if any(s.get('kind')!='extension'for s in steps[:-1]):return
     packet=steps[-1]['package'];applications=packet['applications']
-    if not 1<=len(applications)<=128 or any(a['path']for a in applications):return
-    if len({a['function']for a in applications})!=len(applications):return
+    if not 1<=len(applications)<=128:return
+    complex_steps=any(a['path']for a in applications)or len({a['function']for a in applications})!=len(applications)
+    if complex_steps:
+        if subject is None or core is None:return
+        from producers.selection_composition import compose
+        packet=compose(packet,subject,core,store,Path(directory)/'whole-function')
+        steps=copy.deepcopy(steps);steps[-1]['package']=packet;applications=packet['applications']
     if not joint and len(applications)!=1:return
     rule=choice_rule()if equivalence is None else equivalence
     objects={**packet['knowledge']['objects'],identity(rule):rule}
