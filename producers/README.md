@@ -58,3 +58,13 @@ factorisation assumptions, exact dependency equality and selector equality. Read
 traces and profiles cannot discharge them. `--publish` stages mathematical
 admission before adding the immutable entries and retains the old snapshot.
 The distribution's `docs/signals-state-performance.md` records scope and replay.
+
+`word_laws.py` proposes stored first-order U32/U64/Bool equalities only at
+matching source sites. Its compressed certificates in `data/source-word-laws.json.gz`
+are untrusted: `laws::Proof::Word` reconstructs finite-word circuits and replays
+RUP in the compiler. Matching and candidate labels grant neither equality nor
+profitability. The initial laws cover ASCII case ranges, modular cancellation,
+a conditional increment comparison and Boolean choice. They need the new word
+proof checker; older compilers reject this proof variant. Unsigned shifts and
+rotations, signed arithmetic and whole scanner replacement are not admitted by
+these laws. Conditional laws still require checked premises at each application.
