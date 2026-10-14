@@ -85,6 +85,23 @@ def templates():
             op(boolean, 'call:choose', c, EQ(x, z), EQ(y, z)))
         add('select_add', ADD(CHOOSE(c, x, y), CHOOSE(c, z, m)), CHOOSE(c, ADD(x, z), ADD(y, m)))
         add('select_and', AND(CHOOSE(c, x, y), CHOOSE(c, z, m)), CHOOSE(c, AND(x, z), AND(y, m)))
+    # Representation round trips and low-word homomorphisms. These use
+    # existing total conversions, not V8's tagged-value or overflow assumptions.
+    u32, u64 = value('U32'), value('U64')
+    x, y, small = var(u64, 'x'), var(u64, 'y'), var(u32, 'small')
+    narrow = lambda t: op(u32, 'call:word_narrow_u64_to_u32', t)
+    widen = lambda t: op(u64, 'call:word_widen_u32_to_u64', t)
+    conversions = [('narrow_widen', narrow(widen(small)), small, {'small':u32}),
+                   ('widen_narrow_mask', widen(narrow(x)),
+                    op(u64, 'call:word_and', x, word('U64', (1 << 32)-1)), {'x':u64})]
+    for label, name in [('and','call:word_and'), ('or','call:word_or'),
+                        ('xor','call:word_xor'), ('add','binary:+'),
+                        ('sub','binary:-'), ('mul','binary:*')]:
+        conversions.append(('narrow_'+label, narrow(op(u64,name,x,y)),
+                            op(u32,name,narrow(x),narrow(y)), {'x':u64,'y':u64}))
+    for name, left, right, params in conversions:
+        rows.append(dict(name='conversion/'+name,
+                         goal=dict(params=params,conditions=[],**{'from':left,'to':right})))
     return rows
 
 

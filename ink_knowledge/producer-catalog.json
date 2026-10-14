@@ -13,6 +13,7 @@
     "producers.word_identities",
     "producers.capture_projections",
     "producers.ordered_affine_tiles",
-    "producers.v8_word_laws"
+    "producers.v8_word_laws",
+    "producers.literal_loop_laws"
   ]
 }
