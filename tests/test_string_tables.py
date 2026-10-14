@@ -36,7 +36,7 @@ class StringTables(unittest.TestCase):
             plan = dict(schema=1, semantics='ink-compiled-plan-v1', input_core_sha256=joint['input_core_sha256'], steps=[dict(kind='physical', package=joint)])
             path = write(directory / 'plan.json', plan)
             invoke(compiler, 'emit-plan', source, path, '--target', 'javascript', '-o', directory / 'module.mjs')
-            for target in ['rust', 'c', 'rust-wasm', 'c-wasm', 'wgpu', 'webgpu']:
+            for target in ['rust', 'rust-wasm', 'wgpu', 'webgpu']:
                 with self.assertRaisesRegex(ValueError, 'dictionary tables'):
                     invoke(compiler, 'emit-plan', source, path, '--target', target, '-o', directory / target)
             self.assertEqual(list(candidates(dict(context, emit_target='rust')))[0]['status'], 'declined')

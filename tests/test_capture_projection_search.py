@@ -10,6 +10,12 @@ from ink_knowledge import Store
 
 
 class CaptureProjectionSearch(unittest.TestCase):
+    def test_non_value_sorts_are_not_capture_projections(self):
+        from producers.capture_projections import specialize
+        body = {'sort': 'Nat', 'node': {'Nat': 3}}
+        self.assertEqual(specialize({'functions': {'repeat_count': body}},
+            {'program': {'functions': [{'name': 'repeat_count', 'params': []}]}}), [])
+
     def test_normal_search_discovers_hoisting_and_preserves_wrapping_values(self):
         root = Path(__file__).resolve().parents[2]
         compiler = Path(os.environ.get('INK_COMPILER', root / 'target/debug/ink'))

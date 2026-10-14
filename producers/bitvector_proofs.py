@@ -174,7 +174,7 @@ def main():
     (directory/'kernels.ink').write_text('module bitvector_proofs;\n\n'+'\n\n'.join(sources)+'\n')
     (directory/'production.json').write_text(json.dumps(dict(solver='PySAT Glucose3',compiler_sha256=hashlib.sha256(compiler.read_bytes()).hexdigest(),measurements=measurements),indent=2)+'\n')
     subprocess.run([compiler,'verify-library',directory/'lock.json'],check=True,capture_output=True)
-    subprocess.run([compiler,'emit-c',directory/'kernels.ink','--implementation',directory/'proposal.json','-o',scratch/'checked.c'],check=True,capture_output=True)
+    subprocess.run([compiler,'emit-rust',directory/'kernels.ink','--implementation',directory/'proposal.json','-o',scratch/'checked.rs'],check=True,capture_output=True)
     print(f'Ink independently checked {len(examples)} arithmetic theorems and {len(proposals)} exact source replacements.',flush=True)
 
 

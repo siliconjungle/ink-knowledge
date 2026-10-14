@@ -40,8 +40,8 @@ def main():
         observations='pure-total-values-v1',
         library_lock_sha256=hashlib.sha256(lock_bytes).hexdigest(), package=package)
     (out/'replacement.json').write_text(json.dumps(envelope, indent=2)+'\n')
-    subprocess.run([str(compiler),'emit-c',str(out/'core.json'),'--core',
-        '--replacement',str(out/'replacement.json'),'-o',str(out/'checked.c')],
+    subprocess.run([str(compiler),'emit-rust',str(out/'core.json'),'--core',
+        '--replacement',str(out/'replacement.json'),'-o',str(out/'checked.rs')],
         check=True, capture_output=True, text=True)
     if hashlib.sha256(compiler.read_bytes()).hexdigest() != before:
         raise ValueError('Compiler changed during production')
