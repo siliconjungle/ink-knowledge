@@ -3,13 +3,13 @@
 This producer composes protocol/read/publication choices with scalar-column codec
 proofs. Shapes, capacities and integer lanes are alternatives, never profile facts.
 """
-import copy,json,tempfile,subprocess
+import copy,json,tempfile,subprocess,gzip
 from pathlib import Path
 from ink_knowledge import Store,canonical,identity
 from .physical_capabilities import invoke,write,codec_objects,bit_proof
 
 def base(source):
-    return dict(schema=1,semantics='ink-state-protocol-v1',input_core_sha256=source,actions=[],direct_reads=[],output_publication=False,snapshot_rows=False,columns=[])
+    return dict(schema=1,semantics='ink-state-protocol-v1',input_core_sha256=source,actions=[],direct_reads=[],output_publication=False,snapshot_rows=False,event_columns=False,inline_maintenance=False,columns=[])
 
 def column_codec(context,record,exact,directory):
     source=write(directory/'core.json',context['core']);out=directory/'schema.json'
@@ -36,6 +36,15 @@ def candidates(context,capacities=(256,4096),integer_lanes=(False,True)):
     keeps=program['keeps']
     reads=[f['action']for f in facts if f['direct_keep']is not None and keeps[f['direct_keep']]['name']in maintained]
     alternatives=[]
+    if maintained:
+        p=copy.deepcopy(current);p['inline_maintenance']=not current.get('inline_maintenance',False);alternatives.append(('inline-maintenance',p))
+    if program.get('events')or program['states']:
+        p=copy.deepcopy(current)
+        if current.get('compact_commits'):p.pop('compact_commits')
+        else:p['compact_commits']=json.loads(gzip.decompress(Path(__file__).with_name('data').joinpath('commit-word53.json.gz').read_bytes()))
+        alternatives.append(('compact-commits',p))
+    if program.get('events'):
+        p=copy.deepcopy(current);p['event_columns']=not current.get('event_columns',False);alternatives.append(('event-columns',p))
     if program['states']:
         p=copy.deepcopy(current);p['snapshot_rows']=not current.get('snapshot_rows',False);alternatives.append(('snapshot-row-cache',p))
     if actions:
