@@ -5,6 +5,8 @@
     "call:foldl": 40,
     "estimate:collection": 40,
     "estimate:loop_iterations": 16,
+    "estimate:callback_carrier:List": 1,
+    "estimate:callback_carrier:Buffer": 1,
     "estimate:repeat_iterations": 16,
     "estimate:repeat_step": 2,
     "estimate:scalar": 1,
@@ -15,7 +17,7 @@
     "estimate:let_binding": 0
   },
   "schema": 1,
-  "scope": "Unmeasured structural search hypothesis; units are relative scores. Unknown list callbacks use 16 iterations to expose repeated work; known literal cardinalities and explicit bindings refine this hypothesis. Only replayed proofs and comparable whole-workload measurements can select implementations.",
+  "scope": "Unmeasured structural search hypothesis; units are relative scores. Configured collection carriers use 16 callback iterations to expose repeated work; known literal cardinalities, buffer conversions and explicit bindings refine this hypothesis. Only replayed proofs and comparable whole-workload measurements can select implementations.",
   "search_components": {
     "allocation_events": {
       "Cons": 1,
