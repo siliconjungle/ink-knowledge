@@ -116,7 +116,7 @@ class SumFlatten(unittest.TestCase):
             plan = write(root / 'plan.json', {'schema':1,'semantics':'ink-compiled-plan-v1','input_core_sha256':physical['input_core_sha256'],'steps':[{'kind':'physical','package':physical}]})
             invoke(compiler, 'check-plan', source, plan)
             invoke(compiler,'emit-plan',source,plan,'--target','javascript','-o',root/'javascript.mjs')
-            for target in ['rust','c','rust-wasm','c-wasm','wgpu','webgpu']:
+            for target in ['rust','rust-wasm','wgpu','webgpu']:
                 with self.assertRaisesRegex(ValueError, 'sum spine'):
                     invoke(compiler, 'emit-plan', source, plan, '--target', target, '-o', root / target)
 

@@ -460,7 +460,7 @@ def whole_entry_routing(context,placements):
     for function in context['core']['program']['functions']:
         for mode in placements:
             package=produce(context['core'],context['source'],function['name'],{},baseline=True)
-            package['stages'][0].update(backend='gpu'if mode=='gpu'else'c',domain=mode)
+            package['stages'][0].update(backend='gpu'if mode=='gpu'else'rust',domain=mode)
             yield row('routing',dict(package=package),'whole-entry/'+function['name']+'/'+mode)
 
 def migration(context):

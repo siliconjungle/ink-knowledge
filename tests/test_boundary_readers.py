@@ -34,5 +34,5 @@ class BoundaryReaders(unittest.TestCase):
    checked=subprocess.run(['node',str(root/'check.mjs')],capture_output=True,text=True)
    self.assertEqual(checked.returncode,0,checked.stderr)
 
-   for target in ['rust','c','rust-wasm','c-wasm','wgpu','webgpu']:
+   for target in ['rust','rust-wasm','wgpu','webgpu']:
     with self.assertRaisesRegex(ValueError,'boundary readers'):invoke(compiler,'emit-plan',source,packet,'--target',target,'-o',root/target)
