@@ -1,0 +1,8 @@
+{
+  "laws": {
+    "source/ordinary_prepare_resolved_ends": "ea0f5379ed7d63fc527d9323d55461f336d472f7eeca0fdf94c3b729eeef98c5",
+    "source/checkpoint_prepare_resolved_ends": "738d064911c5e9d581cfb4012cd6687dfeed047acaf4633bf0783849a3c29137"
+  },
+  "snapshot": "6b168c6be8ab21dcf2ce0823f4acb457092a8cee97ba39d0ac49a48e1d58f330",
+  "scope": "Actual ordinary/checkpoint prepare_resolved preserves complete ends map for arbitrary walker, resolved parent list and follows flag. Full CRDT equivalence and invariant of cached parent resolution across application remain separate obligations."
+}

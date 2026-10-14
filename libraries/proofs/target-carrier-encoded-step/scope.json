@@ -1,0 +1,1 @@
+{"left": "encoded_projected_step", "right": "encoded_step_projected", "law": "bedc5c84d60be13dc039309cf7a66d44db11e17daf0ebf41ce8fdb9b3151431b", "scope": "paired pure function equality; caller simulation and representation invariants require separate proofs"}

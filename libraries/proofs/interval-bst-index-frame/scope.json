@@ -1,0 +1,5 @@
+{
+  "law": "9a6b89d8610b6db9824acfc8f031d8b4478c93285b90764931791a21708a1819",
+  "snapshot": "e1fe497eaa68b2aa9b1b71886e81842f5a8e52da370038605b1bb4569261db42",
+  "scope": "Actual source search step preserves the entire index, lifted over arbitrary u32 repeat_until counts and stop predicates. Does not establish the initial BST ordering invariant, candidate dominance, search result correctness or insertion equivalence."
+}

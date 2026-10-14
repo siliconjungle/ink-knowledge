@@ -1,0 +1,6 @@
+{
+  "returncode": 1,
+  "error": "error: law candidate_dominates: bit proof hint is not unit or conflicting\n",
+  "solver": "Proposed equality is false; solver found a counterexample",
+  "scope": "Omitted strict-bound condition with recomputed circuit identity; false claim rejected in RUP replay."
+}

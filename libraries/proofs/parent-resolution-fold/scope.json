@@ -1,0 +1,7 @@
+{
+  "laws": {
+    "source/fold_commutation": "dcb1a8f1748b9a772598d6b346e48f080c03379a602e5f2231ae01b2ebd33ea4"
+  },
+  "snapshot": "3c8ae15c79fde49d427e810cde26422653cbb850957d4564be095a8482017b67",
+  "scope": "Pure source decoder commutation between two parent-resolution carriers for arbitrary u64 parent lists and initial states. Does not certify the integrated CRDT or reuse across mutations; the caller must preserve the map between uses."
+}

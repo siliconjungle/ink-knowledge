@@ -1,0 +1,10 @@
+{
+  "laws": {
+    "source/retreat_step_ends": "e0b32ee4f2ad99fa93a80cde508905cdcdbd9312ac31509e625f212ff81c7e4f",
+    "source/advance_step_ends": "7c9bb09e600e01bbca1897641618ca49faebd0498e7055987cb1414ef9b54cd3",
+    "source/checkpoint_retreat_step_ends": "c5503c43d4e695e6ec95188ae6271d0ef0379b6bf00300b18c91a6ca253d7acb",
+    "source/checkpoint_advance_step_ends": "b4c64793d7fa31f4775a3485da03e978f1f0bedc6b50719c02233f5a722263af"
+  },
+  "snapshot": "1ce6b7765936ab697a7576db79065e8d61ad0aa6fe46371a91296a727400db74",
+  "scope": "Proof-only wrappers of actual ordinary/checkpoint retreat and advance transition expressions preserve ends map. Original caller loops and preparation remain separate correspondence obligations."
+}

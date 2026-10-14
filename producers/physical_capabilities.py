@@ -45,29 +45,42 @@ def codec_objects(s):
 def base(source,buffers='scoped'):
     return dict(schema=1,semantics='ink-physical-plan-v1',input_core_sha256=source,buffers=buffers,tables='ordered',borrow_reads=[],borrow_rows=[],definitions='shared',packed_datatypes=[],memo_functions=[],columns=[])
 
-def produce(source,compiler,directory,records=(),bits=0,bounds=True,buffers='direct',source_core=False):
+def produce(source,compiler,directory,records=(),bits=0,bounds=True,buffers='direct',source_core=False,page_size=None):
     directory=Path(directory);directory.mkdir(parents=True,exist_ok=True);source=Path(source).resolve();compiler=Path(compiler).resolve()
     flags=['--core']if source_core else []
     with tempfile.TemporaryDirectory(prefix='ink-capabilities-')as temp:
-        scratch=Path(temp);goals=scratch/'goals.json';invoke(compiler,'emit-bounds-obligations',source,*flags,'-o',goals)
-        subjects=json.loads(goals.read_bytes());objects=[];read_ids=[];declined=[]
+        scratch=Path(temp);goals=scratch/'goals.json'
+        # Owner and codec-only plans need source identity. Optional read and
+        # unchanged-field analyses must not prevent independently admitted
+        # representation choices; omitting them grants no such capabilities.
+        if not bounds:
+            core=scratch/'core.json'
+            receipt=json.loads(invoke(compiler,'emit-core',source,*flags,'-o',core))
+            subjects=dict(source=receipt['core_sha256'],obligations=[],map_obligations=[])
+        else:
+            invoke(compiler,'emit-bounds-obligations',source,*flags,'-o',goals)
+            subjects=json.loads(goals.read_bytes())
+        objects=[];read_ids=[];declined=[]
         for g in subjects['obligations']if bounds else []:
             try:
                 goal={k:g[k]for k in ['params','conditions','from','to']}
                 proof=bit_proof(compiler,scratch,goal)
                 obj=entry('definition',READ,dict(source=subjects['source'],site=g['site'],obligation_sha256=identity(g),proof=proof));objects.append(obj);read_ids.append(identity(obj))
             except (ValueError,subprocess.TimeoutExpired)as e:declined.append(dict(site=g['site'],reason=str(e)))
-        layouts=[]
+        layouts=[];packing_proofs={}
         for record in sorted(set(records)):
             schema=scratch/'schema.json';invoke(compiler,'emit-column-codec',source,*flags,'--entry',record,'-o',schema)
             s=json.loads(schema.read_bytes());codec,root=codec_objects(s);objects.extend(codec);packing={}
             for field,t in s['fields']:
-                width=1 if t=='Bool'else min(bits,32 if t=='U32'else 64)if t in ['U32','U64']else 0
+                width=0 if page_size is not None else 1 if t=='Bool'else min(bits,32 if t=='U32'else 64)if t in ['U32','U64']else 0
                 if width:
                     mask=(1<<width)-1;v=var('value');binary=lambda op,a,b:{'Binary':dict(op=op,left=a,right=b)}
                     goal=dict(params=[['value','U64']],conditions=[dict(**{'from':binary('<=',v,{'U64':mask}),'to':{'Bool':True}})],**{'from':binary('&',v,{'U64':mask}),'to':v})
-                    packing[field]=dict(bits=width,proof=bit_proof(compiler,scratch,goal))
-            layouts.append(dict(record=record,roundtrip=root,packing=packing))
+                    if width not in packing_proofs:packing_proofs[width]=bit_proof(compiler,scratch,goal)
+                    packing[field]=dict(bits=width,proof=packing_proofs[width])
+            layout=dict(record=record,roundtrip=root,packing=packing)
+            if page_size is not None:layout['page_size']=page_size
+            layouts.append(layout)
         # Canonical bytes and authenticated membership do not establish validity.
         objects=list({identity(o):o for o in objects}.values());store=Store.publish(directory,objects)
         plan=base(subjects['source'],buffers)
@@ -94,11 +107,54 @@ def produce(source,compiler,directory,records=(),bits=0,bounds=True,buffers='dir
         write(directory/'production.json',dict(schema=1,source=subjects['source'],reads=len(read_ids),unchanged_fields=len(map_ids),columns=len(layouts),declined=declined))
         return plan
 
-def candidates(context,records=None,bits=(0,8)):
+def persistent_records(program):
+    """Discover flat sequence elements reachable from retained source roots."""
+    result=set();seen=set();records=program['records']
+    def walk(t):
+        if not isinstance(t,dict):return
+        if 'Named'in t:
+            name=t['Named']
+            if name in seen:return
+            seen.add(name)
+            for _,field in records.get(name,[]):walk(field)
+        elif 'List'in t:
+            element=t['List']
+            if element in ['U32','U64','Bool']:result.add('@'+element)
+            elif isinstance(element,dict)and 'Named'in element:
+                name=element['Named'];fields=records.get(name,[])
+                if 1<=len(fields)<=16 and all(ty in ['U32','U64','I32','F32','Bool']for _,ty in fields):result.add(name)
+            walk(element)
+        else:
+            for child in t.values():
+                for value in child if isinstance(child,list)else[child]:walk(value)
+    for state in program['states']:walk(state['ty'])
+    return sorted(result)
+
+def paged_record_groups(records,scalar_columns=(True,False)):
+    # A scalar element type can occur in both retained large arrays and tiny
+    # message fields. Keep a record-only choice so search can price that cost.
+    seen=set()
+    for scalars in scalar_columns:
+        if type(scalars)is not bool:raise ValueError('scalar column choices must be boolean')
+        group=tuple(sorted(n for n in records if scalars or not n.startswith('@')))
+        if group and group not in seen:
+            seen.add(group);yield ('all'if scalars else'records'),list(group)
+
+def candidates(context,records=None,bits=(0,8),page_sizes=(64,256),page_scalar_columns=(True,False),buffer_strategies=('direct',),table_strategies=('ordered','indexed_slots')):
     if context.get('representation')or context.get('emit_target','rust')not in {'rust','rust-wasm'}:
         yield dict(status='declined',label='source-capabilities',reason='requires source Rust/Rust-Wasm carrier');return
     with tempfile.TemporaryDirectory(prefix='ink-capability-recipe-')as temp:
         d=Path(temp);source=write(d/'source.json',context['core'])
+        # Price elementary storage choices independently of column conversion.
+        # Otherwise a profitable owner strategy can be hidden by an expensive
+        # transposed layout bundled into the same proposal.
+        for buffers in buffer_strategies:
+            if buffers not in ['scoped','direct']:raise ValueError('unknown buffer strategy')
+            for tables in table_strategies:
+                if tables not in ['ordered','indexed_slots']:raise ValueError('unknown table strategy')
+                plan=base(context['source'],buffers);plan['tables']=tables
+                yield dict(status='proposal',label=f'source-capabilities/storage/{buffers}/{tables}',step=dict(kind='physical',package=plan))
+        paged_records=persistent_records(context['core']['program'])if records is None else records
         if records is None:
             records=[n for n,fields in context['core']['program']['records'].items()if 1<=len(fields)<=16 and all(t in ['U32','U64','I32','F32','Bool']for _,t in fields)]
         for width in bits:
@@ -106,9 +162,15 @@ def candidates(context,records=None,bits=(0,8)):
                 plan=produce(source,context['compiler'],d/str(width),records,width,source_core=True)
                 yield dict(status='proposal',label=f'source-capabilities/{width}',step=dict(kind='physical',package=plan))
             except (ValueError,ImportError,subprocess.TimeoutExpired)as e:yield dict(status='declined',label='source-capabilities',reason=str(e))
+        for page_size in page_sizes:
+            for group,fields in paged_record_groups(paged_records,page_scalar_columns):
+                try:
+                    plan=produce(source,context['compiler'],d/('paged-'+group+'-'+str(page_size)),fields,0,bounds=False,source_core=True,page_size=page_size)
+                    yield dict(status='proposal',label=f'source-capabilities/paged/{group}/{page_size}',step=dict(kind='physical',package=plan))
+                except (ValueError,ImportError,subprocess.TimeoutExpired)as e:yield dict(status='declined',label='source-capabilities/paged/'+group,reason=str(e))
 
 def main():
-    p=argparse.ArgumentParser(description=__doc__);p.add_argument('source',type=Path);p.add_argument('-o',type=Path,required=True);p.add_argument('--compiler',type=Path,default=compiler_path());p.add_argument('--record',action='append',default=[]);p.add_argument('--bits',type=int,choices=[0,8,16,32,64],default=0);p.add_argument('--no-bounds',action='store_true');p.add_argument('--buffers',choices=['scoped','direct'],default='direct');p.add_argument('--core',action='store_true');a=p.parse_args()
-    produce(a.source,a.compiler,a.o,a.record,a.bits,not a.no_bounds,a.buffers,a.core)
+    p=argparse.ArgumentParser(description=__doc__);p.add_argument('source',type=Path);p.add_argument('-o',type=Path,required=True);p.add_argument('--compiler',type=Path,default=compiler_path());p.add_argument('--record',action='append',default=[]);p.add_argument('--bits',type=int,choices=[0,8,16,32,64],default=0);p.add_argument('--page-size',type=int,choices=[16,32,64,128,256,512,1024,2048,4096]);p.add_argument('--no-bounds',action='store_true');p.add_argument('--buffers',choices=['scoped','direct'],default='direct');p.add_argument('--core',action='store_true');a=p.parse_args()
+    produce(a.source,a.compiler,a.o,a.record,a.bits,not a.no_bounds,a.buffers,a.core,a.page_size)
     print((a.o/'production.json').read_text())
 if __name__=='__main__':main()

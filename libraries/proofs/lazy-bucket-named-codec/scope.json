@@ -1,0 +1,6 @@
+{
+  "left": "roundtrip",
+  "right": "unchanged",
+  "law": "5ed17269544d4a96b848792d14aba9f92663a4ac888d002d6e3c3b5571b7b5ab",
+  "scope": "Exact decode(encode(index)) round trip for arbitrary original bucket Index through actual named lazy Index record. Lookup transport and maintained forest invariants separate."
+}

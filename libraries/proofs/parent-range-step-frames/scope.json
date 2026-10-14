@@ -1,0 +1,10 @@
+{
+  "laws": {
+    "source/ordinary_removed_step_ends": "3af8db78b562d08de5a6b45bcbd1b28ac8bf4540363f689a783723871a87eceb",
+    "source/ordinary_added_step_ends": "4ae1de8e6ae16b5df1d0f4d8769ba9e8838c5b0a24a04901cba7c12f514fb9db",
+    "source/checkpoint_removed_step_ends": "1db6ab426d88a17d8ce7defb521888864a5644add8866f85c1bc8823f3d51f0b",
+    "source/checkpoint_added_step_ends": "f40505abf5b4f89ba07d41e8f40820fd33a2254c1da941f01ec73a03e8916ca7"
+  },
+  "snapshot": "e3e2944eab36063538da2de315907f65879a55912233f563d88b63e5a66135e9",
+  "scope": "Actual ordinary/checkpoint removed_step and added_step preserve complete ends map. Preparation-loop observers and integrated reuse still require composition."
+}

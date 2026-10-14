@@ -84,7 +84,7 @@ def contribution_choice(contribution,subject,delta,add,objects):
     proof=prove(original,optimized,[('key',subject['key']),('row',subject['row'])])
     return dict(function=function,proof=proof)
 
-def produce(source,compiler,directory,keeps=None,capacity=0,source_core=False,guarded_update=False,guard_zero=False,extrema=False):
+def produce(source,compiler,directory,keeps=None,capacity=0,source_core=False,guarded_update=False,guard_zero=False,predicate_updates=False,extrema=False):
     source=Path(source).resolve();compiler=Path(compiler).resolve();directory=Path(directory);directory.mkdir(parents=True,exist_ok=True)
     flags=['--core']if source_core else []
     with tempfile.TemporaryDirectory(prefix='ink-maintained-folds-')as temporary:
@@ -177,6 +177,9 @@ def produce(source,compiler,directory,keeps=None,capacity=0,source_core=False,gu
         if guarded_update:
             from producers.maintained_updates import guarded_word_update
             package=guarded_word_update(package,directory/'guarded-knowledge',zero=guard_zero)
+        if predicate_updates:
+            from producers.maintained_updates import predicate_row_update
+            package=predicate_row_update(package,directory/'predicate-knowledge')
         steps=[dict(kind='maintained',package=package)]
         if capacity:
             physical=dict(schema=1,semantics='ink-physical-plan-v1',input_core_sha256=subjects['source'],dense_prefixes=[dict(table=n,capacity=capacity)for n in sorted({v['table']for v in views})])
@@ -213,6 +216,15 @@ def candidates(context):
             guarded_zero=copy.deepcopy(plan);guarded_zero['steps'][0]['package']=guarded_word_update(plan['steps'][0]['package'],temp/'guarded-zero-knowledge',zero=True)
             guarded_path.write_bytes(canonical(guarded_zero));invoke(context['compiler'],'check-plan',source,guarded_path,'--core')
             yield dict(status='proposal',label='maintained-folds/guarded-zero-map',steps=guarded_zero['steps'])
+            predicate=None
+            try:
+                from producers.maintained_updates import predicate_row_update
+                predicate=copy.deepcopy(guarded_zero)
+                predicate['steps'][0]['package']=predicate_row_update(predicate['steps'][0]['package'],temp/'predicate-knowledge')
+                guarded_path.write_bytes(canonical(predicate));invoke(context['compiler'],'check-plan',source,guarded_path,'--core')
+                yield dict(status='proposal',label='maintained-folds/predicate-map',steps=predicate['steps'])
+            except ValueError:
+                predicate=None
             capacities=context.get('dense_capacities',[256,4096])
             for capacity in capacities:
                 if type(capacity)is not int or not 1<=capacity<=1048576:continue
@@ -220,10 +232,12 @@ def candidates(context):
                 yield dict(status='proposal',label='maintained-folds/dense-prefix-'+str(capacity),steps=[*plan['steps'],dict(kind='physical',package=physical)])
                 yield dict(status='proposal',label='maintained-folds/guarded-dense-prefix-'+str(capacity),steps=[*guarded['steps'],dict(kind='physical',package=physical)])
                 yield dict(status='proposal',label='maintained-folds/guarded-zero-dense-prefix-'+str(capacity),steps=[*guarded_zero['steps'],dict(kind='physical',package=physical)])
+                if predicate:
+                    yield dict(status='proposal',label='maintained-folds/predicate-dense-prefix-'+str(capacity),steps=[*predicate['steps'],dict(kind='physical',package=physical)])
         except (ValueError,subprocess.TimeoutExpired)as e:yield dict(status='declined',label='maintained-folds',reason=str(e))
 
 def main():
-    p=argparse.ArgumentParser(description=__doc__);p.add_argument('source',type=Path);p.add_argument('-o',type=Path,required=True);p.add_argument('--compiler',type=Path,default=compiler_path());p.add_argument('--keep',action='append');p.add_argument('--dense-capacity',type=int,default=0);p.add_argument('--core',action='store_true');p.add_argument('--guarded-update',action='store_true');p.add_argument('--guard-zero',action='store_true');p.add_argument('--publish',type=Path);p.add_argument('--extrema',action='store_true',help='also author word max/min keeps (Rust targets)');a=p.parse_args()
-    plan=produce(a.source,a.compiler,a.o,a.keep,a.dense_capacity,a.core,a.guarded_update or a.guard_zero,a.guard_zero,a.extrema)
+    p=argparse.ArgumentParser(description=__doc__);p.add_argument('source',type=Path);p.add_argument('-o',type=Path,required=True);p.add_argument('--compiler',type=Path,default=compiler_path());p.add_argument('--keep',action='append');p.add_argument('--dense-capacity',type=int,default=0);p.add_argument('--core',action='store_true');p.add_argument('--guarded-update',action='store_true');p.add_argument('--guard-zero',action='store_true');p.add_argument('--predicate-update',action='store_true');p.add_argument('--extrema',action='store_true');p.add_argument('--publish',type=Path);a=p.parse_args()
+    plan=produce(a.source,a.compiler,a.o,a.keep,a.dense_capacity,a.core,a.guarded_update or a.guard_zero,a.guard_zero,a.predicate_update,a.extrema)
     if a.publish:print(json.dumps(publish(plan,a.publish)))
 if __name__=='__main__':main()

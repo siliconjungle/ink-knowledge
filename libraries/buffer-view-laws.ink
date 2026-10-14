@@ -14,3 +14,8 @@ law nested_range<T>(owner:Buffer<T>,start:u32,count:u32,inner_start:u32,inner_co
  owner.borrow_range(start,count,fn(view)=>view.borrow_range(inner_start,inner_count,fn(inner)=>inner.at_or(index,fallback)))
   ==owner.freeze().drop(start).take(count).drop(inner_start).take(inner_count).at_or(index,fallback);
 }
+
+law lookup_view<A>(values:List<A>,index:u32,fallback:A){
+ buffer(values).at_or(index,fallback)==values.at_or(index,fallback);
+ proof by normalize;
+}

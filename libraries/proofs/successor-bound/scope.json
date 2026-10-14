@@ -1,0 +1,8 @@
+{
+  "laws": [
+    "74f24aaaaaa7837f10c8c59c1fea16cda37372788285f13500745426a0bd4190",
+    "a0dbfcc8e01479f41a580bc81c910eb3778244b08ddd85b4e0b835e97a8f7acf"
+  ],
+  "snapshot": "2c869288fc5189bea9c85fac2e9b000e5eea716dc5ea010b84f8a3a793d9e137",
+  "scope": "Generic scalar successor-candidate simplification under explicit strict-bound condition, and unsigned transitivity. Maintained BST invariant and concrete loop simulation remain separate proof obligations."
+}

@@ -1,0 +1,8 @@
+{
+  "compiler_sha256": "e1adef5ce22e04e0d12398110c014a1603e0bab561db86a474914d86759d4444",
+  "source_sha256": "47176a5a9026d1203c1f67d07cb696d7a13efe505ab2d6365162fd6eb402a876",
+  "laws": {
+    "source/fitting_interval_stays_in_bucket": "06c4683360b53bcb8e92d703c3cfa057996f490e1a01be1b0054abd32dab5eba"
+  },
+  "scope": "Universal u64 start/u32 nonzero width under explicit low-word sum bound; terminal end wrapping to zero retains final bucket. No forest search or insertion invariant."
+}

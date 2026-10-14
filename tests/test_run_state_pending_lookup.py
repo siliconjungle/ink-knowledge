@@ -1,0 +1,14 @@
+import copy,json,os,subprocess,tempfile,unittest
+from pathlib import Path
+from ink_knowledge import Store,canonical,identity,semantic_entry
+class RunStatePendingLookup(unittest.TestCase):
+ def test_portable_lookup_and_false_always_deleted(self):
+  root=Path(__file__).resolve().parents[2];compiler=Path(os.environ.get('INK_COMPILER',root/'target/debug/ink'))
+  proof=root/'knowledge/libraries/proofs/run-state-pending-lookup';store=Store(proof);names=json.loads((proof/'store/names.json').read_text());core=proof/'checked-source.json'
+  with tempfile.TemporaryDirectory() as temp:
+   d=Path(temp);view=d/'positive.json';view.write_bytes(canonical(store.bundle(names.values())))
+   r=subprocess.run([compiler,'knowledge-check',core,view],capture_output=True,text=True,timeout=120);self.assertEqual(r.returncode,0,r.stderr)
+   obj=copy.deepcopy(store.object(names['run-state/pending-lookup']));obj['payload']['to']={'sort':{'Value':'Bool'},'node':{'Bool':True}};obj['payload']['proof']='Unfold';obj=semantic_entry(dict(obj['payload'],schema=1,semantics=obj['semantics'],dependencies=obj['dependencies']))
+   false=d/'false';bad=Store.publish(false,[*[store.object(i) for i in store.members() if i != names['run-state/pending-lookup']],obj]);view=d/'false.json';view.write_bytes(canonical(bad.bundle([identity(obj)])))
+   r=subprocess.run([compiler,'knowledge-check',core,view],capture_output=True,text=True,timeout=120);self.assertNotEqual(r.returncode,0);self.assertNotIn('unknown variant',r.stderr);self.assertNotIn('interface differs',r.stderr)
+if __name__=='__main__':unittest.main()

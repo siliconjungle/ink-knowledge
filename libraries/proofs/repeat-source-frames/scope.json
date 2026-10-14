@@ -1,0 +1,5 @@
+{
+  "generic": "5ec9686d72be4938b056e1c53589c69ba0269e05a7060b9ffb7a57d6c3f0c32c",
+  "source": "d6a5a1fece6f42373d99df92c80c05ea260562a0cd53bd107d98c0df7581fed2",
+  "scope": "Generic natural-count indexed repeat frame under universal step preservation; actual cross-measure step preserves its tree through indexed repeat. Does not certify repeat_until, query rank, tree invariants or whole CRDT equivalence."
+}

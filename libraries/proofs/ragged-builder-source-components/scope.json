@@ -1,0 +1,10 @@
+{
+  "source": "examples/crdts/ragged_builder.ink",
+  "compiler_sha256": "0857e41841c848581381245070e3e6e5c065a164bfa11ee97a43a1dcf4968f40",
+  "laws": {
+    "push_start": "0e4879dc16b53bcfc7075a671db498d56ac05396dd4f34d75cb2786a157790e5",
+    "empty_range": "2a7223150e98b936ba924a7e0156abfacf71ec6dabbbaf9cf1e66f96ad3d065b",
+    "push_values": "546511f34083e32a95ca137220b349eb8a7e4a454a84bad303b65e9a61b2de6b"
+  },
+  "scope": "Instantiated U32 source components: push decoding, start preservation, empty row range. No arbitrary-length fold/refinement or whole CRDT equivalence proof."
+}

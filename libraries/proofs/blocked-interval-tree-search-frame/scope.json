@@ -1,0 +1,5 @@
+{
+  "law": "cd62ef61ce745ed3baca46ebf20656354c2ad97d0192cd184a3ea5b9af38ee6c",
+  "snapshot": "c8f54513488b008ada7ced57e94496272a19a2b476521b5aa6859f6d4ac2a843",
+  "scope": "Actual outer tree-search index observer for arbitrary u32 counts and stop predicates; not ordering/lookup/mutation correctness"
+}

@@ -1,0 +1,8 @@
+{
+  "roots": [
+    "14847516ebbf07c87986e7317aa682161291ee4c36d6257d2dd8df673e756fc8",
+    "243eef98b4bb95b0f0f261387dad8e7d0bcb419a274655d726fcd30834324f06"
+  ],
+  "snapshot": "481a9504e04f140b84405c2f4e3821312bc1ec596048efd6ec15550cc5fc141e",
+  "scope": "Unsigned equality under explicit same-value condition and shifted-suffix length arithmetic only. Maintained block minima and unaffected prefix invariant still require source proofs."
+}

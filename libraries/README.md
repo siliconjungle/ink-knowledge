@@ -1,9 +1,26 @@
+The text-CRDT, causal graph, interval and sequence files in this directory are
+ordinary authored Ink software and research examples. They are not built into
+the compiler and are not implicitly imported by applications. Historical proof
+bundles and algorithm variants have explicit domains; only ordinary kernel
+replay grants rewrite authority. The retained ordered document application is
+in the distribution's `examples/crdts/`. The slower cached-causal and unfinished
+small-frontier document alternatives were excluded from the closed pass.
+
 # Ordinary Ink libraries
 
 These are baseline source definitions, linked before bounded generic elaboration.
 They confer no optimisation authority. Alternative algorithms need canonical
 entries and checked correspondence/equivalence evidence; measurements rank only
 admitted alternatives.
+
+`chunked_sequence.ink` executes ordered chunks directly or through an application
+bulk transition. `chunk-laws.ink` proves flatten/fold equivalence, congruence of
+state transitions and composition of bulk transitions whose preservation premise
+has been discharged. `bulk_sum` supplies one concrete wrapping-u64 instance.
+Canonical checked entries and their complete dependency closure are in
+`proofs/chunks/`; a rebuildable SQLite index is not proof authority. These laws
+do not by themselves certify compressed CRDT metadata, causal shortcuts or
+invocation-local affine storage representations.
 
 `collections.ink` defines an abstract refined Set interface with structural
 identity, stable construction and invariant-preserving union, intersection and

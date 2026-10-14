@@ -1,0 +1,11 @@
+{
+  "laws": {
+    "source/adjust_preserves_tree_nodes": "dbb54df766514622324dff9fee45d4ba9c5af4e7677e67850375046ba71d754f",
+    "source/adjust_preserves_tree_children": "349e8053a723f0a3973c7cf6fdc26bd7f0c647e4e31661801d274c602a794b25",
+    "source/adjust_preserves_tree_root": "80ca6a6be5cb8ab1f2a43d03d573c5694e65a354b4dd9f08189f24b69b1dc3b7",
+    "source/adjust_preserves_tree_first": "cfb4b895f9f056218bb1d34f3b87f6d46fe051261d65bddff3cd552b080f6efc",
+    "source/adjust_preserves_tree_last": "3f438093df80d8a626c1c189672a664b57144456faf43fa9521a733c3162a4d6"
+  },
+  "snapshot": "bc692bb2809a61da32fdfe1078fcba33de2ee57cf889e785c5cb6baed624b147",
+  "scope": "Actual generic ancestor adjustment preserves node/child buffers, root and first/last handles for arbitrary bounded loops. Aggregate measures and deferred equivalence remain separate obligations."
+}

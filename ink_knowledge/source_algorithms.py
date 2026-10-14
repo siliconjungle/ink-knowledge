@@ -163,6 +163,23 @@ def context(core,subject,roots):
     if p['ids']:result['ids']=p['ids']
     return result
 
+def proof_roots(core,law,added):
+    """Retain original endpoint definitions as well as fresh helper bodies.
+
+    A proof may unfold the existing function it replaces. Its definition is
+    required even when the new helper never calls that original function.
+    """
+    available={f['name']for f in core['program']['functions']};roots=set(added)
+    def walk(v):
+        if isinstance(v,dict):
+            call=v.get('node',{}).get('Op')if isinstance(v.get('node'),dict)else None
+            if call and call[0].startswith('call:')and call[0][5:]in available:roots.add(call[0][5:])
+            for child in v.values():walk(child)
+        elif isinstance(v,list):
+            for child in v:walk(child)
+    for key in ['from','to','conditions','proof']:walk(law.get(key))
+    return sorted(roots)
+
 def propose(context_,**_):
     from ink_planner.semantic_search import match,key
     from .template_matching import TemplateSites
@@ -214,7 +231,7 @@ def propose(context_,**_):
                             extendedsubject=json.loads(extendedsubject.read_bytes());steps.append(dict(kind='extension',package=request))
                         else:
                             receipt=dict(core_sha256=context_['source']);extendedcore=context_['core'];extendedsubject=subject
-                        definition_context=context(extendedcore,extendedsubject,[f['name']for f in definitions['functions']])
+                        definition_context=context(extendedcore,extendedsubject,proof_roots(extendedcore,law,[f['name']for f in definitions['functions']]))
                         lid,objects=materialise(law,supports,definition_context)
                         law=objects[lid]['payload'];view=ProposalViews(store,objects,d/'law').bundle([lid])
                         for name,path,target in sites:

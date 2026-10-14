@@ -1,0 +1,280 @@
+{
+  "schema": 1,
+  "semantics": "ink-semantic-terms-v1",
+  "input_core_sha256": "47176a5a9026d1203c1f67d07cb696d7a13efe505ab2d6365162fd6eb402a876",
+  "functions": {
+    "bucket": {
+      "sort": {
+        "Value": "U64"
+      },
+      "node": {
+        "Op": [
+          "call:wrapping_shr",
+          [
+            {
+              "sort": {
+                "Value": "U64"
+              },
+              "node": {
+                "Free": "key"
+              }
+            },
+            {
+              "sort": {
+                "Value": "U32"
+              },
+              "node": {
+                "Word": 32
+              }
+            }
+          ]
+        ]
+      }
+    },
+    "fits": {
+      "sort": {
+        "Value": "Bool"
+      },
+      "node": {
+        "Op": [
+          "binary:&&",
+          [
+            {
+              "sort": {
+                "Value": "Bool"
+              },
+              "node": {
+                "Op": [
+                  "binary:!=",
+                  [
+                    {
+                      "sort": {
+                        "Value": "U32"
+                      },
+                      "node": {
+                        "Free": "width"
+                      }
+                    },
+                    {
+                      "sort": {
+                        "Value": "U32"
+                      },
+                      "node": {
+                        "Word": 0
+                      }
+                    }
+                  ]
+                ]
+              }
+            },
+            {
+              "sort": {
+                "Value": "Bool"
+              },
+              "node": {
+                "Op": [
+                  "binary:<=",
+                  [
+                    {
+                      "sort": {
+                        "Value": "U64"
+                      },
+                      "node": {
+                        "Op": [
+                          "binary:-",
+                          [
+                            {
+                              "sort": {
+                                "Value": "U64"
+                              },
+                              "node": {
+                                "Op": [
+                                  "binary:+",
+                                  [
+                                    {
+                                      "sort": {
+                                        "Value": "U64"
+                                      },
+                                      "node": {
+                                        "Op": [
+                                          "call:word_and",
+                                          [
+                                            {
+                                              "sort": {
+                                                "Value": "U64"
+                                              },
+                                              "node": {
+                                                "Free": "start"
+                                              }
+                                            },
+                                            {
+                                              "sort": {
+                                                "Value": "U64"
+                                              },
+                                              "node": {
+                                                "Word": 4294967295
+                                              }
+                                            }
+                                          ]
+                                        ]
+                                      }
+                                    },
+                                    {
+                                      "sort": {
+                                        "Value": "U64"
+                                      },
+                                      "node": {
+                                        "Op": [
+                                          "call:word_widen_u32_to_u64",
+                                          [
+                                            {
+                                              "sort": {
+                                                "Value": "U32"
+                                              },
+                                              "node": {
+                                                "Free": "width"
+                                              }
+                                            }
+                                          ]
+                                        ]
+                                      }
+                                    }
+                                  ]
+                                ]
+                              }
+                            },
+                            {
+                              "sort": {
+                                "Value": "U64"
+                              },
+                              "node": {
+                                "Word": 1
+                              }
+                            }
+                          ]
+                        ]
+                      }
+                    },
+                    {
+                      "sort": {
+                        "Value": "U64"
+                      },
+                      "node": {
+                        "Word": 4294967295
+                      }
+                    }
+                  ]
+                ]
+              }
+            }
+          ]
+        ]
+      }
+    },
+    "same": {
+      "sort": {
+        "Value": "Bool"
+      },
+      "node": {
+        "Op": [
+          "binary:==",
+          [
+            {
+              "sort": {
+                "Value": "U64"
+              },
+              "node": {
+                "Op": [
+                  "call:bucket",
+                  [
+                    {
+                      "sort": {
+                        "Value": "U64"
+                      },
+                      "node": {
+                        "Free": "start"
+                      }
+                    }
+                  ]
+                ]
+              }
+            },
+            {
+              "sort": {
+                "Value": "U64"
+              },
+              "node": {
+                "Op": [
+                  "call:bucket",
+                  [
+                    {
+                      "sort": {
+                        "Value": "U64"
+                      },
+                      "node": {
+                        "Op": [
+                          "binary:-",
+                          [
+                            {
+                              "sort": {
+                                "Value": "U64"
+                              },
+                              "node": {
+                                "Op": [
+                                  "binary:+",
+                                  [
+                                    {
+                                      "sort": {
+                                        "Value": "U64"
+                                      },
+                                      "node": {
+                                        "Free": "start"
+                                      }
+                                    },
+                                    {
+                                      "sort": {
+                                        "Value": "U64"
+                                      },
+                                      "node": {
+                                        "Op": [
+                                          "call:word_widen_u32_to_u64",
+                                          [
+                                            {
+                                              "sort": {
+                                                "Value": "U32"
+                                              },
+                                              "node": {
+                                                "Free": "width"
+                                              }
+                                            }
+                                          ]
+                                        ]
+                                      }
+                                    }
+                                  ]
+                                ]
+                              }
+                            },
+                            {
+                              "sort": {
+                                "Value": "U64"
+                              },
+                              "node": {
+                                "Word": 1
+                              }
+                            }
+                          ]
+                        ]
+                      }
+                    }
+                  ]
+                ]
+              }
+            }
+          ]
+        ]
+      }
+    }
+  },
+  "unavailable": []
+}
