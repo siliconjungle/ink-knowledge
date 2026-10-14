@@ -84,7 +84,7 @@ def contribution_choice(contribution,subject,delta,add,objects):
     proof=prove(original,optimized,[('key',subject['key']),('row',subject['row'])])
     return dict(function=function,proof=proof)
 
-def produce(source,compiler,directory,keeps=None,capacity=0,source_core=False,guarded_update=False,guard_zero=False,predicate_updates=False):
+def produce(source,compiler,directory,keeps=None,capacity=0,source_core=False,guarded_update=False,guard_zero=False,predicate_updates=False,extrema=False):
     source=Path(source).resolve();compiler=Path(compiler).resolve();directory=Path(directory);directory.mkdir(parents=True,exist_ok=True)
     flags=['--core']if source_core else []
     with tempfile.TemporaryDirectory(prefix='ink-maintained-folds-')as temporary:
@@ -118,8 +118,16 @@ def produce(source,compiler,directory,keeps=None,capacity=0,source_core=False,gu
         from producers.point_delta import normal
         update_proof=scalar(update_left,update_right,ring.prove(normal(update_left,objects),normal(update_right,objects)))
         from producers.aggregate_delta import setup
+        certificates={}
         for subject in subjects['subjects']:
             if keeps is not None and subject['keep']not in keeps:continue
+            if extrema:
+                # Word maximum/minimum keeps become extremum views (Rust only).
+                from producers.maintained_extrema import author
+                try:
+                    views.append(author(subject,model,objects,add,compiler,certificates));continue
+                except (ValueError,KeyError)as e:
+                    if os.environ.get('INK_PROOF_DEBUG')and 'unfold'not in str(e)and 'identity'not in str(e):raise
             if subject['result']!='U64':
                 declined.append(dict(keep=subject['keep'],reason='this producer authors wrapping word groups; other groups need their own proofs'));continue
             if subject['key']!='U64':
@@ -183,8 +191,18 @@ def produce(source,compiler,directory,keeps=None,capacity=0,source_core=False,gu
         return plan
 
 def candidates(context):
-    if context.get('representation')or context.get('maintained')or context.get('emit_target')!='javascript':
-        yield dict(status='declined',label='maintained-folds',reason='requires JavaScript source state capability');return
+    if context.get('representation')or context.get('maintained')or context.get('emit_target')not in('javascript','rust','rust-wasm'):
+        yield dict(status='declined',label='maintained-folds',reason='requires JavaScript or Rust source state capability');return
+    if context.get('emit_target')!='javascript':
+        # Rust executes group folds and word extremum views; dense prefixes and
+        # guarded update variants remain JavaScript proposals.
+        with tempfile.TemporaryDirectory(prefix='ink-maintained-candidates-')as temporary:
+            temp=Path(temporary);source=temp/'source.json';source.write_bytes(canonical(context['core']))
+            try:
+                plan=produce(source,context['compiler'],temp/'map',source_core=True,extrema=True)
+                yield dict(status='proposal',label='maintained-folds/rust',steps=plan['steps'])
+            except (ValueError,subprocess.TimeoutExpired)as e:yield dict(status='declined',label='maintained-folds',reason=str(e))
+        return
     with tempfile.TemporaryDirectory(prefix='ink-maintained-candidates-')as temporary:
         temp=Path(temporary);source=temp/'source.json';source.write_bytes(canonical(context['core']))
         try:
@@ -219,7 +237,7 @@ def candidates(context):
         except (ValueError,subprocess.TimeoutExpired)as e:yield dict(status='declined',label='maintained-folds',reason=str(e))
 
 def main():
-    p=argparse.ArgumentParser(description=__doc__);p.add_argument('source',type=Path);p.add_argument('-o',type=Path,required=True);p.add_argument('--compiler',type=Path,default=compiler_path());p.add_argument('--keep',action='append');p.add_argument('--dense-capacity',type=int,default=0);p.add_argument('--core',action='store_true');p.add_argument('--guarded-update',action='store_true');p.add_argument('--guard-zero',action='store_true');p.add_argument('--predicate-update',action='store_true');p.add_argument('--publish',type=Path);a=p.parse_args()
-    plan=produce(a.source,a.compiler,a.o,a.keep,a.dense_capacity,a.core,a.guarded_update or a.guard_zero,a.guard_zero,a.predicate_update)
+    p=argparse.ArgumentParser(description=__doc__);p.add_argument('source',type=Path);p.add_argument('-o',type=Path,required=True);p.add_argument('--compiler',type=Path,default=compiler_path());p.add_argument('--keep',action='append');p.add_argument('--dense-capacity',type=int,default=0);p.add_argument('--core',action='store_true');p.add_argument('--guarded-update',action='store_true');p.add_argument('--guard-zero',action='store_true');p.add_argument('--predicate-update',action='store_true');p.add_argument('--extrema',action='store_true');p.add_argument('--publish',type=Path);a=p.parse_args()
+    plan=produce(a.source,a.compiler,a.o,a.keep,a.dense_capacity,a.core,a.guarded_update or a.guard_zero,a.guard_zero,a.predicate_update,a.extrema)
     if a.publish:print(json.dumps(publish(plan,a.publish)))
 if __name__=='__main__':main()
