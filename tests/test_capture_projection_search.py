@@ -22,6 +22,8 @@ record Config{offset:u32,unused:List<u32>,}
 fn total(xs:List<u32>,config:Config)->u32{
  return foldl(xs,0,fn(x)=>fn(acc)=>acc+x+config.offset);
 }
+// Finite repeat carries a semantic Nat count, whose sort is not a Value map.
+fn counted(x:u32)->u32{return repeat(10,x,fn(i)=>fn(acc)=>acc+1);}
 ''')
             def run(*arguments, **options):
                 result = subprocess.run(list(map(str, arguments)), capture_output=True,
@@ -58,6 +60,7 @@ fn total(xs:List<u32>,config:Config)->u32{
             script = directory / 'verify.mjs'
             script.write_text('''import assert from 'node:assert/strict';
 import {functions} from './selected.mjs';
+assert.equal(functions.counted(0xffffffff),9);
 for(const offset of [0,1,0xffffffff]){
  for(const xs of [[],[1],[0xffffffff,3,5]]){
   const expected=xs.reduce((acc,x)=>(acc+x+offset)>>>0,0);
