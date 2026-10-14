@@ -1,0 +1,6 @@
+{
+  "schema": 1,
+  "minimum_processes": 3,
+  "minimum_rounds": 9,
+  "scope": "Require the minimum weighted lifecycle gain in every fresh paired process; empirical process-median guard, not statistical confidence or generalisation evidence"
+}
