@@ -46,8 +46,11 @@ def main():
     p=argparse.ArgumentParser(description=__doc__)
     for name in ('original-core','selected-core','selection','artifact','fixture','instrumenter','instrumented','instrumentation','runner','trace','cohort','output'):
         p.add_argument('--'+name,type=Path,required=True)
+    p.add_argument('--parser',type=Path,help='Exact external parser used by the instrumenter; required for parser-bound JavaScript acquisition')
     a=p.parse_args()
     fields=('original_core','selected_core','selection','artifact','fixture','instrumenter','instrumented','instrumentation','runner','trace')
-    rows=produce(a.output,{k:getattr(a,k)for k in fields},json.loads(a.cohort.read_text()))
+    paths={k:getattr(a,k)for k in fields}
+    if a.parser is not None:paths['parser']=a.parser
+    rows=produce(a.output,paths,json.loads(a.cohort.read_text()))
     print(json.dumps(dict(sidecars=len(rows),scope='Untimed offline source-bound diagnostic observations, not proof authority')))
 if __name__=='__main__':main()

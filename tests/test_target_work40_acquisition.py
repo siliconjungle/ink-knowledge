@@ -121,6 +121,19 @@ class Sidecar(unittest.TestCase):
             self.assertNotIn('acquisition',cohort)
             self.assertEqual(data['cohort']['acquisition'],{name:sidecar.sha(paths[name]) for name in ('instrumenter','runner')})
 
+    def test_command_line_can_bind_the_external_parser(self):
+        with tempfile.TemporaryDirectory() as d:
+            root=Path(d);sidecar,paths,cohort=self.inputs(root)
+            for name in ('original_core','selected_core','selection','artifact','fixture','instrumented','instrumentation','parser'):
+                paths[name]=root/name;paths[name].write_text(name)
+            cohort_path=root/'cohort.json';cohort_path.write_text(json.dumps(cohort))
+            args=[sys.executable,str(ROOT/'producers/target_work40_sidecar.py'),'--cohort',str(cohort_path),'--output',str(root/'out')]
+            for name,path in paths.items():args.extend(['--'+name.replace('_','-'),str(path)])
+            run=subprocess.run(args,capture_output=True,text=True);self.assertEqual(run.returncode,0,run.stderr)
+            data=json.loads((root/'out/0000.json').read_text())
+            self.assertEqual(data['cohort']['acquisition']['parser'],sidecar.sha(paths['parser']))
+            self.assertEqual(data['bindings']['parser']['sha256'],sidecar.sha(paths['parser']))
+
     def test_trace_hash_and_rows_come_from_same_snapshot(self):
         with tempfile.TemporaryDirectory() as d:
             root=Path(d);sidecar,paths,cohort=self.inputs(root);digest=sidecar.sha(paths['trace']);original_sha=sidecar.sha
