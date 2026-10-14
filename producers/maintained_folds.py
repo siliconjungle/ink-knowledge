@@ -207,6 +207,8 @@ def produce(source,compiler,directory,keeps=None,capacity=0,source_core=False,gu
 def candidates(context,groups=None):
     if context.get('representation')or context.get('maintained')or context.get('emit_target')not in('javascript','rust','rust-wasm'):
         yield dict(status='declined',label='maintained-folds',reason='requires JavaScript or Rust source state capability');return
+    if not context.get('core',{}).get('program',{}).get('keeps'):
+        yield dict(status='declined',label='maintained-folds',reason='no source keeps');return
     if context.get('emit_target')!='javascript':
         # Rust executes group folds and word extremum views; dense prefixes and
         # guarded update variants remain JavaScript proposals.
