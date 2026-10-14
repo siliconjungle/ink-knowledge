@@ -535,22 +535,31 @@ def author(compiler,source,directory,bodies=None,source_evidence=None):
     if source_evidence:options += ['--contract-proofs',str(Path(source_evidence).resolve())]
     if bodies:options += ['--refinement-bodies',str(Path(bodies).resolve())]
     export=directory/'obligations.json'
-    subprocess.run([compiler,'emit-contract-obligations',source,'-o',str(export),*options],check=True,capture_output=True,text=True)
-    goals=json.loads(export.read_text())
     supplied=json.loads(Path(source_evidence).read_text()) if source_evidence else None
-    with ProofSession(compiler,source,options,goals['source_sha256']) as session:
-        return author_obligations(compiler,source,directory,bodies,options,goals,session,supplied)
+    with ProofSession(compiler,source,options,export=export) as session:
+        return author_obligations(compiler,source,directory,bodies,options,session.goals,session,supplied)
 
 class ProofSession:
     """Reuse source derivation, never a previous proof verdict."""
-    def __init__(self,compiler,source,options,expected):
+    def __init__(self,compiler,source,options,expected=None,export=None):
         self.arguments=[compiler,'check-contract-proof-stream',source,*options]
-        self.expected=expected;self.process=None
+        if expected is None and export is None:raise ValueError('proof session requires source identity or export')
+        self.export=Path(export) if export is not None else None
+        if self.export is not None:self.arguments += ['--export-obligations',str(self.export)]
+        self.expected=expected;self.process=None;self.goals=None
     def __enter__(self):
+        if self.export is not None:self.export.unlink(missing_ok=True)
         self.process=subprocess.Popen(self.arguments,stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True)
         try:
             ready=self.read()
-            if ready!={'status':'ready','source_sha256':self.expected}:raise ValueError('proof session source identity differs from export')
+            expected=self.expected
+            if self.export is not None:
+                self.goals=json.loads(self.export.read_text())
+                identity=self.goals['source_sha256']
+                if not isinstance(identity,str) or not identity:raise ValueError('missing exported source identity')
+                if expected is not None and identity!=expected:raise ValueError('export source identity differs from expected')
+                expected=identity
+            if ready!={'status':'ready','source_sha256':expected}:raise ValueError('proof session source identity differs from export')
         except BaseException:
             self.__exit__(None,None,None);raise
         return self
