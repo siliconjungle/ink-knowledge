@@ -1,7 +1,8 @@
 """Ordinary typed probe authoring; program names and theorem IDs are irrelevant.
 
-Inputs and workload weights propose profitability only. Unsupported recursive,
-effectful or transfer types decline; the source checker still proves each edge.
+Inputs and workload weights propose profitability only. Bounded inhabited
+recursive carriers use checked wire boundaries; effects still need lifecycle
+profiles. The source checker independently proves each transformation edge.
 """
 import copy, json, math, random
 from importlib.resources import files
@@ -28,18 +29,43 @@ def policy():
         if target!='javascript' and modes!=['trusted']:raise ValueError('unavailable boundary adapter')
     return value
 
-def supported(t,records,active=()):
-    if isinstance(t,str):return t in SCALARS
+def supported(t,records,active=(),wire=False):
+    if isinstance(t,str):return t in SCALARS or wire and t in {'Unit','U64','Int'}
     if not isinstance(t,dict) or len(t)!=1:return False
-    if 'List'in t:return supported(t['List'],records,active)
-    if 'Vector'in t:return False # fixed shape transfer needs its explicit descriptor
+    if 'List'in t:return supported(t['List'],records,active,wire)
+    if wire and 'Option'in t:return supported(t['Option'],records,active,wire)
+    if wire and 'Result'in t:
+        pair=t['Result']
+        return isinstance(pair,list) and len(pair)==2 and all(supported(x,records,active,wire)for x in pair)
+    if wire and 'Vector'in t:
+        pair=t['Vector']
+        return isinstance(pair,list) and len(pair)==2 and type(pair[1])is int and 2<=pair[1]<=4 and pair[0]in ('U32','I32','F32')
     if 'Named'in t:
         name=t['Named']
-        return name in records and len(records[name])<=64 and name not in active and all(supported(s,records,(*active,name))for _,s in records[name])
+        if name not in records:return False
+        definition=records[name]
+        if isinstance(definition,dict):
+            return wire and (definition=={'id':True}or set(definition)=={'enum'}and isinstance(definition['enum'],list)and 0<len(definition['enum'])<=1024 and all(isinstance(v,str)for v in definition['enum']))
+        if len(definition)>64:return False
+        if name in active:return wire
+        return all(supported(s,records,(*active,name),wire)for _,s in records[name])
+    return False
+
+def inhabited(t,records,active=()):
+    """Finite constructor existence, independent of profitability or proof admission."""
+    if isinstance(t,str):return supported(t,records,wire=True)
+    if 'List'in t or 'Option'in t:return True
+    if 'Vector'in t:return inhabited(t['Vector'][0],records,active)
+    if 'Result'in t:return any(inhabited(x,records,active)for x in t['Result'])
+    if 'Named'in t:
+        name=t['Named']
+        return name in records and (isinstance(records[name],dict)or name not in active and all(inhabited(x,records,(*active,name))for _,x in records[name]))
     return False
 
 def create(core,target=None):
-    p=policy();program=core['program'];records=program.get('records',{});declined=[]
+    p=policy();program=core['program'];records=dict(program.get('records',{}));declined=[]
+    records.update({name:{'enum':variants}for name,variants in program.get('enums',{}).items()})
+    records.update({name:{'id':True}for name in program.get('ids',[])})
     if program.get('states') or program.get('actions') or program.get('events'):
         return None,dict(reason='state/action/event lifecycle requires supplied workload evidence')
     constants=[]
@@ -54,25 +80,50 @@ def create(core,target=None):
     pivot=min(constants,default=1)
     modes=p['boundaries'].get(target,p['boundaries']['default']);encoded=modes!=['trusted']
     pivot=max(1,min(pivot,65535));phases={};count=0;cells=0;function_count=0
-    eligible=sum(all(supported(t,records)for _,t in f['params'])and supported(f['result'],records)for f in program['functions'])
+    def boundaries(f):
+        types=[t for _,t in f['params']]+[f['result']]
+        return [mode for mode in modes if all(supported(t,records,wire=mode!='trusted')and inhabited(t,records)for t in types)]
+    eligible=sum(bool(boundaries(f))for f in program['functions'])
     per_function=max(1,p['calls']//len(modes)//max(1,min(p['functions'],eligible)))
     def scalar(t,index,high=False):
+        if t=='Unit':return None
+        if t=='U64':return 18446744073709551615 if high else int(pivot) if index else 0
+        if t=='Int':return {'Int':str(-(1<<100) if high else int(pivot) if index else 0)}
         if t=='Bool':return True if index else False
         if t=='String':return ['','probe','λ雪😀'][index%3]
         if t=='F32':return float(65536 if high else pivot if index else 0)
         if t=='I32':return -2147483648 if high else int(pivot) if index else 0
         return 4294967295 if high else int(pivot) if index else 0
-    def atom(t,index,high=False,depth=0):
+    def atom(t,index,high=False,depth=0,active=(),width=None):
         nonlocal cells
         cells+=1
         if cells>1000000:raise ValueError('typed probe value budget')
-        if depth>8:raise ValueError('probe carrier depth')
+        if depth>48:raise ValueError('probe carrier depth')
+        bounded=any(active.count(name)>=4 for name in set(active))
         if isinstance(t,str):return scalar(t,index,high)
-        if 'Named'in t:return {name:atom(s,index,high,depth+1)for name,s in records[t['Named']]}
-        if 'List'in t:return [atom(t['List'],index,high,depth+1)]
+        if 'Named'in t:
+            name=t['Named'];definition=records[name]
+            if isinstance(definition,dict):
+                if 'id'in definition:return format((1<<128)-1 if high else index,'032x')
+                return name+'.'+definition['enum'][(index+int(high))%len(definition['enum'])]
+            return {field:atom(s,index,high,depth+1,(*active,name),width)for field,s in definition}
+        if 'List'in t:
+            if bounded or not index:return []
+            n=1
+            if width is not None and not width[0]:width[0]=True;n=width[1]
+            return [atom(t['List'],index,high,depth+1,active,width)for _ in range(n)]
+        if 'Vector'in t:return [atom(t['Vector'][0],index,high,depth+1,active,width)for _ in range(t['Vector'][1])]
+        if 'Option'in t:return {'None':None}if bounded or not index else {'Some':atom(t['Option'],index,high,depth+1,active,width)}
+        if 'Result'in t:
+            viable=[i for i,x in enumerate(t['Result'])if inhabited(x,records,active if bounded else ())]
+            if not viable:raise ValueError('uninhabited probe carrier')
+            side=viable[(index+int(high)+depth)%len(viable)]
+            if bounded:side=min(viable,key=lambda i:len(json.dumps(t['Result'][i])))
+            return {('Ok','Err')[side]:atom(t['Result'][side],index,high,depth+1,active,width)}
         raise ValueError('unsupported typed probe')
     def argument(t,n,pattern,rng):
-        if not isinstance(t,dict) or 'List'not in t:return atom(t,1)
+        if not isinstance(t,dict) or 'List'not in t:
+            return atom(t,0 if pattern in {'uniform-low','sparse-last'}else 1,pattern=='uniform-high',width=[False,n])
         inner=t['List'];items=[]
         for i in range(n):
             high=pattern=='uniform-high' or pattern=='alternating' and i%2==1
@@ -91,20 +142,24 @@ def create(core,target=None):
             items.append(item)
         return items
     for function in program['functions']:
-        if not all(supported(t,records)for _,t in function['params']) or not supported(function['result'],records):
+        function_modes=boundaries(function)
+        if not function_modes:
             declined.append(dict(function=function['name'],reason='unsupported exact probe transfer type'));continue
         if function_count>=p['functions']:declined.append(dict(function=function['name'],reason='probe function budget'));continue
         calls=[];combinations=[(n,pattern)for n in p['sizes']for pattern in p['patterns']]
         indices=set(int(i*len(combinations)/min(per_function,len(combinations)))for i in range(min(per_function,len(combinations))))
         for index,(n,pattern)in enumerate(combinations):
                 if index not in indices:continue
-                if count+len(modes)>p['calls']:break
+                if count+len(function_modes)>p['calls']:break
                 rng=random.Random(0x1491+n)
-                calls.append(dict(function=function['name'],args=[argument(t,n,pattern,rng)for _,t in function['params']]))
-                count+=len(modes)
+                try:args=[argument(t,n,pattern,rng)for _,t in function['params']]
+                except ValueError as error:
+                    declined.append(dict(function=function['name'],reason=str(error)));break
+                calls.append(dict(function=function['name'],args=args))
+                count+=len(function_modes)
         if calls:
             function_count+=1
-            for mode in modes:
+            for mode in function_modes:
                 phase='call:'+function['name']+(':'+mode if encoded else '')
                 phases[phase]=[dict(copy.deepcopy(c),**({'boundary':mode}if encoded else {}))for c in calls]
     if not phases:return None,dict(reason='no supported pure signatures',declined=declined)
