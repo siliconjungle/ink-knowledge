@@ -137,9 +137,70 @@ def refine(scope, condition, truth, budget=32):
     return result
 
 
-def analyse(source, max_nodes=4096, *, _scope=()):
-    remaining=max_nodes
-    def visit(t, depth=0, scope=_scope):
+class _FactMemo:
+    """Bounded records borrowed only during one synchronous discovery query.
+
+    Strong references keep identity keys valid. Limits bound extra entries and
+    scoped references; the conservative byte charge is not an RSS promise and
+    excludes the input graph already held by the caller. No facts survive the
+    query or an outward generator yield.
+    """
+    def __init__(self, *, max_entries=2048, max_cells=16384, max_charge=1048576):
+        self.entries = {}
+        self.cells = self.charge = 0
+        self.max_entries = max_entries
+        self.max_cells = max_cells
+        self.max_charge = max_charge
+
+    def clear(self):
+        self.entries.clear()
+        self.cells = self.charge = 0
+
+    def put(self, key, facts, cost, height, node, scope):
+        cells, charge = 1 + len(scope), 512 + 512 * len(scope)
+        if (len(self.entries) >= self.max_entries or
+                self.cells + cells > self.max_cells or
+                self.charge + charge > self.max_charge):
+            return
+        self.entries[key] = (facts, cost, height, node, tuple(scope))
+        self.cells += cells
+        self.charge += charge
+
+
+def analyse(source, max_nodes=4096, *, _scope=(), _memo=None):
+    remaining = max_nodes
+    peaks = []
+
+    def cached(t, depth=0, scope=_scope):
+        nonlocal remaining
+        # Leaf facts are cheaper to calculate than to retain. Oversized caller
+        # scopes also use ordinary bounded traversal without adding cache keys.
+        if 'Op' not in t.get('node', {}) or len(scope) > 64:
+            if peaks:
+                peaks[-1] = max(peaks[-1], depth)
+            return uncached(t, depth, scope)
+        key = (id(t), tuple((id(subject), fact) for subject, fact in scope))
+        found = _memo.entries.get(key)
+        if found is not None:
+            facts, cost, height, held_node, held_scope = found
+            remaining -= cost
+            if remaining < 0 or depth + height > 64:
+                raise ValueError('Word fact analysis budget')
+            if peaks:
+                peaks[-1] = max(peaks[-1], depth + height)
+            return facts
+        before = remaining
+        peaks.append(depth)
+        try:
+            facts = uncached(t, depth, scope)
+        finally:
+            peak = peaks.pop()
+        if peaks:
+            peaks[-1] = max(peaks[-1], peak)
+        _memo.put(key, facts, before - remaining, peak - depth, t, scope)
+        return facts
+
+    def uncached(t, depth=0, scope=_scope):
         nonlocal remaining
         remaining-=1
         if remaining<0 or depth>64:
@@ -237,12 +298,14 @@ def analyse(source, max_nodes=4096, *, _scope=()):
                 elif a.minimum>b.maximum or (strict and a.minimum==b.maximum):answer=False
             if answer is not None:return constant(1,int(answer))
         return Facts(width)
+    visit = uncached if _memo is None else cached
     return visit(source)
 
 
-def candidates(source, *, _scope=(), _depth=0):
+def _candidates(source, *, _scope=(), _depth=0, _memo=None, _facts=None):
     """Propose total whole-expression simplifications, with no proof authority."""
-    facts=analyse(source,_scope=_scope);kind=source['sort']['Value']
+    facts=analyse(source,_scope=_scope,_memo=_memo) if _facts is None else _facts
+    kind=source['sort']['Value']
     if facts.constant is not None:
         candidate=(term(value('Bool'),{'Bool':bool(facts.constant)}) if kind=='Bool'
                    else word(kind,facts.constant))
@@ -251,26 +314,45 @@ def candidates(source, *, _scope=(), _depth=0):
     if 'Op' not in node:return
     name,args=node['Op']
     if name=='call:choose' and len(args)==3:
-        condition=analyse(args[0],_scope=_scope).constant
+        condition=analyse(args[0],_scope=_scope,_memo=_memo).constant
         if condition is not None:yield 'known-condition',args[1 if condition else 2]
         elif _depth < 8:
             branches = list(args)
             for index in (1,2):
                 scoped=refine(_scope,args[0],index==1)
-                replacement=next(candidates(args[index],_scope=scoped,_depth=_depth+1),None)
+                replacement=next(_candidates(args[index],_scope=scoped,_depth=_depth+1,_memo=_memo),None)
                 if replacement is not None:branches[index]=replacement[1]
             if branches != args:
                 replacement=(branches[1] if branches[1]==branches[2]
                              else op(source['sort'],'call:choose',*branches))
                 yield 'branch-scoped-facts',replacement
     if name in ('binary:+','call:word_xor') and len(args)==2 and kind!='Bool':
-        a,b=(analyse(t,_scope=_scope) for t in args);mask=(1<<facts.width)-1
+        a,b=(analyse(t,_scope=_scope,_memo=_memo) for t in args);mask=(1<<facts.width)-1
         if (mask^a.zero)&(mask^b.zero)==0:
             yield 'disjoint-fields',op(source['sort'],'call:word_or',*args)
     if name=='call:word_and' and len(args)==2:
         for i in (0,1):
             literal=args[i]['node'].get('Word')
             if literal is not None:
-                other=analyse(args[1-i],_scope=_scope);mask=(1<<facts.width)-1
+                other=analyse(args[1-i],_scope=_scope,_memo=_memo);mask=(1<<facts.width)-1
                 if (mask^literal)&(mask^other.zero)==0:
                     yield 'redundant-mask',args[1-i]
+
+
+def candidates(source, *, _scope=(), _depth=0):
+    """Stream proposals without retaining reusable facts across caller control."""
+    yield from _candidates(source, _scope=_scope, _depth=_depth)
+
+
+def analyse_candidates(source):
+    """Return facts and all proposals from one bounded synchronous query.
+
+    The source must remain unchanged during this call. All reuse remains local;
+    every returned proposal still needs an independent equality proof.
+    """
+    memo = _FactMemo()
+    try:
+        facts = analyse(source, _memo=memo)
+        return facts, list(_candidates(source, _memo=memo, _facts=facts))
+    finally:
+        memo.clear()

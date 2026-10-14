@@ -507,6 +507,17 @@ meaning. Contradictory constraints are conservatively discarded, not used as
 proofs of unreachable code. This is expression analysis, not a whole-program
 control-flow analysis or an assumption that a fallible contract always succeeds.
 
+
+`analyse_candidates` returns facts and proposals in one synchronous discovery
+query, avoiding a second traversal of the root. Reuse is bounded to 2,048
+non-leaf entries, 16,384 node/scope references and a conservative 1 MiB record
+charge (not an RSS limit). Each key binds the exact source node and branch
+scope; strong references prevent identity reuse. Cache hits charge the original
+logical node visits and relative depth, so reuse cannot bypass analysis limits.
+The query clears all records on success or failure. The streaming `candidates`
+API retains no memo across yields. Callers must not mutate input during a
+synchronous query. These facts remain untrusted; each rewrite still needs proof.
+
 Offline `ink_planner.llvm_learning --proposal-engine facts` proves the complete
 guarded replacement before publishing any law. The reusable `bounded_low_mask`
 u32/u64 laws additionally allow symbolic masks under the checked condition
