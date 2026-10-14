@@ -33,11 +33,29 @@ class TemplateSites:
         from ink_planner.semantic_search import positions
         self.sites=[];self.by_head={};self.limit=attempt_limit;self.attempts=0
         self.postings={};self.token_count=0;self.token_limit=token_limit
+        self.originals={};self.head_reductions=0;self.head_reduction_declines=0
+        reduction_budget=[node_limit]
         for name,body in subject['functions'].items():
             for path,target in positions(body):
                 if len(self.sites)>=node_limit:raise ValueError('template subject node budget')
                 at=len(self.sites);self.sites.append((name,path,target))
                 self.by_head.setdefault(shape(target),[]).append(at)
+        # Preserve the complete original index and its ordering before adding
+        # optional search aliases. Exhaustion cannot discard literal sites.
+        originals=len(self.sites)
+        for at in range(originals):
+            name,path,target=self.sites[at];node=target['node']
+            if not isinstance(node,dict)or node.get('Op',[None])[0]!='apply':continue
+            if len(self.sites)>=node_limit or reduction_budget[0]<=0:
+                self.head_reduction_declines+=1;continue
+            from .head_beta import reduce
+            try:normal=reduce(target,reduction_budget)
+            except (ValueError,RecursionError):
+                self.head_reduction_declines+=1;continue
+            if normal is not target:
+                alias=len(self.sites);self.sites.append((name,path,normal));self.originals[alias]=target
+                self.by_head.setdefault(shape(normal),[]).append(alias);self.head_reductions+=1
+
     def matching_sites(self,pattern,params):
         from .higher_patterns import applied_hole
         head='*' if applied_hole(pattern,params)else shape(pattern,params)
@@ -71,4 +89,4 @@ class TemplateSites:
             if self.attempts>self.limit:raise ValueError('template inference budget')
             bindings={}
             if infer(pattern,target,params,type_parameters,bindings)and set(bindings)==set(type_parameters):
-                yield name,path,target,bindings
+                yield name,path,self.originals.get(at,target),bindings

@@ -15,7 +15,13 @@ def adapter(law_id,law,target):
  from ink_planner.semantic_search import substitute,children
  if law.get('conditions') or law.get('assumptions'):return None
  arguments={}
- if not match(law['from'],target,law['params'],[],{},arguments)or set(arguments)!=set(law['params']):return None
+ if not match(law['from'],target,law['params'],[],{},arguments):
+  from .head_beta import reduce
+  try:normal=reduce(target)
+  except (ValueError,RecursionError):return None
+  arguments={}
+  if normal is target or not match(law['from'],normal,law['params'],[],{},arguments):return None
+ if set(arguments)!=set(law['params']):return None
  params={}
  def free(term,depth=0):
   node=term['node']

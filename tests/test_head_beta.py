@@ -1,0 +1,72 @@
+"""Search through lexical bindings; the original endpoints still require proof."""
+import copy,json,os,subprocess,tempfile,unittest
+from pathlib import Path
+from ink_knowledge.head_beta import reduce
+from ink_knowledge.template_matching import TemplateSites
+from ink_knowledge.higher_patterns import adapter
+from ink_knowledge import Store,canonical,identity,semantic_entry
+from ink_knowledge.law_templates import from_general,generate
+from producers.semantic_laws import value,arrow,var,bound,lam,op
+ROOT=Path(__file__).resolve().parents[2]
+COMPILER=Path(os.environ.get('INK_COMPILER',ROOT/'target/debug/ink'))
+
+class HeadBeta(unittest.TestCase):
+ def test_capture_avoidance_and_shadowing_preserve_outer_indices(self):
+  u=value('U32')
+  # (fn(x)=>fn(y)=>x+y)(outer) must retain outer beneath y.
+  term=op(arrow(u,u),'apply',lam(u,lam(u,op(u,'binary:+',bound(u,1),bound(u,0)))),bound(u,0))
+  original=copy.deepcopy(term)
+  self.assertEqual(reduce(term),lam(u,op(u,'binary:+',bound(u,1),bound(u,0))))
+  self.assertEqual(term,original)
+  concrete=op(u,'apply',lam(u,op(u,'apply',lam(u,bound(u,0)),var(u,'inner'))),var(u,'outer'))
+  self.assertEqual(reduce(concrete),var(u,'inner'))
+  # A non-leading expression stays literal: this is not full normalisation.
+  outer=op(u,'binary:+',concrete,var(u,'x'));self.assertIs(reduce(outer),outer)
+ def test_bounds_preserve_original_discovery_and_open_adapters_reject(self):
+  u=value('U32');target=op(u,'apply',lam(u,op(u,'call:f',bound(u,0))),var(u,'arg'))
+  with self.assertRaisesRegex(ValueError,'budget'):reduce(target,limit=1)
+  from ink_planner.semantic_search import positions
+  count=len(list(positions(target)))
+  sites=TemplateSites({'functions':{'run':target}},node_limit=count)
+  self.assertEqual(len(sites.sites),count);self.assertEqual(sites.head_reductions,0)
+  self.assertGreater(sites.head_reduction_declines,0)
+  self.assertEqual(sites.sites[0],('run',(),target))
+  law=dict(params={'x':u},conditions=[],**{'from':op(u,'call:f',var(u,'x')),'to':var(u,'x')})
+  opened=op(u,'apply',lam(u,op(u,'call:f',bound(u,0))),bound(u,0))
+  self.assertIsNone(adapter('0'*64,law,opened))
+  conditional=dict(law,conditions=[{'from':var(u,'x'),'to':var(u,'x')}])
+  self.assertIsNone(adapter('0'*64,conditional,target))
+ def test_generic_fold_template_replays_original_bound_source_and_rejects_forgery(self):
+  with tempfile.TemporaryDirectory()as temporary:
+   d=Path(temporary);source=d/'source.ink';laws=d/'laws.ink'
+   source.write_text('module bound; pub fn words(xs:List<u32>,bias:u32)->u32{let seed=bias+7;return foldl(xs,seed,fn(x,s)=>s*3+x);} pub fn floats(xs:List<f32>,bias:f32)->f32{let seed=bias;return foldr(xs,seed,fn(x,s)=>(s+x)*x);}')
+   laws.write_text('module laws; law left<A,S>(xs:List<A>,initial:S,step:fn(A,S)->S){foldl(xs,initial,step)==choose(xs==[],initial,foldl(xs,initial,step));proof by induction xs {nil=>normalize;cons(head,tail)=>normalize;};} law right<A,S>(xs:List<A>,initial:S,step:fn(A,S)->S){foldr(xs,initial,step)==choose(xs==[],initial,foldr(xs,initial,step));proof by induction xs {nil=>normalize;cons(head,tail)=>normalize;};}')
+   def invoke(*args):
+    r=subprocess.run([str(COMPILER),*map(str,args)],capture_output=True,text=True,timeout=120);self.assertEqual(r.returncode,0,r.stderr);return r
+   receipt=json.loads(invoke('emit-laws',laws,'-o',d/'laws.json').stdout)
+   bundle=json.loads((d/'laws.json').read_text());store=Store.publish(d/'knowledge',bundle['objects'].values())
+   store=store.extend([from_general(store,i)for i in receipt['names'].values()]);store.refresh_index()
+   core_id=json.loads(invoke('emit-core',source,'-o',d/'core.json').stdout)['core_sha256']
+   invoke('emit-semantic',d/'core.json','--core','-o',d/'subject.json')
+   core=json.loads((d/'core.json').read_text());subject=json.loads((d/'subject.json').read_text())
+   objects,_=generate(store,subject,core);store=store.extend(objects.values());applications=[];adapters={}
+   for name,body in subject['functions'].items():
+    for ident,obj in objects.items():
+     if obj['payload']['from']==body:
+      adapters[name]=(ident,obj)
+      applications.append(dict(function=name,path=[],law=ident,arguments={n:dict(sort=s,node={'Free':n})for n,s in obj['payload']['params'].items()},premises=[]))
+   self.assertEqual(set(adapters),{'words','floats'})
+   package=dict(schema=1,semantics='ink-evidence-v1',input_core_sha256=core_id,knowledge=store.bundle([a['law']for a in applications]),applications=applications)
+   plan=dict(schema=1,semantics='ink-compiled-plan-v1',input_core_sha256=core_id,steps=[dict(kind='rewrite',package=package)])
+   (d/'plan.json').write_bytes(canonical(plan));invoke('check-plan',source,d/'plan.json','--target','javascript')
+   invoke('emit-plan',source,d/'plan.json','--target','javascript','-o',d/'selected.mjs')
+   invoke('build',source,'--target','javascript','-o',d/'baseline.mjs')
+   driver=d/'check.mjs';driver.write_text("import assert from 'node:assert/strict';import * as a from './baseline.mjs';import * as b from './selected.mjs';for(const xs of [[],[0],[1,2,4294967295]])for(const seed of [0,7,4294967295])assert.deepStrictEqual(a.call('words',[xs,seed]),b.call('words',[xs,seed]));for(const xs of [[],[1e20,-1e20,3],[-0,Infinity,-Infinity,NaN]])for(const seed of [-0,0,1e20])assert.deepStrictEqual(a.functions.floats(xs,seed),b.functions.floats(xs,seed));")
+   result=subprocess.run(['node',str(driver)],capture_output=True,text=True);self.assertEqual(result.returncode,0,result.stderr)
+   _,obj=adapters['words'];forged=copy.deepcopy(obj);forged['payload']['to']=dict(sort=value('U32'),node={'Word':0})
+   forged=semantic_entry(dict(schema=1,semantics=forged['semantics'],dependencies=forged['dependencies'],**forged['payload']))
+   bad=store.extend([forged]);(d/'forged.json').write_bytes(canonical(bad.bundle([identity(forged)])))
+   result=subprocess.run([str(COMPILER),'knowledge-check',str(d/'core.json'),str(d/'forged.json')],capture_output=True,text=True)
+   self.assertNotEqual(result.returncode,0);self.assertNotIn('hash mismatch',result.stderr)
+
+if __name__=='__main__':unittest.main()

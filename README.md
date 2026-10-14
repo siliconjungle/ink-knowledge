@@ -543,3 +543,17 @@ count (currently three). Its larger batch cap lets short calls reach the timing
 floor more often; reaching the cap still does not guarantee a minimum duration.
 Processes vary the deterministic interleaving seed. Process identity and every
 sample remain in the receipt; these are development measurements, not proofs.
+
+
+Template discovery can expose leading lexical `let` bindings through bounded,
+capture-avoiding beta reduction. The index retains every original site and adds
+optional normalised search views within its existing node budget. Matching those
+views emits an adapter whose left endpoint is the exact original expression;
+ordinary `Normalize` and `Use` proofs still replay in the kernel. Exhaustion drops
+only optional views. Open local variables and undischarged premises remain
+ineligible for a closed adapter. This does not change compiler semantics, install
+an optimisation automatically, or imply a performance gain. `test_head_beta.py`
+checks indexed discovery, capture avoidance, resource exhaustion, concrete proof
+replay, forged results and word/float output parity. Views currently expose
+leading lambda applications; nested projection contexts need further discovery
+or ordinary composed rewrites.
