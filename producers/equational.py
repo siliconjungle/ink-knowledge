@@ -3,8 +3,60 @@
 No tactic result is authority. Convert, Use, Substitute and BoolSplit are
 independently checked by the existing first-order kernel.
 """
-from producers.action_replacement import var, call, cons, convert, trans
+from producers.action_replacement import var, call, cons, trans
+from producers.action_replacement import convert as _convert
 from producers.point_delta import normal, sub, replace, lift
+
+
+def unshadow(t):
+    """The same term with no binder shadowing a variable already in scope.
+
+    `alpha` names binders by depth, so replacing a subterm under a binder with
+    a separately normalised term can repeat a canonical name, which the kernel
+    rejects. Renaming the inner binder apart is alpha-equivalent, and the
+    kernel compares proof junctions modulo alpha.
+    """
+    used, free = set(), set()
+    def collect(t, bound):
+        if isinstance(t, list):
+            for x in t: collect(x, bound)
+        elif isinstance(t, dict):
+            if set(t) == {'Var'}:
+                used.add(t['Var'])
+                if t['Var'] not in bound: free.add(t['Var'])
+            elif 'Match' in t and isinstance(t['Match'], dict) and 'branches' in t['Match']:
+                collect(t['Match']['scrutinee'], bound)
+                for b in t['Match']['branches']:
+                    if len(set(b['bindings'])) < len(b['bindings']) or bound & set(b['bindings']): clash.append(True)
+                    binders.update(b['bindings']); used.update(b['bindings'])
+                    collect(b['body'], bound | set(b['bindings']))
+            else:
+                for v in t.values(): collect(v, bound)
+    clash, binders = [], set()
+    collect(t, frozenset())
+    if not clash and not binders & free: return t
+    serial = [0]
+    def fresh():
+        while 'eq_apart_' + str(serial[0]) in used: serial[0] += 1
+        name = 'eq_apart_' + str(serial[0]); used.add(name); return name
+    def go(t, bound, env):
+        if isinstance(t, list): return [go(x, bound, env) for x in t]
+        if not isinstance(t, dict): return t
+        if set(t) == {'Var'}: return var(env.get(t['Var'], t['Var']))
+        if 'Match' in t and isinstance(t['Match'], dict) and 'branches' in t['Match']:
+            x = t['Match']; branches = []
+            for b in x['branches']:
+                local, names = dict(env), []
+                for n in b['bindings']:
+                    m = fresh() if n in bound or n in names else n
+                    local[n] = m; names.append(m)
+                branches.append({**b, 'bindings': names, 'body': go(b['body'], bound | set(names), local)})
+            return {'Match': {**x, 'scrutinee': go(x['scrutinee'], bound, env), 'branches': branches}}
+        return {k: go(v, bound, env) for k, v in t.items()}
+    return go(t, frozenset(free), {})
+
+
+def convert(a, b): return _convert(unshadow(a), unshadow(b))
 
 
 def factor(proof, params, conditions, add, objects=None):
@@ -56,6 +108,8 @@ def factor(proof, params, conditions, add, objects=None):
 
 
 def alpha(t, env=None, depth=0):
+    # Stable search representatives are untrusted. Final certificates freshen
+    # Match terms under their actual scopes before ordinary kernel replay.
     env = env or {}
     if isinstance(t, list): return [alpha(x, env, depth) for x in t]
     if not isinstance(t, dict): return t
@@ -67,6 +121,46 @@ def alpha(t, env=None, depth=0):
             branches.append(dict(bindings=names, body=alpha(b['body'], {**env, **dict(zip(b['bindings'], names))}, depth+1)))
         return {'Match': dict(scrutinee=alpha(x['scrutinee'], env, depth), branches=branches)}
     return {k: alpha(v, env, depth) for k, v in t.items()}
+
+
+def fresh_alpha(t, env=None, depth=0):
+    # Canonical lexical names must also avoid free variables and ambient proof
+    # binders. Renaming is search hygiene; Convert still checks every equality.
+    initial=dict(env or {});free=set();work=[0]
+    # Collect into one set instead of allocating a union at every tree node.
+    def collect(value,bound=frozenset(),nesting=0):
+        work[0]+=1
+        if work[0]>1_000_000 or nesting>256:raise ValueError('alpha renaming resource limit')
+        if isinstance(value,list):
+            for child in value:collect(child,bound,nesting+1)
+        elif isinstance(value,dict):
+            if set(value)=={'Var'}:
+                if value['Var']not in bound:free.add(value['Var'])
+            elif 'Match'in value:
+                x=value['Match'];collect(x['scrutinee'],bound,nesting+1)
+                for branch in x['branches']:collect(branch['body'],bound|set(branch['bindings']),nesting+1)
+            else:
+                for child in value.values():collect(child,bound,nesting+1)
+    collect(t);work[0]=0
+    def visit(t,env,level,nesting=0):
+        work[0]+=1
+        if work[0]>1_000_000 or nesting>256:raise ValueError('alpha renaming resource limit')
+        if isinstance(t,list):return [visit(x,env,level,nesting+1)for x in t]
+        if not isinstance(t,dict):return t
+        if set(t)=={'Var'}:return var(env.get(t['Var'],t['Var']))
+        if 'Match'in t:
+            x=t['Match'];branches=[]
+            for branch in x['branches']:
+                occupied=free|set(env.values());names=[]
+                for i,_ in enumerate(branch['bindings']):
+                    stem='eq_bound_'+str(level)+'_'+str(i);name=stem;serial=0
+                    while name in occupied:name=stem+'_'+str(serial);serial+=1
+                    occupied.add(name);names.append(name)
+                local={**env,**dict(zip(branch['bindings'],names))}
+                branches.append(dict(bindings=names,body=visit(branch['body'],local,level+1,nesting+1)))
+            return {'Match':dict(scrutinee=visit(x['scrutinee'],env,level,nesting+1),branches=branches)}
+        return {k:visit(v,env,level,nesting+1)for k,v in t.items()}
+    return visit(t,initial,depth)
 
 
 class Tactic:
