@@ -12,6 +12,7 @@
     "producers.word_laws",
     "producers.capture_projections",
     "producers.product_fusion",
-    "producers.ordered_affine_tiles"
+    "producers.ordered_affine_tiles",
+    "producers.indexed_lookup"
   ]
 }

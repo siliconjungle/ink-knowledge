@@ -458,3 +458,10 @@ measures advanced carriers through portable/compact boundaries using lossless
 measurement packets. Unsupported trusted transfers and state lifecycles still
 need their appropriate recorded evidence. Probe values and costs never grant
 proof admission or permit skipping input checks.
+
+`producers.indexed_lookup` proposes one U32/U64 map index per batch of ordered
+membership queries. Map and filter callbacks, captured keys, duplicate keys and
+output order are preserved by ordinary list induction and congruence proofs.
+Query-dependent tables and float keys are outside the admitted domain. This does
+not retain an index between public calls. Construction, memory and lookup costs
+still need whole-workload evidence; proof availability alone grants no selection.
