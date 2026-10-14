@@ -1,0 +1,5 @@
+{
+  "status": "checked",
+  "law": "043ee128dca98b28b340863848f99447f2101056e1e4081c888a9580b5d4ffa3",
+  "scope": "All typed calls to the exact source comparison preserve the complete tree value; not order/rank equivalence or maintained invariant preservation."
+}

@@ -1,0 +1,8 @@
+{
+  "laws": {
+    "repeated_set": "7d0c06adb9c4dc031bfe5811941134ffd8b17de368edb511fd522df2b6eaaf4a",
+    "set_same": "533d427dea7bd75c39b9206a519a33e323dfdd745a0fb9577ce8a84aadc48b1b"
+  },
+  "snapshot": "6bd33f790529b2ec6a27d25d188ccca7afb4d1def215c1df8edfc64d5f012659",
+  "scope": "Universal last-write-wins at same buffer index and write-back of original value, including out-of-range no-op. No CRDT invariant."
+}

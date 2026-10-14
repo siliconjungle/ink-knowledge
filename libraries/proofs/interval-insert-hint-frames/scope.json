@@ -1,0 +1,8 @@
+{
+  "laws": {
+    "source/descend_loop_index": "c4c6f04e77d494b032c7e301fc7113b443730fb1b3bb84ccb8f8f9fedc82c9f3",
+    "source/ascend_loop_index": "e1f77b892c928b08e2623543f3e404adec032e69999703cdb970524d50347fee"
+  },
+  "snapshot": "930ca0db2ebc82262007956f71a92bc2f6b7bbe41cd9969212937cda35f62718",
+  "scope": "Actual ascent/descent index observer preservation for arbitrary bounded loop counts, stop predicates and initial cursors. No BST ordering or insertion equivalence theorem."
+}

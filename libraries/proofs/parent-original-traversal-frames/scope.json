@@ -1,0 +1,10 @@
+{
+  "laws": {
+    "source/ordinary_retreat_ends": "cc5f8fb8ac20c8105f76b10aff512a17de2d733d82dd14219076428bea88bf4c",
+    "source/ordinary_advance_ends": "a075fe7b3f7dabdac10bf05cf99d998339c43a18a433941fd1fbdb17dd2bd683",
+    "source/checkpoint_retreat_ends": "59d155f5a3a52d03695203bef2969f568760730db7ebdd66ae1695e5052d2a1c",
+    "source/checkpoint_advance_ends": "7dd092b3e130eae8b96c9870538ac6880a056151e48c9dc2d0c2b5cec2071ed2"
+  },
+  "snapshot": "b2a916dbea950c60cd5357f6bdfcf014c753844ce625781b339cdb802d5a7547",
+  "scope": "Actual original ordinary/checkpoint retreat and advance functions preserve complete ends map. Complete preparation and integrated frontier reuse still require higher composition."
+}

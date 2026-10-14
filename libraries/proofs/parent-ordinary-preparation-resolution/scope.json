@@ -1,0 +1,6 @@
+{
+  "law": "3bb0ba620114e811a484a2a60662dba9dafacb4ee22dbdcd1f6f56c5a46992cf",
+  "function": "ordinary_resolve_before_prepare",
+  "field": "unused",
+  "scope": "Exact actual resolver values before/after prepare_resolved, arbitrary walker/parents/local frontier/follows. One independently checked closure within catalogue limits. Full application/FugueMax refinement not proved."
+}

@@ -90,6 +90,17 @@ class DefinitionContexts(unittest.TestCase):
         # Binding a cycle is an untrusted proposal. The core independently
         # rejects its unchanged U32 recursion before checking any equality.
 
+    def test_flat_body_prefilter_preserves_exact_source_matching(self):
+        from producers.flat_term import encode
+        core, subject, equation = self.fixture()
+        contextual = bind(equation, core, subject)
+        for bound in contextual['definition_context']['definitions'].values():
+            bound['definition']['body'] = encode(bound['definition']['body'])
+        self.assertTrue(applicable(contextual, core['program'], subject))
+        changed = copy.deepcopy(subject)
+        changed['functions']['leaf'] = word('U32', 0)
+        self.assertFalse(applicable(contextual, core['program'], changed))
+
 
 if __name__ == '__main__':
     unittest.main()

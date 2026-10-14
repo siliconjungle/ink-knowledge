@@ -1,0 +1,1 @@
+Four source-derived universal scalar equations checked with RUP certificates: radix-128 and octet reconstruction, u64/u32 XOR delta inverses. These do not establish the full packed-stream codec inverse, parser bounds, canonicality, CRDT replay, or maintained representation preservation.

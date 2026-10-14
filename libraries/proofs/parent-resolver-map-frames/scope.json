@@ -1,0 +1,8 @@
+{
+  "laws": {
+    "source/ordinary_resolved_ends": "9a9b8da486002e0f9360f741b86ea96b4338cf36fd7cb0b7df89921c9e76a8ed",
+    "source/checkpoint_resolved_ends": "6c68e22ecaaa97ac0a9dc8f281c87d89b54d5798e1c4e3c0ec781c5faa9b0bcb"
+  },
+  "snapshot": "211eba652d55c6cf592c17aa65a5ae3999bd93e284213332143d355f12dcdb96",
+  "scope": "Actual ordinary/checkpoint resolved functions preserve complete walker.ends for arbitrary parent lists. Named wrappers are exact actual fold transitions and application endpoints convert by checked beta/source congruence. Parent values and full CRDT equivalence are separate obligations."
+}

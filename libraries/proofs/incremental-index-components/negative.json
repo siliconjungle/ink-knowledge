@@ -1,0 +1,5 @@
+{
+  "error": "error: law unchanged_word: bit proof hint is not unit or conflicting\n",
+  "returncode": 1,
+  "scope": "Recomputed circuit identity for false word-equality conclusion"
+}

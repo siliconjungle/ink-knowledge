@@ -1,0 +1,8 @@
+{
+  "compiler_sha256": "e1adef5ce22e04e0d12398110c014a1603e0bab561db86a474914d86759d4444",
+  "source_sha256": "15631ca894a34a1dde17c93db6333d16d20262165578c150e98c0f3bfeb6486b",
+  "laws": {
+    "source/interior_partition_preserves_buckets": "aec23c694c90a01c2ec1735c08623df1b16d89d8f4712d0876b0eb8247a0aeb4"
+  },
+  "scope": "Universal u64 interval/cut arithmetic: contained whole interval and strict interior cut imply both subintervals remain contained, including terminal end zero. No tree-link invariant."
+}

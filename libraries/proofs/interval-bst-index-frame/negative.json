@@ -1,0 +1,5 @@
+{
+  "returncode": 1,
+  "error": "error: semantic normal forms differ\n",
+  "scope": "Canonical rehashed false loop result clears the supplied index root; unchanged complete definition context"
+}

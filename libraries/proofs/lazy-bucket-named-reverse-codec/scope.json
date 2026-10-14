@@ -1,0 +1,6 @@
+{
+  "left": "reverse_roundtrip",
+  "right": "fast_unchanged",
+  "law": "0823e5d49bd4c8ddd0ea0d74ddc4d53d6f548fa119aded6df381c0472d8ab8a6",
+  "scope": "Exact encode(decode(index)) round trip for arbitrary actual named lazy bucket Index; no lookup or maintained forest refinement."
+}

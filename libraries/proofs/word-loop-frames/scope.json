@@ -1,0 +1,1 @@
+{"compiler_sha256": "46c40d85e38bf22ffb0f690c3952ab5940563a36dbe9075632e60dc982cfacee", "scope": "Generic arbitrary U32 stopping count and opaque observer under universal step preservation; no CRDT result refinement", "laws": ["d02139ae45ac5ae710085e4e78429b067f75cd200e5c23c37f1ae11352a2cc03", "9b27674c60696026f68c3dc20cbc0ac64c86231f17287f39c71d16a204051567"]}

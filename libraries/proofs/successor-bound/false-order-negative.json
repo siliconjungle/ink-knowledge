@@ -1,0 +1,5 @@
+{
+  "error": "error: law ordered_descendant: bit proof hint is not unit or conflicting\n",
+  "returncode": 1,
+  "scope": "Changed strict comparison, recomputed circuit identity, original assumptions retained"
+}

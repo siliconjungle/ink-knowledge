@@ -8,7 +8,14 @@ class ProposalViews:
         # One stable membership tree supports incremental kernel admissions.
         # This is an ephemeral partial transport, not a durable object store.
         # Unused discovery bodies are never copied or treated as admitted laws.
-        self.transport=Store._publish_ids(self.directory,objects.keys(),{},64)
+        # Reused laws need membership in this transport snapshot as well as
+        # their bytes. A closure may mix newly authored and published objects.
+        identities=set(objects);pending=[dep for obj in objects.values()for dep in obj['dependencies']]
+        while pending:
+            ident=pending.pop()
+            if ident in identities:continue
+            obj=self.source.object(ident);identities.add(ident);pending.extend(obj['dependencies'])
+        self.transport=Store._publish_ids(self.directory,identities,{},64)
         self.members=self.transport.members()
     def update(self,extra):
         """Extend proposal transport; every new closure still needs kernel admission."""

@@ -4,7 +4,7 @@ from ink_knowledge import Store,canonical
 
 class GeneratedProposals(unittest.TestCase):
  def test_planner_generates_checked_fold_and_unfolding_closures(self):
-  root=Path(__file__).resolve().parents[2];compiler=root/'target/debug/ink'
+  root=Path(__file__).resolve().parents[2];compiler=Path(os.environ.get('INK_COMPILER',root/'target/debug/ink'))
   with tempfile.TemporaryDirectory()as tmp:
    d=Path(tmp);st=Store.publish(d/'knowledge',[])
    source=d/'source.ink';source.write_text('module proof;fn leaf(x:u32)->u32{return x+1;}fn first(xs:List<u32>,z:u32,k:u32)->u32{return foldr(xs,z,fn(x)=>fn(a)=>choose(x>k,leaf(x),a));}fn helper(x:u32)->u32{return leaf(x);}')

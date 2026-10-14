@@ -1,0 +1,6 @@
+{
+  "left": "eager",
+  "right": "lazy",
+  "law": "0be52c0e5c91282268d96b63a606283df9b0e72133654b6fcd8b9f51acfe8658",
+  "scope": "Exact eager bucket locate vs lazy hint-first source body on shared original bucket carrier, arbitrary index/key/hint. Named lazy library transport and maintained forest equivalence are separate obligations."
+}

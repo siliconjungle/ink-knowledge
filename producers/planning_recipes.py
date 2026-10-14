@@ -97,6 +97,13 @@ def requests(result):
     if isinstance(result,dict) and 'requests'in result:return result['requests']
     return [result]
 def author(context,parameters,generate):
+    # These families author maintained state/action representations. A module
+    # with only pure function roots has no stateful observation to accelerate;
+    # a vacuous action proof does not make a pure callable implementation.
+    program=context['core']['program']
+    if not program['states']and not program['actions']:
+        yield decline('stateful representations','source has no state/action roots; pure replacements require source-function equality')
+        return
     for options in variants(context,parameters):
         label=json.dumps(options,sort_keys=True)
         try:
@@ -326,7 +333,7 @@ def walk(value):
         node=pending.pop();yield node
         if isinstance(node,dict):pending.extend(node.values())
         elif isinstance(node,list):pending.extend(node)
-def lexical_reads(program):
+def lexical_reads(program,only_function=None):
     """Untrusted typed place discovery. The emitter still checks ownership and
     lifetimes; source-free names and scalar fields never become read sites."""
     result=set();functions={f['name']:f for f in program['functions']}
@@ -384,7 +391,8 @@ def lexical_reads(program):
                     elif isinstance(child,list):
                         for nested in child:
                             if isinstance(nested,dict):visit(nested,env)
-    for f in program['functions']:visit(f['body'],dict(f['params']),f['result'])
+    for f in program['functions']:
+        if only_function is None or f['name']==only_function:visit(f['body'],dict(f['params']),f['result'])
     return result
 def physical(context, source_strategies, definition_strategies, composition_limit=256):
     from ink_knowledge.selectors import matches

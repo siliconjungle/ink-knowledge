@@ -51,17 +51,20 @@ def generate(subject,core,store=None,compiler=None):
         module=importlib.import_module(name)
         rows=module.specialize(subject,core)
         if len(rows)>256:raise ValueError('producer candidate limit')
-        renamed={}
+        renamed={}; rejected=[]
         for label,proposal in rows:
-            from producers.definition_context28 import bind,calls
-            names={f['name']for f in core['program']['functions']}
-            original=identity(semantic_entry(proposal))
-            proposal=retarget(proposal,renamed)
-            if 'definition_context' not in proposal and (calls(proposal,names) or nominal_types(proposal)):
-                proposal=bind(proposal,core,subject)
-            obj=semantic_entry(proposal);ident=identity(obj);objects[ident]=obj
-            if ident!=original:renamed[original]=ident
-        receipts.append(dict(module=name,source_sha256=hashlib.sha256(Path(module.__file__).read_bytes()).hexdigest(),candidates=len(rows),publication_ids=publications,retargeted=len(renamed)))
+            try:
+                from producers.definition_context28 import bind,calls
+                names={f['name']for f in core['program']['functions']}
+                original=identity(semantic_entry(proposal))
+                proposal=retarget(proposal,renamed)
+                if 'definition_context' not in proposal and (calls(proposal,names) or nominal_types(proposal)):
+                    proposal=bind(proposal,core,subject)
+                obj=semantic_entry(proposal);ident=identity(obj);objects[ident]=obj
+                if ident!=original:renamed[original]=ident
+            except ValueError as error:
+                rejected.append(dict(label=str(label)[:256],reason=str(error)[:1000]))
+        receipts.append(dict(module=name,source_sha256=hashlib.sha256(Path(module.__file__).read_bytes()).hexdigest(),candidates=len(rows),publication_ids=publications,retargeted=len(renamed),rejected=rejected))
     if store is not None:
         from .law_templates import generate as instantiate
         extra,templates=instantiate(store,subject,core);objects.update(extra);receipts.extend(templates)
