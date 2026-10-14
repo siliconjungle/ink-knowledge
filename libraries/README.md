@@ -136,3 +136,15 @@ general fold simulation and prefix observation; it adds no compiler Set case.
 certificates against fresh source-derived goals. It retains their exact proof
 trees and searches only for missing obligations; hashes and old verdicts never
 replace replay.
+
+`fold-products.ink` supplies a carrier-parametric product-fold law with an explicit
+whole-step premise, plus exact ordered concatenation and block traversal laws.
+Its concrete floating-point instance preserves each accumulator's operation order;
+it does not assume associativity. `producers.product_fusion` discovers independent
+left folds into two to eight fields of an arbitrary source record and authors a
+complete induction proof. It is installed in normal discovery and publishes no
+profitability exemption: record construction can outweigh traversal savings.
+Different input sequences are not fused. The source-bound proof covers captured
+callbacks; cross-coupling an accumulator is rejected. These are reusable building
+blocks for tiled algorithms, not a claim that arbitrary matrix blocking is already
+automatically discovered or profitable.
