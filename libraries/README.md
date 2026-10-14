@@ -114,3 +114,8 @@ float reassociation or replacing division by reciprocal multiplication.
 `sequence-filter-laws.ink` proves that folding a filtered sequence equals folding
 the original sequence with a conditional step. Set preservation uses it with
 general fold simulation and prefix observation; it adds no compiler Set case.
+
+`producers.contract_proofs --source-evidence` replays supplied pure and state
+certificates against fresh source-derived goals. It retains their exact proof
+trees and searches only for missing obligations; hashes and old verdicts never
+replace replay.

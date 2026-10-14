@@ -622,100 +622,116 @@ def author_obligations(compiler,source,directory,bodies,options,goals,session,su
         law=dict(schema=1,semantics=proof_semantics(proof),params=g['params'],conditions=g['conditions'],**g['goal'],proof=proof,dependencies=dependencies,definition_context=context_for(goals['definition_context'],g))
         obj=semantic_entry(law);i=identity(obj);pure_objects[i]=obj;pure_roots.append(i);names['contract.'+g['name']]=i
         proofs[g['name']]={'Use':dict(law=i,arguments={n:dict(sort=t,node={'Free':n}) for n,t in g['params'].items()},premises=[{'Hypothesis':j} for j in range(len(g['conditions']))])}
-    def add(declaration):
-        from producers.proof_composition import balance_transitivity
-        if 'Theorem' in declaration:
-            declaration={**declaration,'Theorem':{**declaration['Theorem'],'proof':balance_transitivity(declaration['Theorem']['proof'])}}
-        d=next(iter(declaration.values()));deps=references(declaration);pending=list(deps)
+    pending_state=[]
+    for g in (goals['state'] or {}).get('obligations',[]):
+        if not supplied or g['name']not in supplied.get('state_proofs',{}):
+            pending_state.append(g);continue
+        candidate=supplied['state_proofs'][g['name']];bundle=supplied.get('state_knowledge')
+        # Replay the original obligation in this source session. Neither the
+        # old verdict nor snapshot membership authorises reuse in a new scope.
+        if not check(g,candidate,bundle):raise ValueError('supplied state proof failed replay for '+g['name'])
+        if bundle:state_objects.update(bundle['objects'])
+        roots=sorted(references(candidate))
+        if any(root not in state_objects for root in roots):raise ValueError('supplied state dependency absent')
+        state_roots.extend(roots);state_proofs[g['name']]=candidate
+        if set(candidate)=={'Use'}:names['contract.'+g['name']]=candidate['Use']['theorem']
+    # Expensive traversal equivalence/induction search is needed only for goals
+    # still lacking a checked certificate. All replayed trees stay unchanged.
+    if pending_state:
+        def add(declaration):
+            from producers.proof_composition import balance_transitivity
+            if 'Theorem' in declaration:
+                declaration={**declaration,'Theorem':{**declaration['Theorem'],'proof':balance_transitivity(declaration['Theorem']['proof'])}}
+            d=next(iter(declaration.values()));deps=references(declaration);pending=list(deps)
+            while pending:
+                for dep in state_objects[pending.pop()]['dependencies']:
+                    if dep not in deps:deps.add(dep);pending.append(dep)
+            metadata=dict(parameters=dict(d.get('params',[])))
+            if 'Theorem' in declaration:metadata['conditions']=d['conditions']
+            if 'Function' in declaration:metadata['result']=d['result']
+            obj=entry('theorem' if 'Theorem' in declaration else 'definition',MATH,dict(declaration=declaration),deps,**metadata);i=identity(obj);state_objects[i]=obj;return i
+        from producers.tree_proofs import Tactic as TypedTactic
+        from producers.scalar_tactic import Scalar
+        typed=TypedTactic(state_objects,add)
+        scalar=Scalar(add,typed.sort,lambda term,env:term,compiler=compiler)
+        # Alpha-equivalent generated traversals still have independent canonical IDs.
+        # Propose ordinary induction theorems between them; never identify their
+        # meanings merely from names or syntax in the trusted kernel.
+        from producers.equational import alpha
+        aliases={};classes={};pending={i:o['payload']['declaration']['Function'] for i,o in state_objects.items() if 'Function' in o['payload']['declaration']}
+        def canonical_calls(x):
+            if isinstance(x,list):return [canonical_calls(v) for v in x]
+            if not isinstance(x,dict):return x
+            return {k:(aliases[v][0] if k=='function' and v in aliases else canonical_calls(v)) for k,v in x.items()}
         while pending:
-            for dep in state_objects[pending.pop()]['dependencies']:
-                if dep not in deps:deps.add(dep);pending.append(dep)
-        metadata=dict(parameters=dict(d.get('params',[])))
-        if 'Theorem' in declaration:metadata['conditions']=d['conditions']
-        if 'Function' in declaration:metadata['result']=d['result']
-        obj=entry('theorem' if 'Theorem' in declaration else 'definition',MATH,dict(declaration=declaration),deps,**metadata);i=identity(obj);state_objects[i]=obj;return i
-    from producers.tree_proofs import Tactic as TypedTactic
-    from producers.scalar_tactic import Scalar
-    typed=TypedTactic(state_objects,add)
-    scalar=Scalar(add,typed.sort,lambda term,env:term,compiler=compiler)
-    # Alpha-equivalent generated traversals still have independent canonical IDs.
-    # Propose ordinary induction theorems between them; never identify their
-    # meanings merely from names or syntax in the trusted kernel.
-    from producers.equational import alpha
-    aliases={};classes={};pending={i:o['payload']['declaration']['Function'] for i,o in state_objects.items() if 'Function' in o['payload']['declaration']}
-    def canonical_calls(x):
-        if isinstance(x,list):return [canonical_calls(v) for v in x]
-        if not isinstance(x,dict):return x
-        return {k:(aliases[v][0] if k=='function' and v in aliases else canonical_calls(v)) for k,v in x.items()}
-    while pending:
-        ready=[i for i,d in pending.items() if not (references(d)&pending.keys())]
-        if not ready:break
-        for i in ready:
-            d=pending.pop(i);params=[(f'contract_alias_{j}',t) for j,(_,t) in enumerate(d['params'])]
-            body=alpha(canonical_calls(sub(d['body'],{n:var(m) for (n,_),(m,_) in zip(d['params'],params)})))
-            key=json.dumps([params,d['result'],d['recursive'],body],sort_keys=True)
-            if key not in classes:classes[key]=i;continue
-            target=classes[key];args=[var(n) for n,_ in params]
-            a={'Call':dict(function=i,arguments=args)};z={'Call':dict(function=target,arguments=args)}
-            (directory/'progress.json').write_text(json.dumps(dict(phase="traversal-equivalence",function=i,target=target)))
+            ready=[i for i,d in pending.items() if not (references(d)&pending.keys())]
+            if not ready:break
+            for i in ready:
+                d=pending.pop(i);params=[(f'contract_alias_{j}',t) for j,(_,t) in enumerate(d['params'])]
+                body=alpha(canonical_calls(sub(d['body'],{n:var(m) for (n,_),(m,_) in zip(d['params'],params)})))
+                key=json.dumps([params,d['result'],d['recursive'],body],sort_keys=True)
+                if key not in classes:classes[key]=i;continue
+                target=classes[key];args=[var(n) for n,_ in params]
+                a={'Call':dict(function=i,arguments=args)};z={'Call':dict(function=target,arguments=args)}
+                (directory/'progress.json').write_text(json.dumps(dict(phase="traversal-equivalence",function=i,target=target)))
+                try:proof=state_proof(state_objects,a,z,dict(params),aliases=aliases,scalar=scalar)
+                except ValueError:continue
+                theorem=add({'Theorem':dict(params=params,conditions=[],**{'from':a,'to':z},proof=proof)})
+                aliases[i]=(target,theorem)
+        # Propose reflexivity for homogeneous Boolean relations over data. This is
+        # search, not recognition authority: induction must prove each candidate.
+        for i,obj in list(state_objects.items()):
+            d=obj['payload']['declaration'].get('Function')
+            if i in aliases or not d or d['result']!='Bool' or len(d['params'])!=2:continue
+            sort=d['params'][0][1]
+            if sort!=d['params'][1][1] or not isinstance(sort,dict) or 'Data' not in sort:continue
+            params=[('contract_reflexive',sort)];argument=var(params[0][0])
+            a={'Call':dict(function=i,arguments=[argument,argument])};z={'Bool':True}
             try:proof=state_proof(state_objects,a,z,dict(params),aliases=aliases,scalar=scalar)
             except ValueError:continue
             theorem=add({'Theorem':dict(params=params,conditions=[],**{'from':a,'to':z},proof=proof)})
-            aliases[i]=(target,theorem)
-    # Propose reflexivity for homogeneous Boolean relations over data. This is
-    # search, not recognition authority: induction must prove each candidate.
-    for i,obj in list(state_objects.items()):
-        d=obj['payload']['declaration'].get('Function')
-        if i in aliases or not d or d['result']!='Bool' or len(d['params'])!=2:continue
-        sort=d['params'][0][1]
-        if sort!=d['params'][1][1] or not isinstance(sort,dict) or 'Data' not in sort:continue
-        params=[('contract_reflexive',sort)];argument=var(params[0][0])
-        a={'Call':dict(function=i,arguments=[argument,argument])};z={'Bool':True}
-        try:proof=state_proof(state_objects,a,z,dict(params),aliases=aliases,scalar=scalar)
-        except ValueError:continue
-        theorem=add({'Theorem':dict(params=params,conditions=[],**{'from':a,'to':z},proof=proof)})
-        aliases[i]=(None,theorem)
-    from producers.owned_fold_state import propose as owned_state_proposals
-    aliases.update(owned_state_proposals(state_objects,add,state_proof))
-    (directory/'derived-aliases.json').write_text(json.dumps(aliases,sort_keys=True))
-    for number,g in enumerate((goals['state'] or {}).get('obligations',[])):
-        (directory/'progress.json').write_text(json.dumps(dict(phase='state-obligation',name=g['name'])))
-        from producers.point_delta import free_variables
-        a,z=g['goal']['from'],g['goal']['to'];all_conditions=g['conditions']
-        data_names={n for n,t in g['params'] if isinstance(t,dict) and 'Data' in t}
-        subsets=[list(range(len(all_conditions))),*[[i for i,c in enumerate(all_conditions) if variable not in (free_variables(c['from'])|free_variables(c['to']))] for variable,_ in g['params'] if variable in data_names],[]]
-        subsets=list(dict.fromkeys(tuple(indices) for indices in subsets))
-        subsets=[list(indices) for indices in subsets]
-        success=False;errors=[]
-        direct=next((p for p in [convert(a,z),*[{'Hypothesis':i} for i in range(len(all_conditions))]] if check(g,p)),None)
-        ordered=[subsets[0]] if direct is not None else [*subsets[1:],subsets[0]]
-        for attempt,indices in enumerate(ordered):
-            (directory/'progress.json').write_text(json.dumps(dict(phase='state-obligation',name=g['name'],conditions=indices)))
-            conditions=[all_conditions[i] for i in indices];hyp=[(c['from'],c['to'],i) for i,c in enumerate(conditions)]
-            try:
-                proof=direct if direct is not None else state_proof(state_objects,a,z,dict(g['params']),hyp,aliases=aliases if indices else {},scalar=scalar)
-            except ValueError as error:errors.append(str(error));continue
-            i=add({'Theorem':dict(params=g['params'],conditions=conditions,**g['goal'],proof=proof)})
-            trial=Store.publish(directory/'trials'/f'{number}-{attempt}',state_objects.values())
-            use={'Use':dict(theorem=i,arguments=[var(n) for n,_ in g['params']],premises=[{'Hypothesis':j} for j in indices])}
-            if check(g,use,trial.bundle([i])):
-                state_roots.append(i);names['contract.'+g['name']]=i;state_proofs[g['name']]=use;success=True;break
-            state_objects.pop(i)
-        if not success:
-            from producers.conditional_induction import guarded_goal,apply_guarded
-            guarded=guarded_goal(g)
-            if guarded is not None:
-                guard,guard_proof,statement=guarded
+            aliases[i]=(None,theorem)
+        from producers.owned_fold_state import propose as owned_state_proposals
+        aliases.update(owned_state_proposals(state_objects,add,state_proof))
+        (directory/'derived-aliases.json').write_text(json.dumps(aliases,sort_keys=True))
+        for number,g in enumerate(pending_state):
+            (directory/'progress.json').write_text(json.dumps(dict(phase='state-obligation',name=g['name'])))
+            from producers.point_delta import free_variables
+            a,z=g['goal']['from'],g['goal']['to'];all_conditions=g['conditions']
+            data_names={n for n,t in g['params'] if isinstance(t,dict) and 'Data' in t}
+            subsets=[list(range(len(all_conditions))),*[[i for i,c in enumerate(all_conditions) if variable not in (free_variables(c['from'])|free_variables(c['to']))] for variable,_ in g['params'] if variable in data_names],[]]
+            subsets=list(dict.fromkeys(tuple(indices) for indices in subsets))
+            subsets=[list(indices) for indices in subsets]
+            success=False;errors=[]
+            direct=next((p for p in [convert(a,z),*[{'Hypothesis':i} for i in range(len(all_conditions))]] if check(g,p)),None)
+            ordered=[subsets[0]] if direct is not None else [*subsets[1:],subsets[0]]
+            for attempt,indices in enumerate(ordered):
+                (directory/'progress.json').write_text(json.dumps(dict(phase='state-obligation',name=g['name'],conditions=indices)))
+                conditions=[all_conditions[i] for i in indices];hyp=[(c['from'],c['to'],i) for i,c in enumerate(conditions)]
                 try:
-                    proof=state_proof(state_objects,statement,z,dict(g['params']),aliases=aliases,scalar=scalar)
-                    i=add({'Theorem':dict(params=g['params'],conditions=[],**{'from':statement,'to':z},proof=proof)})
-                    trial=Store.publish(directory/'trials'/f'{number}-guarded',state_objects.values())
-                    use=apply_guarded(g,guard,guard_proof,i)
-                    if check(g,use,trial.bundle([i])):
-                        state_roots.append(i);names['contract.'+g['name']]=i;state_proofs[g['name']]=use;success=True
-                    else:state_objects.pop(i)
-                except ValueError as error:errors.append(str(error))
-        if not success:raise ValueError('no checked state proof for '+g['name']+': '+'; '.join(errors)[-1200:])
+                    proof=direct if direct is not None else state_proof(state_objects,a,z,dict(g['params']),hyp,aliases=aliases if indices else {},scalar=scalar)
+                except ValueError as error:errors.append(str(error));continue
+                i=add({'Theorem':dict(params=g['params'],conditions=conditions,**g['goal'],proof=proof)})
+                trial=Store.publish(directory/'trials'/f'{number}-{attempt}',state_objects.values())
+                use={'Use':dict(theorem=i,arguments=[var(n) for n,_ in g['params']],premises=[{'Hypothesis':j} for j in indices])}
+                if check(g,use,trial.bundle([i])):
+                    state_roots.append(i);names['contract.'+g['name']]=i;state_proofs[g['name']]=use;success=True;break
+                state_objects.pop(i)
+            if not success:
+                from producers.conditional_induction import guarded_goal,apply_guarded
+                guarded=guarded_goal(g)
+                if guarded is not None:
+                    guard,guard_proof,statement=guarded
+                    try:
+                        proof=state_proof(state_objects,statement,z,dict(g['params']),aliases=aliases,scalar=scalar)
+                        i=add({'Theorem':dict(params=g['params'],conditions=[],**{'from':statement,'to':z},proof=proof)})
+                        trial=Store.publish(directory/'trials'/f'{number}-guarded',state_objects.values())
+                        use=apply_guarded(g,guard,guard_proof,i)
+                        if check(g,use,trial.bundle([i])):
+                            state_roots.append(i);names['contract.'+g['name']]=i;state_proofs[g['name']]=use;success=True
+                        else:state_objects.pop(i)
+                    except ValueError as error:errors.append(str(error))
+            if not success:raise ValueError('no checked state proof for '+g['name']+': '+'; '.join(errors)[-1200:])
     store=Store.publish(directory,[*pure_objects.values(),*state_objects.values()],names)
     evidence=dict(schema=1,semantics=goals['semantics'],source_sha256=goals['source_sha256'],proofs=proofs,state_proofs=state_proofs,knowledge=store.bundle(pure_roots) if pure_roots else None,state_knowledge=store.bundle(state_roots) if state_roots else None)
     (directory/'progress.json').write_text(json.dumps(dict(phase='proofs-replayed',pure=len(proofs),state=len(state_proofs))))
