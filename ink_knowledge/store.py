@@ -1,4 +1,4 @@
-from contextlib import closing, nullcontext
+from contextlib import closing, nullcontext, contextmanager
 import hashlib
 import json
 import os
@@ -85,8 +85,28 @@ def immutable(path, value):
     data=canonical(value)+b'\n';path.parent.mkdir(parents=True,exist_ok=True)
     if path.exists():
         if path.read_bytes() != data: raise ValueError('immutable object collision')
-    else:
-        with path.open('xb') as f: f.write(data)
+        return
+    # Complete bytes become visible in one no-replace operation. Two creators
+    # of the same object may both succeed, but different bytes never overwrite.
+    fd,temporary=tempfile.mkstemp(prefix='.ink-object-',dir=path.parent)
+    try:
+        with os.fdopen(fd,'wb') as output:output.write(data)
+        try:os.link(temporary,path)
+        except FileExistsError:
+            if path.read_bytes()!=data:raise ValueError('immutable object collision')
+    finally:
+        Path(temporary).unlink(missing_ok=True)
+
+@contextmanager
+def _publication_lock(root):
+    # A private SQLite write transaction provides an OS-released process lock,
+    # including on platforms without flock. It holds no proof/index data and
+    # must remain at a stable path; deleting a live lock would split writers.
+    directory=Path(root).resolve()/'store';directory.mkdir(parents=True,exist_ok=True)
+    with closing(sqlite3.connect(directory/'.publication.sqlite',timeout=60)) as lock:
+        lock.execute('BEGIN IMMEDIATE')
+        try:yield
+        finally:lock.rollback()
 
 def read(path):
     return _read_canonical(path)[0]
@@ -117,13 +137,14 @@ class Store:
     @classmethod
     def publish(cls, root, objects, names=None, *, leaf_size=64):
         if type(leaf_size) is not int or not 1<=leaf_size<=64:raise ValueError('snapshot leaf size')
-        root=Path(root);data=root/'store';ids=[]
-        for obj in objects:
-            validate_entry(obj);i=identity(obj);immutable(data/'objects'/f'{i}.json',obj);ids.append(i)
-        ids=sorted(set(ids)); known=set(ids)
-        for i in ids:
-            if not set(read(data/'objects'/f'{i}.json')['dependencies']) <= known: raise ValueError('dependency absent from snapshot')
-        return cls._publish_ids(root,ids,names,leaf_size)
+        with _publication_lock(root):
+            root=Path(root);data=root/'store';ids=[]
+            for obj in objects:
+                validate_entry(obj);i=identity(obj);immutable(data/'objects'/f'{i}.json',obj);ids.append(i)
+            ids=sorted(set(ids)); known=set(ids)
+            for i in ids:
+                if not set(read(data/'objects'/f'{i}.json')['dependencies']) <= known: raise ValueError('dependency absent from snapshot')
+            return cls._publish_ids(root,ids,names,leaf_size)
     def extend(self, objects, names=None, *, leaf_size=None):
         """Append to a current publication without reopening old proof bodies.
 
@@ -132,27 +153,29 @@ class Store:
         admission. This operation never creates a checked executable context.
         """
         if self._explicit_snapshot:raise ValueError('extend requires current publication')
-        members=self.members()
-        if leaf_size is None:
-            # Preserve an established compact transport topology for wide views.
-            # Small publications keep the original 64-entry default.
-            leaf_size=2 if len(members)>64 and all(len(w['entries'])<=2 for w in members.values()) else 64
-        known=set(members);added=[]
-        for obj in objects:
-            validate_entry(obj);i=identity(obj)
-            immutable(self.data/'objects'/f'{i}.json',obj)
-            known.add(i);added.append(obj)
-        for obj in added:
-            if not set(obj['dependencies'])<=known:raise ValueError('dependency absent from snapshot')
-        if Store(self.root).snapshot_id!=self.snapshot_id:raise ValueError('publication changed during extension')
-        old_names=read(self.data/'names.json')
-        names={**old_names,**(names or {})}
-        if known==set(members) and names==old_names and all(len(w['entries'])<=leaf_size for w in members.values()):
-            return self
-        return self._publish_ids(self.root,known,names,leaf_size)
+        with _publication_lock(self.root):
+            members=self.members()
+            if leaf_size is None:
+                # Preserve an established compact transport topology for wide views.
+                # Small publications keep the original 64-entry default.
+                leaf_size=2 if len(members)>64 and all(len(w['entries'])<=2 for w in members.values()) else 64
+            known=set(members);added=[]
+            for obj in objects:
+                validate_entry(obj);i=identity(obj)
+                immutable(self.data/'objects'/f'{i}.json',obj)
+                known.add(i);added.append(obj)
+            for obj in added:
+                if not set(obj['dependencies'])<=known:raise ValueError('dependency absent from snapshot')
+            if Store(self.root).snapshot_id!=self.snapshot_id:raise ValueError('publication changed during extension')
+            old_names=read(self.data/'names.json')
+            names={**old_names,**(names or {})}
+            if known==set(members) and names==old_names and all(len(w['entries'])<=leaf_size for w in members.values()):
+                return self
+            return self._publish_ids(self.root,known,names,leaf_size)
     @classmethod
     def _publish_ids(cls, root, ids, names, leaf_size):
         if type(leaf_size) is not int or not 1<=leaf_size<=64:raise ValueError('snapshot leaf size limit')
+        # Called only while the public writer holds _publication_lock.
         root=Path(root);data=root/'store';ids=sorted(set(ids))
         # Stable hash-prefix buckets prevent an insertion shifting every later
         # leaf. Topology grows only at powers of two; an oversized bucket splits

@@ -1,5 +1,15 @@
 """Untrusted proof-tree construction; all certificates still require replay."""
 
+def fresh_bindings(stems, occupied=()):
+    """Choose distinct proposal names without shadowing an ambient scope."""
+    occupied=set(occupied);names=[]
+    for stem in stems:
+        name=stem;serial=0
+        while name in occupied:
+            serial+=1;name=stem+'_'+str(serial)
+        occupied.add(name);names.append(name)
+    return names
+
 def nesting(value):
     if isinstance(value,dict):return 1+max((nesting(x) for x in value.values()),default=0)
     if isinstance(value,list):return 1+max((nesting(x) for x in value),default=0)
