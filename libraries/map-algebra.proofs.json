@@ -1,0 +1,1956 @@
+{
+  "map_overwrite_bool": {
+    "proof": {
+      "MapExtensional": {
+        "parameter": "map_key",
+        "fallback_parameter": "map_fallback",
+        "presence": {
+          "Cases": {
+            "condition": {
+              "sort": {
+                "Value": "Bool"
+              },
+              "node": {
+                "Op": [
+                  "binary:==",
+                  [
+                    {
+                      "sort": {
+                        "Value": "Bool"
+                      },
+                      "node": {
+                        "Free": "map_key"
+                      }
+                    },
+                    {
+                      "sort": {
+                        "Value": "Bool"
+                      },
+                      "node": {
+                        "Free": "a"
+                      }
+                    }
+                  ]
+                ]
+              }
+            },
+            "on_true": "Normalize",
+            "on_false": "Normalize"
+          }
+        },
+        "values": {
+          "Cases": {
+            "condition": {
+              "sort": {
+                "Value": "Bool"
+              },
+              "node": {
+                "Op": [
+                  "binary:==",
+                  [
+                    {
+                      "sort": {
+                        "Value": "Bool"
+                      },
+                      "node": {
+                        "Free": "map_key"
+                      }
+                    },
+                    {
+                      "sort": {
+                        "Value": "Bool"
+                      },
+                      "node": {
+                        "Free": "a"
+                      }
+                    }
+                  ]
+                ]
+              }
+            },
+            "on_true": "Normalize",
+            "on_false": "Normalize"
+          }
+        }
+      }
+    }
+  },
+  "map_remove_twice_bool": {
+    "proof": {
+      "MapExtensional": {
+        "parameter": "map_key",
+        "fallback_parameter": "map_fallback",
+        "presence": {
+          "Cases": {
+            "condition": {
+              "sort": {
+                "Value": "Bool"
+              },
+              "node": {
+                "Op": [
+                  "binary:==",
+                  [
+                    {
+                      "sort": {
+                        "Value": "Bool"
+                      },
+                      "node": {
+                        "Free": "map_key"
+                      }
+                    },
+                    {
+                      "sort": {
+                        "Value": "Bool"
+                      },
+                      "node": {
+                        "Free": "a"
+                      }
+                    }
+                  ]
+                ]
+              }
+            },
+            "on_true": "Normalize",
+            "on_false": "Normalize"
+          }
+        },
+        "values": {
+          "Cases": {
+            "condition": {
+              "sort": {
+                "Value": "Bool"
+              },
+              "node": {
+                "Op": [
+                  "binary:==",
+                  [
+                    {
+                      "sort": {
+                        "Value": "Bool"
+                      },
+                      "node": {
+                        "Free": "map_key"
+                      }
+                    },
+                    {
+                      "sort": {
+                        "Value": "Bool"
+                      },
+                      "node": {
+                        "Free": "a"
+                      }
+                    }
+                  ]
+                ]
+              }
+            },
+            "on_true": "Normalize",
+            "on_false": "Normalize"
+          }
+        }
+      }
+    }
+  },
+  "map_remove_after_set_bool": {
+    "proof": {
+      "MapExtensional": {
+        "parameter": "map_key",
+        "fallback_parameter": "map_fallback",
+        "presence": {
+          "Cases": {
+            "condition": {
+              "sort": {
+                "Value": "Bool"
+              },
+              "node": {
+                "Op": [
+                  "binary:==",
+                  [
+                    {
+                      "sort": {
+                        "Value": "Bool"
+                      },
+                      "node": {
+                        "Free": "map_key"
+                      }
+                    },
+                    {
+                      "sort": {
+                        "Value": "Bool"
+                      },
+                      "node": {
+                        "Free": "a"
+                      }
+                    }
+                  ]
+                ]
+              }
+            },
+            "on_true": "Normalize",
+            "on_false": "Normalize"
+          }
+        },
+        "values": {
+          "Cases": {
+            "condition": {
+              "sort": {
+                "Value": "Bool"
+              },
+              "node": {
+                "Op": [
+                  "binary:==",
+                  [
+                    {
+                      "sort": {
+                        "Value": "Bool"
+                      },
+                      "node": {
+                        "Free": "map_key"
+                      }
+                    },
+                    {
+                      "sort": {
+                        "Value": "Bool"
+                      },
+                      "node": {
+                        "Free": "a"
+                      }
+                    }
+                  ]
+                ]
+              }
+            },
+            "on_true": "Normalize",
+            "on_false": "Normalize"
+          }
+        }
+      }
+    }
+  },
+  "map_same_value_updates_bool": {
+    "proof": {
+      "MapExtensional": {
+        "parameter": "map_key",
+        "fallback_parameter": "map_fallback",
+        "presence": {
+          "Cases": {
+            "condition": {
+              "sort": {
+                "Value": "Bool"
+              },
+              "node": {
+                "Op": [
+                  "binary:==",
+                  [
+                    {
+                      "sort": {
+                        "Value": "Bool"
+                      },
+                      "node": {
+                        "Free": "map_key"
+                      }
+                    },
+                    {
+                      "sort": {
+                        "Value": "Bool"
+                      },
+                      "node": {
+                        "Free": "a"
+                      }
+                    }
+                  ]
+                ]
+              }
+            },
+            "on_true": {
+              "Cases": {
+                "condition": {
+                  "sort": {
+                    "Value": "Bool"
+                  },
+                  "node": {
+                    "Op": [
+                      "binary:==",
+                      [
+                        {
+                          "sort": {
+                            "Value": "Bool"
+                          },
+                          "node": {
+                            "Free": "map_key"
+                          }
+                        },
+                        {
+                          "sort": {
+                            "Value": "Bool"
+                          },
+                          "node": {
+                            "Free": "b"
+                          }
+                        }
+                      ]
+                    ]
+                  }
+                },
+                "on_true": "Normalize",
+                "on_false": "Normalize"
+              }
+            },
+            "on_false": {
+              "Cases": {
+                "condition": {
+                  "sort": {
+                    "Value": "Bool"
+                  },
+                  "node": {
+                    "Op": [
+                      "binary:==",
+                      [
+                        {
+                          "sort": {
+                            "Value": "Bool"
+                          },
+                          "node": {
+                            "Free": "map_key"
+                          }
+                        },
+                        {
+                          "sort": {
+                            "Value": "Bool"
+                          },
+                          "node": {
+                            "Free": "b"
+                          }
+                        }
+                      ]
+                    ]
+                  }
+                },
+                "on_true": "Normalize",
+                "on_false": "Normalize"
+              }
+            }
+          }
+        },
+        "values": {
+          "Cases": {
+            "condition": {
+              "sort": {
+                "Value": "Bool"
+              },
+              "node": {
+                "Op": [
+                  "binary:==",
+                  [
+                    {
+                      "sort": {
+                        "Value": "Bool"
+                      },
+                      "node": {
+                        "Free": "map_key"
+                      }
+                    },
+                    {
+                      "sort": {
+                        "Value": "Bool"
+                      },
+                      "node": {
+                        "Free": "a"
+                      }
+                    }
+                  ]
+                ]
+              }
+            },
+            "on_true": {
+              "Cases": {
+                "condition": {
+                  "sort": {
+                    "Value": "Bool"
+                  },
+                  "node": {
+                    "Op": [
+                      "binary:==",
+                      [
+                        {
+                          "sort": {
+                            "Value": "Bool"
+                          },
+                          "node": {
+                            "Free": "map_key"
+                          }
+                        },
+                        {
+                          "sort": {
+                            "Value": "Bool"
+                          },
+                          "node": {
+                            "Free": "b"
+                          }
+                        }
+                      ]
+                    ]
+                  }
+                },
+                "on_true": "Normalize",
+                "on_false": "Normalize"
+              }
+            },
+            "on_false": {
+              "Cases": {
+                "condition": {
+                  "sort": {
+                    "Value": "Bool"
+                  },
+                  "node": {
+                    "Op": [
+                      "binary:==",
+                      [
+                        {
+                          "sort": {
+                            "Value": "Bool"
+                          },
+                          "node": {
+                            "Free": "map_key"
+                          }
+                        },
+                        {
+                          "sort": {
+                            "Value": "Bool"
+                          },
+                          "node": {
+                            "Free": "b"
+                          }
+                        }
+                      ]
+                    ]
+                  }
+                },
+                "on_true": "Normalize",
+                "on_false": "Normalize"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "map_overwrite_u32": {
+    "proof": {
+      "MapExtensional": {
+        "parameter": "map_key",
+        "fallback_parameter": "map_fallback",
+        "presence": {
+          "Cases": {
+            "condition": {
+              "sort": {
+                "Value": "Bool"
+              },
+              "node": {
+                "Op": [
+                  "binary:==",
+                  [
+                    {
+                      "sort": {
+                        "Value": "U32"
+                      },
+                      "node": {
+                        "Free": "map_key"
+                      }
+                    },
+                    {
+                      "sort": {
+                        "Value": "U32"
+                      },
+                      "node": {
+                        "Free": "a"
+                      }
+                    }
+                  ]
+                ]
+              }
+            },
+            "on_true": "Normalize",
+            "on_false": "Normalize"
+          }
+        },
+        "values": {
+          "Cases": {
+            "condition": {
+              "sort": {
+                "Value": "Bool"
+              },
+              "node": {
+                "Op": [
+                  "binary:==",
+                  [
+                    {
+                      "sort": {
+                        "Value": "U32"
+                      },
+                      "node": {
+                        "Free": "map_key"
+                      }
+                    },
+                    {
+                      "sort": {
+                        "Value": "U32"
+                      },
+                      "node": {
+                        "Free": "a"
+                      }
+                    }
+                  ]
+                ]
+              }
+            },
+            "on_true": "Normalize",
+            "on_false": "Normalize"
+          }
+        }
+      }
+    }
+  },
+  "map_remove_twice_u32": {
+    "proof": {
+      "MapExtensional": {
+        "parameter": "map_key",
+        "fallback_parameter": "map_fallback",
+        "presence": {
+          "Cases": {
+            "condition": {
+              "sort": {
+                "Value": "Bool"
+              },
+              "node": {
+                "Op": [
+                  "binary:==",
+                  [
+                    {
+                      "sort": {
+                        "Value": "U32"
+                      },
+                      "node": {
+                        "Free": "map_key"
+                      }
+                    },
+                    {
+                      "sort": {
+                        "Value": "U32"
+                      },
+                      "node": {
+                        "Free": "a"
+                      }
+                    }
+                  ]
+                ]
+              }
+            },
+            "on_true": "Normalize",
+            "on_false": "Normalize"
+          }
+        },
+        "values": {
+          "Cases": {
+            "condition": {
+              "sort": {
+                "Value": "Bool"
+              },
+              "node": {
+                "Op": [
+                  "binary:==",
+                  [
+                    {
+                      "sort": {
+                        "Value": "U32"
+                      },
+                      "node": {
+                        "Free": "map_key"
+                      }
+                    },
+                    {
+                      "sort": {
+                        "Value": "U32"
+                      },
+                      "node": {
+                        "Free": "a"
+                      }
+                    }
+                  ]
+                ]
+              }
+            },
+            "on_true": "Normalize",
+            "on_false": "Normalize"
+          }
+        }
+      }
+    }
+  },
+  "map_remove_after_set_u32": {
+    "proof": {
+      "MapExtensional": {
+        "parameter": "map_key",
+        "fallback_parameter": "map_fallback",
+        "presence": {
+          "Cases": {
+            "condition": {
+              "sort": {
+                "Value": "Bool"
+              },
+              "node": {
+                "Op": [
+                  "binary:==",
+                  [
+                    {
+                      "sort": {
+                        "Value": "U32"
+                      },
+                      "node": {
+                        "Free": "map_key"
+                      }
+                    },
+                    {
+                      "sort": {
+                        "Value": "U32"
+                      },
+                      "node": {
+                        "Free": "a"
+                      }
+                    }
+                  ]
+                ]
+              }
+            },
+            "on_true": "Normalize",
+            "on_false": "Normalize"
+          }
+        },
+        "values": {
+          "Cases": {
+            "condition": {
+              "sort": {
+                "Value": "Bool"
+              },
+              "node": {
+                "Op": [
+                  "binary:==",
+                  [
+                    {
+                      "sort": {
+                        "Value": "U32"
+                      },
+                      "node": {
+                        "Free": "map_key"
+                      }
+                    },
+                    {
+                      "sort": {
+                        "Value": "U32"
+                      },
+                      "node": {
+                        "Free": "a"
+                      }
+                    }
+                  ]
+                ]
+              }
+            },
+            "on_true": "Normalize",
+            "on_false": "Normalize"
+          }
+        }
+      }
+    }
+  },
+  "map_same_value_updates_u32": {
+    "proof": {
+      "MapExtensional": {
+        "parameter": "map_key",
+        "fallback_parameter": "map_fallback",
+        "presence": {
+          "Cases": {
+            "condition": {
+              "sort": {
+                "Value": "Bool"
+              },
+              "node": {
+                "Op": [
+                  "binary:==",
+                  [
+                    {
+                      "sort": {
+                        "Value": "U32"
+                      },
+                      "node": {
+                        "Free": "map_key"
+                      }
+                    },
+                    {
+                      "sort": {
+                        "Value": "U32"
+                      },
+                      "node": {
+                        "Free": "a"
+                      }
+                    }
+                  ]
+                ]
+              }
+            },
+            "on_true": {
+              "Cases": {
+                "condition": {
+                  "sort": {
+                    "Value": "Bool"
+                  },
+                  "node": {
+                    "Op": [
+                      "binary:==",
+                      [
+                        {
+                          "sort": {
+                            "Value": "U32"
+                          },
+                          "node": {
+                            "Free": "map_key"
+                          }
+                        },
+                        {
+                          "sort": {
+                            "Value": "U32"
+                          },
+                          "node": {
+                            "Free": "b"
+                          }
+                        }
+                      ]
+                    ]
+                  }
+                },
+                "on_true": "Normalize",
+                "on_false": "Normalize"
+              }
+            },
+            "on_false": {
+              "Cases": {
+                "condition": {
+                  "sort": {
+                    "Value": "Bool"
+                  },
+                  "node": {
+                    "Op": [
+                      "binary:==",
+                      [
+                        {
+                          "sort": {
+                            "Value": "U32"
+                          },
+                          "node": {
+                            "Free": "map_key"
+                          }
+                        },
+                        {
+                          "sort": {
+                            "Value": "U32"
+                          },
+                          "node": {
+                            "Free": "b"
+                          }
+                        }
+                      ]
+                    ]
+                  }
+                },
+                "on_true": "Normalize",
+                "on_false": "Normalize"
+              }
+            }
+          }
+        },
+        "values": {
+          "Cases": {
+            "condition": {
+              "sort": {
+                "Value": "Bool"
+              },
+              "node": {
+                "Op": [
+                  "binary:==",
+                  [
+                    {
+                      "sort": {
+                        "Value": "U32"
+                      },
+                      "node": {
+                        "Free": "map_key"
+                      }
+                    },
+                    {
+                      "sort": {
+                        "Value": "U32"
+                      },
+                      "node": {
+                        "Free": "a"
+                      }
+                    }
+                  ]
+                ]
+              }
+            },
+            "on_true": {
+              "Cases": {
+                "condition": {
+                  "sort": {
+                    "Value": "Bool"
+                  },
+                  "node": {
+                    "Op": [
+                      "binary:==",
+                      [
+                        {
+                          "sort": {
+                            "Value": "U32"
+                          },
+                          "node": {
+                            "Free": "map_key"
+                          }
+                        },
+                        {
+                          "sort": {
+                            "Value": "U32"
+                          },
+                          "node": {
+                            "Free": "b"
+                          }
+                        }
+                      ]
+                    ]
+                  }
+                },
+                "on_true": "Normalize",
+                "on_false": "Normalize"
+              }
+            },
+            "on_false": {
+              "Cases": {
+                "condition": {
+                  "sort": {
+                    "Value": "Bool"
+                  },
+                  "node": {
+                    "Op": [
+                      "binary:==",
+                      [
+                        {
+                          "sort": {
+                            "Value": "U32"
+                          },
+                          "node": {
+                            "Free": "map_key"
+                          }
+                        },
+                        {
+                          "sort": {
+                            "Value": "U32"
+                          },
+                          "node": {
+                            "Free": "b"
+                          }
+                        }
+                      ]
+                    ]
+                  }
+                },
+                "on_true": "Normalize",
+                "on_false": "Normalize"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "map_distinct_updates_u32": {
+    "proof": {
+      "MapExtensional": {
+        "parameter": "map_key",
+        "fallback_parameter": "map_fallback",
+        "presence": {
+          "Order": {
+            "atoms": [
+              {
+                "sort": {
+                  "Value": "U32"
+                },
+                "node": {
+                  "Free": "map_key"
+                }
+              },
+              {
+                "sort": {
+                  "Value": "U32"
+                },
+                "node": {
+                  "Free": "a"
+                }
+              },
+              {
+                "sort": {
+                  "Value": "U32"
+                },
+                "node": {
+                  "Free": "b"
+                }
+              }
+            ],
+            "body": "Normalize"
+          }
+        },
+        "values": {
+          "Order": {
+            "atoms": [
+              {
+                "sort": {
+                  "Value": "U32"
+                },
+                "node": {
+                  "Free": "map_key"
+                }
+              },
+              {
+                "sort": {
+                  "Value": "U32"
+                },
+                "node": {
+                  "Free": "a"
+                }
+              },
+              {
+                "sort": {
+                  "Value": "U32"
+                },
+                "node": {
+                  "Free": "b"
+                }
+              }
+            ],
+            "body": "Normalize"
+          }
+        }
+      }
+    }
+  },
+  "map_overwrite_u64": {
+    "proof": {
+      "MapExtensional": {
+        "parameter": "map_key",
+        "fallback_parameter": "map_fallback",
+        "presence": {
+          "Cases": {
+            "condition": {
+              "sort": {
+                "Value": "Bool"
+              },
+              "node": {
+                "Op": [
+                  "binary:==",
+                  [
+                    {
+                      "sort": {
+                        "Value": "U64"
+                      },
+                      "node": {
+                        "Free": "map_key"
+                      }
+                    },
+                    {
+                      "sort": {
+                        "Value": "U64"
+                      },
+                      "node": {
+                        "Free": "a"
+                      }
+                    }
+                  ]
+                ]
+              }
+            },
+            "on_true": "Normalize",
+            "on_false": "Normalize"
+          }
+        },
+        "values": {
+          "Cases": {
+            "condition": {
+              "sort": {
+                "Value": "Bool"
+              },
+              "node": {
+                "Op": [
+                  "binary:==",
+                  [
+                    {
+                      "sort": {
+                        "Value": "U64"
+                      },
+                      "node": {
+                        "Free": "map_key"
+                      }
+                    },
+                    {
+                      "sort": {
+                        "Value": "U64"
+                      },
+                      "node": {
+                        "Free": "a"
+                      }
+                    }
+                  ]
+                ]
+              }
+            },
+            "on_true": "Normalize",
+            "on_false": "Normalize"
+          }
+        }
+      }
+    }
+  },
+  "map_remove_twice_u64": {
+    "proof": {
+      "MapExtensional": {
+        "parameter": "map_key",
+        "fallback_parameter": "map_fallback",
+        "presence": {
+          "Cases": {
+            "condition": {
+              "sort": {
+                "Value": "Bool"
+              },
+              "node": {
+                "Op": [
+                  "binary:==",
+                  [
+                    {
+                      "sort": {
+                        "Value": "U64"
+                      },
+                      "node": {
+                        "Free": "map_key"
+                      }
+                    },
+                    {
+                      "sort": {
+                        "Value": "U64"
+                      },
+                      "node": {
+                        "Free": "a"
+                      }
+                    }
+                  ]
+                ]
+              }
+            },
+            "on_true": "Normalize",
+            "on_false": "Normalize"
+          }
+        },
+        "values": {
+          "Cases": {
+            "condition": {
+              "sort": {
+                "Value": "Bool"
+              },
+              "node": {
+                "Op": [
+                  "binary:==",
+                  [
+                    {
+                      "sort": {
+                        "Value": "U64"
+                      },
+                      "node": {
+                        "Free": "map_key"
+                      }
+                    },
+                    {
+                      "sort": {
+                        "Value": "U64"
+                      },
+                      "node": {
+                        "Free": "a"
+                      }
+                    }
+                  ]
+                ]
+              }
+            },
+            "on_true": "Normalize",
+            "on_false": "Normalize"
+          }
+        }
+      }
+    }
+  },
+  "map_remove_after_set_u64": {
+    "proof": {
+      "MapExtensional": {
+        "parameter": "map_key",
+        "fallback_parameter": "map_fallback",
+        "presence": {
+          "Cases": {
+            "condition": {
+              "sort": {
+                "Value": "Bool"
+              },
+              "node": {
+                "Op": [
+                  "binary:==",
+                  [
+                    {
+                      "sort": {
+                        "Value": "U64"
+                      },
+                      "node": {
+                        "Free": "map_key"
+                      }
+                    },
+                    {
+                      "sort": {
+                        "Value": "U64"
+                      },
+                      "node": {
+                        "Free": "a"
+                      }
+                    }
+                  ]
+                ]
+              }
+            },
+            "on_true": "Normalize",
+            "on_false": "Normalize"
+          }
+        },
+        "values": {
+          "Cases": {
+            "condition": {
+              "sort": {
+                "Value": "Bool"
+              },
+              "node": {
+                "Op": [
+                  "binary:==",
+                  [
+                    {
+                      "sort": {
+                        "Value": "U64"
+                      },
+                      "node": {
+                        "Free": "map_key"
+                      }
+                    },
+                    {
+                      "sort": {
+                        "Value": "U64"
+                      },
+                      "node": {
+                        "Free": "a"
+                      }
+                    }
+                  ]
+                ]
+              }
+            },
+            "on_true": "Normalize",
+            "on_false": "Normalize"
+          }
+        }
+      }
+    }
+  },
+  "map_same_value_updates_u64": {
+    "proof": {
+      "MapExtensional": {
+        "parameter": "map_key",
+        "fallback_parameter": "map_fallback",
+        "presence": {
+          "Cases": {
+            "condition": {
+              "sort": {
+                "Value": "Bool"
+              },
+              "node": {
+                "Op": [
+                  "binary:==",
+                  [
+                    {
+                      "sort": {
+                        "Value": "U64"
+                      },
+                      "node": {
+                        "Free": "map_key"
+                      }
+                    },
+                    {
+                      "sort": {
+                        "Value": "U64"
+                      },
+                      "node": {
+                        "Free": "a"
+                      }
+                    }
+                  ]
+                ]
+              }
+            },
+            "on_true": {
+              "Cases": {
+                "condition": {
+                  "sort": {
+                    "Value": "Bool"
+                  },
+                  "node": {
+                    "Op": [
+                      "binary:==",
+                      [
+                        {
+                          "sort": {
+                            "Value": "U64"
+                          },
+                          "node": {
+                            "Free": "map_key"
+                          }
+                        },
+                        {
+                          "sort": {
+                            "Value": "U64"
+                          },
+                          "node": {
+                            "Free": "b"
+                          }
+                        }
+                      ]
+                    ]
+                  }
+                },
+                "on_true": "Normalize",
+                "on_false": "Normalize"
+              }
+            },
+            "on_false": {
+              "Cases": {
+                "condition": {
+                  "sort": {
+                    "Value": "Bool"
+                  },
+                  "node": {
+                    "Op": [
+                      "binary:==",
+                      [
+                        {
+                          "sort": {
+                            "Value": "U64"
+                          },
+                          "node": {
+                            "Free": "map_key"
+                          }
+                        },
+                        {
+                          "sort": {
+                            "Value": "U64"
+                          },
+                          "node": {
+                            "Free": "b"
+                          }
+                        }
+                      ]
+                    ]
+                  }
+                },
+                "on_true": "Normalize",
+                "on_false": "Normalize"
+              }
+            }
+          }
+        },
+        "values": {
+          "Cases": {
+            "condition": {
+              "sort": {
+                "Value": "Bool"
+              },
+              "node": {
+                "Op": [
+                  "binary:==",
+                  [
+                    {
+                      "sort": {
+                        "Value": "U64"
+                      },
+                      "node": {
+                        "Free": "map_key"
+                      }
+                    },
+                    {
+                      "sort": {
+                        "Value": "U64"
+                      },
+                      "node": {
+                        "Free": "a"
+                      }
+                    }
+                  ]
+                ]
+              }
+            },
+            "on_true": {
+              "Cases": {
+                "condition": {
+                  "sort": {
+                    "Value": "Bool"
+                  },
+                  "node": {
+                    "Op": [
+                      "binary:==",
+                      [
+                        {
+                          "sort": {
+                            "Value": "U64"
+                          },
+                          "node": {
+                            "Free": "map_key"
+                          }
+                        },
+                        {
+                          "sort": {
+                            "Value": "U64"
+                          },
+                          "node": {
+                            "Free": "b"
+                          }
+                        }
+                      ]
+                    ]
+                  }
+                },
+                "on_true": "Normalize",
+                "on_false": "Normalize"
+              }
+            },
+            "on_false": {
+              "Cases": {
+                "condition": {
+                  "sort": {
+                    "Value": "Bool"
+                  },
+                  "node": {
+                    "Op": [
+                      "binary:==",
+                      [
+                        {
+                          "sort": {
+                            "Value": "U64"
+                          },
+                          "node": {
+                            "Free": "map_key"
+                          }
+                        },
+                        {
+                          "sort": {
+                            "Value": "U64"
+                          },
+                          "node": {
+                            "Free": "b"
+                          }
+                        }
+                      ]
+                    ]
+                  }
+                },
+                "on_true": "Normalize",
+                "on_false": "Normalize"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "map_distinct_updates_u64": {
+    "proof": {
+      "MapExtensional": {
+        "parameter": "map_key",
+        "fallback_parameter": "map_fallback",
+        "presence": {
+          "Order": {
+            "atoms": [
+              {
+                "sort": {
+                  "Value": "U64"
+                },
+                "node": {
+                  "Free": "map_key"
+                }
+              },
+              {
+                "sort": {
+                  "Value": "U64"
+                },
+                "node": {
+                  "Free": "a"
+                }
+              },
+              {
+                "sort": {
+                  "Value": "U64"
+                },
+                "node": {
+                  "Free": "b"
+                }
+              }
+            ],
+            "body": "Normalize"
+          }
+        },
+        "values": {
+          "Order": {
+            "atoms": [
+              {
+                "sort": {
+                  "Value": "U64"
+                },
+                "node": {
+                  "Free": "map_key"
+                }
+              },
+              {
+                "sort": {
+                  "Value": "U64"
+                },
+                "node": {
+                  "Free": "a"
+                }
+              },
+              {
+                "sort": {
+                  "Value": "U64"
+                },
+                "node": {
+                  "Free": "b"
+                }
+              }
+            ],
+            "body": "Normalize"
+          }
+        }
+      }
+    }
+  },
+  "map_overwrite_i32": {
+    "proof": {
+      "MapExtensional": {
+        "parameter": "map_key",
+        "fallback_parameter": "map_fallback",
+        "presence": {
+          "Cases": {
+            "condition": {
+              "sort": {
+                "Value": "Bool"
+              },
+              "node": {
+                "Op": [
+                  "binary:==",
+                  [
+                    {
+                      "sort": {
+                        "Value": "I32"
+                      },
+                      "node": {
+                        "Free": "map_key"
+                      }
+                    },
+                    {
+                      "sort": {
+                        "Value": "I32"
+                      },
+                      "node": {
+                        "Free": "a"
+                      }
+                    }
+                  ]
+                ]
+              }
+            },
+            "on_true": "Normalize",
+            "on_false": "Normalize"
+          }
+        },
+        "values": {
+          "Cases": {
+            "condition": {
+              "sort": {
+                "Value": "Bool"
+              },
+              "node": {
+                "Op": [
+                  "binary:==",
+                  [
+                    {
+                      "sort": {
+                        "Value": "I32"
+                      },
+                      "node": {
+                        "Free": "map_key"
+                      }
+                    },
+                    {
+                      "sort": {
+                        "Value": "I32"
+                      },
+                      "node": {
+                        "Free": "a"
+                      }
+                    }
+                  ]
+                ]
+              }
+            },
+            "on_true": "Normalize",
+            "on_false": "Normalize"
+          }
+        }
+      }
+    }
+  },
+  "map_remove_twice_i32": {
+    "proof": {
+      "MapExtensional": {
+        "parameter": "map_key",
+        "fallback_parameter": "map_fallback",
+        "presence": {
+          "Cases": {
+            "condition": {
+              "sort": {
+                "Value": "Bool"
+              },
+              "node": {
+                "Op": [
+                  "binary:==",
+                  [
+                    {
+                      "sort": {
+                        "Value": "I32"
+                      },
+                      "node": {
+                        "Free": "map_key"
+                      }
+                    },
+                    {
+                      "sort": {
+                        "Value": "I32"
+                      },
+                      "node": {
+                        "Free": "a"
+                      }
+                    }
+                  ]
+                ]
+              }
+            },
+            "on_true": "Normalize",
+            "on_false": "Normalize"
+          }
+        },
+        "values": {
+          "Cases": {
+            "condition": {
+              "sort": {
+                "Value": "Bool"
+              },
+              "node": {
+                "Op": [
+                  "binary:==",
+                  [
+                    {
+                      "sort": {
+                        "Value": "I32"
+                      },
+                      "node": {
+                        "Free": "map_key"
+                      }
+                    },
+                    {
+                      "sort": {
+                        "Value": "I32"
+                      },
+                      "node": {
+                        "Free": "a"
+                      }
+                    }
+                  ]
+                ]
+              }
+            },
+            "on_true": "Normalize",
+            "on_false": "Normalize"
+          }
+        }
+      }
+    }
+  },
+  "map_remove_after_set_i32": {
+    "proof": {
+      "MapExtensional": {
+        "parameter": "map_key",
+        "fallback_parameter": "map_fallback",
+        "presence": {
+          "Cases": {
+            "condition": {
+              "sort": {
+                "Value": "Bool"
+              },
+              "node": {
+                "Op": [
+                  "binary:==",
+                  [
+                    {
+                      "sort": {
+                        "Value": "I32"
+                      },
+                      "node": {
+                        "Free": "map_key"
+                      }
+                    },
+                    {
+                      "sort": {
+                        "Value": "I32"
+                      },
+                      "node": {
+                        "Free": "a"
+                      }
+                    }
+                  ]
+                ]
+              }
+            },
+            "on_true": "Normalize",
+            "on_false": "Normalize"
+          }
+        },
+        "values": {
+          "Cases": {
+            "condition": {
+              "sort": {
+                "Value": "Bool"
+              },
+              "node": {
+                "Op": [
+                  "binary:==",
+                  [
+                    {
+                      "sort": {
+                        "Value": "I32"
+                      },
+                      "node": {
+                        "Free": "map_key"
+                      }
+                    },
+                    {
+                      "sort": {
+                        "Value": "I32"
+                      },
+                      "node": {
+                        "Free": "a"
+                      }
+                    }
+                  ]
+                ]
+              }
+            },
+            "on_true": "Normalize",
+            "on_false": "Normalize"
+          }
+        }
+      }
+    }
+  },
+  "map_same_value_updates_i32": {
+    "proof": {
+      "MapExtensional": {
+        "parameter": "map_key",
+        "fallback_parameter": "map_fallback",
+        "presence": {
+          "Cases": {
+            "condition": {
+              "sort": {
+                "Value": "Bool"
+              },
+              "node": {
+                "Op": [
+                  "binary:==",
+                  [
+                    {
+                      "sort": {
+                        "Value": "I32"
+                      },
+                      "node": {
+                        "Free": "map_key"
+                      }
+                    },
+                    {
+                      "sort": {
+                        "Value": "I32"
+                      },
+                      "node": {
+                        "Free": "a"
+                      }
+                    }
+                  ]
+                ]
+              }
+            },
+            "on_true": {
+              "Cases": {
+                "condition": {
+                  "sort": {
+                    "Value": "Bool"
+                  },
+                  "node": {
+                    "Op": [
+                      "binary:==",
+                      [
+                        {
+                          "sort": {
+                            "Value": "I32"
+                          },
+                          "node": {
+                            "Free": "map_key"
+                          }
+                        },
+                        {
+                          "sort": {
+                            "Value": "I32"
+                          },
+                          "node": {
+                            "Free": "b"
+                          }
+                        }
+                      ]
+                    ]
+                  }
+                },
+                "on_true": "Normalize",
+                "on_false": "Normalize"
+              }
+            },
+            "on_false": {
+              "Cases": {
+                "condition": {
+                  "sort": {
+                    "Value": "Bool"
+                  },
+                  "node": {
+                    "Op": [
+                      "binary:==",
+                      [
+                        {
+                          "sort": {
+                            "Value": "I32"
+                          },
+                          "node": {
+                            "Free": "map_key"
+                          }
+                        },
+                        {
+                          "sort": {
+                            "Value": "I32"
+                          },
+                          "node": {
+                            "Free": "b"
+                          }
+                        }
+                      ]
+                    ]
+                  }
+                },
+                "on_true": "Normalize",
+                "on_false": "Normalize"
+              }
+            }
+          }
+        },
+        "values": {
+          "Cases": {
+            "condition": {
+              "sort": {
+                "Value": "Bool"
+              },
+              "node": {
+                "Op": [
+                  "binary:==",
+                  [
+                    {
+                      "sort": {
+                        "Value": "I32"
+                      },
+                      "node": {
+                        "Free": "map_key"
+                      }
+                    },
+                    {
+                      "sort": {
+                        "Value": "I32"
+                      },
+                      "node": {
+                        "Free": "a"
+                      }
+                    }
+                  ]
+                ]
+              }
+            },
+            "on_true": {
+              "Cases": {
+                "condition": {
+                  "sort": {
+                    "Value": "Bool"
+                  },
+                  "node": {
+                    "Op": [
+                      "binary:==",
+                      [
+                        {
+                          "sort": {
+                            "Value": "I32"
+                          },
+                          "node": {
+                            "Free": "map_key"
+                          }
+                        },
+                        {
+                          "sort": {
+                            "Value": "I32"
+                          },
+                          "node": {
+                            "Free": "b"
+                          }
+                        }
+                      ]
+                    ]
+                  }
+                },
+                "on_true": "Normalize",
+                "on_false": "Normalize"
+              }
+            },
+            "on_false": {
+              "Cases": {
+                "condition": {
+                  "sort": {
+                    "Value": "Bool"
+                  },
+                  "node": {
+                    "Op": [
+                      "binary:==",
+                      [
+                        {
+                          "sort": {
+                            "Value": "I32"
+                          },
+                          "node": {
+                            "Free": "map_key"
+                          }
+                        },
+                        {
+                          "sort": {
+                            "Value": "I32"
+                          },
+                          "node": {
+                            "Free": "b"
+                          }
+                        }
+                      ]
+                    ]
+                  }
+                },
+                "on_true": "Normalize",
+                "on_false": "Normalize"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "map_distinct_updates_i32": {
+    "proof": {
+      "MapExtensional": {
+        "parameter": "map_key",
+        "fallback_parameter": "map_fallback",
+        "presence": {
+          "Order": {
+            "atoms": [
+              {
+                "sort": {
+                  "Value": "I32"
+                },
+                "node": {
+                  "Free": "map_key"
+                }
+              },
+              {
+                "sort": {
+                  "Value": "I32"
+                },
+                "node": {
+                  "Free": "a"
+                }
+              },
+              {
+                "sort": {
+                  "Value": "I32"
+                },
+                "node": {
+                  "Free": "b"
+                }
+              }
+            ],
+            "body": "Normalize"
+          }
+        },
+        "values": {
+          "Order": {
+            "atoms": [
+              {
+                "sort": {
+                  "Value": "I32"
+                },
+                "node": {
+                  "Free": "map_key"
+                }
+              },
+              {
+                "sort": {
+                  "Value": "I32"
+                },
+                "node": {
+                  "Free": "a"
+                }
+              },
+              {
+                "sort": {
+                  "Value": "I32"
+                },
+                "node": {
+                  "Free": "b"
+                }
+              }
+            ],
+            "body": "Normalize"
+          }
+        }
+      }
+    }
+  }
+}

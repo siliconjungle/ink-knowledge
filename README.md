@@ -236,6 +236,11 @@ Performance models live in `store/cost-models` with immutable observation
 provenance. They cannot enter mathematical entry discovery. Planner fits them;
 `ink-abi` applies their shared native/browser decision contract. Structural search
 prices in `ink_knowledge/structural-costs.json` remain unmeasured hypotheses.
+The default estimates unknown list callbacks at 16 iterations, uses known literal
+lengths, and counts explicit local bindings once. This lets shared construction
+and other loop-invariant work compete within bounded search. It is neither a
+measured cardinality nor a profitability guarantee; short or empty workloads
+can still favour the baseline under complete-call measurements.
 
 The installed producer catalog includes early-termination specialisation and checked
 definition unfolding. `ink-plan` runs these untrusted producers, records their source

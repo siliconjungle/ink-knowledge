@@ -45,14 +45,13 @@ class IndexedLookup(unittest.TestCase):
      r=subprocess.run([str(compiler),'knowledge-check',str(core),str(view)],capture_output=True,text=True,timeout=120)
      self.assertNotEqual(r.returncode,0,'a rehashed wrong lookup key was admitted')
    producer=entry('definition',SEMANTICS,dict(module='producers.indexed_lookup'))
-   bank=Store.publish(d/'knowledge',[producer]);costs=d/'costs.json'
-   costs.write_text(json.dumps(dict(schema=1,operation_costs={'estimate:loop_iterations':128,'estimate:let_binding':0,'call:foldr':10000,'call:fold_until':10000,'method:contains':1})))
+   bank=Store.publish(d/'knowledge',[producer])
    selection=d/'selection.json';environment=dict(os.environ,PYTHONPATH=os.pathsep.join(map(str,[root/'knowledge',root/'planner'])))
-   report=json.loads(run('python3','-m','ink_planner.semantic_search','--compiler',compiler,'--core',core,'--snapshot',bank.data/'snapshot.json','--knowledge-root',bank.root,'--cost-model',costs,'--diagnostics',d/'near.json','--budget','32','--rounds','4','--time-seconds','30','-o',selection,env=environment).stdout)
+   report=json.loads(run('python3','-m','ink_planner.semantic_search','--compiler',compiler,'--core',core,'--snapshot',bank.data/'snapshot.json','--knowledge-root',bank.root,'--diagnostics',d/'near.json','--budget','32','--rounds','4','--time-seconds','30','-o',selection,env=environment).stdout)
    self.assertTrue(any(p['module']=='producers.indexed_lookup'and p['candidates']for p in report['database']['producers']))
    chosen={a['law']for a in json.loads(selection.read_text())['applications']}
    # Discovery may compose an equivalent filter law. Check admission of both
-   # proposals, and selection of the indexed map under these synthetic prices.
+   # proposals, and selection of the indexed map under the default search prior.
    diagnostics=json.loads((d/'near.json').read_text())['laws']
    for name,law in rows:
     key=identity(semantic_entry(law))
@@ -62,7 +61,7 @@ class IndexedLookup(unittest.TestCase):
      self.assertIn(key,chosen)
    run(compiler,'check-selection',core,selection)
    # Execute the exact indexed map AND filter proposals independently of which
-   # equivalent chain wins the planner's synthetic cost comparison.
+   # equivalent chain wins the planner's unmeasured structural cost comparison.
    roots=[];applications=[]
    for name,law in rows:
     if name.startswith('index_membership_'):continue

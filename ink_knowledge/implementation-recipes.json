@@ -1899,6 +1899,29 @@
           "all-observations"
         ]
       }
+    },
+    {
+      "id": "indexed-ordered-dedup",
+      "module": "producers.indexed_dedup_discovery",
+      "function": "propose",
+      "stage": "extension",
+      "requires": [
+        "core"
+      ],
+      "inputs": [
+        "core",
+        "source",
+        "knowledge_snapshot"
+      ],
+      "parameters": {
+        "limit": 4
+      },
+      "obligations": [
+        "conservative-typed-extension",
+        "universal-fold-observation-and-step-equality",
+        "exact-ordered-membership-and-output",
+        "measured-whole-call-profitability"
+      ]
     }
   ],
   "schema": 1,

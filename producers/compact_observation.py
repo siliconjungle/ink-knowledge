@@ -10,8 +10,8 @@ sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 from ink_knowledge import Store,identity
 from ink_knowledge.store import entry
 from producers.representations import refs
-from producers.action_replacement import var,call,cons,trans
-from producers.point_delta import sub,match
+from producers.action_replacement import var,call,cons,trans,convert
+from producers.point_delta import sub,match,free_variables,binding_names
 from producers.tree_proofs import Tactic
 
 def projection(term,datatype):
@@ -86,7 +86,30 @@ def attach(request,directory):
         body=hygienic_body(body,[name for name,_ in params])
         observe=add({'Function':dict(params=params,result={'Data':dtype},recursive=None,body=body)})
         tactic=Tactic(objects,add)
-        lemma=tactic.theorem('compact-'+name,params,call(observe,[result]),projection(original,dtype))
+        left,right=call(observe,[result]),projection(original,dtype)
+        # A direct result projection needs only exhaustive constructor cases.
+        # The general tactic retains intermediate normalisation proofs, which
+        # duplicate large decoded states even though those fields are discarded.
+        # Try small Convert leaves first; ordinary checking remains authority.
+        input_type=action['result']['Data']
+        input_constructors=objects[input_type]['payload']['declaration']['Datatype']['constructors']
+        cases=[];occupied=free_variables([left,right])|binding_names([left,right])
+        for tag,constructor in enumerate(input_constructors):
+            bindings=[]
+            for index,_ in enumerate(constructor['fields']):
+                fresh='compact_case_'+str(tag)+'_'+str(index)
+                while fresh in occupied:fresh+='_'
+                occupied.add(fresh);bindings.append(fresh)
+            value=cons(input_type,tag,[var(n)for n in bindings])
+            a,z=sub(left,{'execution_result':value}),sub(right,{'execution_result':value})
+            env={n:({'Data':input_type}if t=='SelfType'else t)for n,t in zip(bindings,constructor['fields'])}
+            if tactic.normal(a,env)!=tactic.normal(z,env):break
+            cases.append(dict(bindings=bindings,proof=convert(a,z)))
+        if len(cases)==len(input_constructors):
+            lemma=add({'Theorem':dict(params=params,conditions=[],**{'from':left,'to':right},
+                proof={'Cases':dict(variable='execution_result',**{'from':left,'to':right},cases=cases)})})
+        else:
+            lemma=tactic.theorem('compact-'+name,params,left,right)
         execute=objects[action['execute']]['payload']['declaration']['Function'];executed=call(action['execute'],[var(n)for n,_ in execute['params']])
         # Representation obligations fix physical/logical parameter spellings.
         executed['Call']['arguments'][0]=var('physical')
@@ -94,7 +117,10 @@ def attach(request,directory):
         action['compact']=dict(observe=observe,result={'Data':dtype},proof=proof)
         names[name]=lemma
     obj=copy.deepcopy(objects[old]);obj['payload']=plan;obj['dependencies']=sorted(refs(plan));new=identity(obj);objects[new]=obj
-    store=Store.publish(directory,list(objects.values()),names)
+    # Wide proof closures need small authenticated leaves: each included entry
+    # carries its membership witness, so repeating 64-entry leaves can dominate
+    # transport size. This changes neither object identities nor proof admission.
+    store=Store.publish(directory,list(objects.values()),names,leaf_size=2 if len(objects)>64 else 64)
     request['representation']=new;request['knowledge']=store.bundle([new])
     return request
 
