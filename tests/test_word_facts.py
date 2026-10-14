@@ -55,6 +55,70 @@ class WordFacts(unittest.TestCase):
                     self.assertGreaterEqual(facts.maximum,actual)
                     for _,replacement in alternatives:self.assertEqual(actual,evaluate(replacement,inputs_))
 
+    def test_branch_local_bounds_simplify_without_leaking_to_other_branches(self):
+        from producers.semantic_laws import term
+        boolean=value('Bool')
+        for kind,width in [('U32',32),('U64',64)]:
+            sort=value(kind);x=var(sort,'x');mask=(1<<width)-1
+            low=op(boolean,'binary:<',x,word(kind,256))
+            masked=op(sort,'call:word_and',x,word(kind,255))
+            source=op(sort,'call:choose',low,masked,x)
+            self.assertIn(('branch-scoped-facts',x),list(candidates(source)))
+            # Opposite branch has no upper bound. Dropping its mask is wrong.
+            opposite=op(sort,'call:choose',low,x,masked)
+            self.assertNotIn(('branch-scoped-facts',x),list(candidates(opposite)))
+            # Nested scopes intersect; an unknown outer condition joins values.
+            hi=op(boolean,'binary:>=',x,word(kind,16))
+            nested=op(sort,'call:choose',hi,
+                      op(sort,'call:choose',low,masked,x),x)
+            for _,replacement in candidates(nested):
+                for n in [0,15,16,255,256,mask]:
+                    self.assertEqual(evaluate(nested,dict(x=n)),evaluate(replacement,dict(x=n)))
+            # True conjunction and false disjunction carry both constraints.
+            for guard,branch in [(op(boolean,'binary:&&',low,hi),1),
+                                 (op(boolean,'binary:||',op(boolean,'unary:!',low),
+                                     op(boolean,'unary:!',hi)),2)]:
+                arms=[x,x];arms[branch-1]=masked
+                guarded=op(sort,'call:choose',guard,*arms)
+                self.assertIn(('branch-scoped-facts',x),list(candidates(guarded)))
+            # True disjunction does not imply either bound separately.
+            loose=op(sort,'call:choose',op(boolean,'binary:||',low,hi),masked,x)
+            self.assertNotIn(('branch-scoped-facts',x),list(candidates(loose)))
+            # Range information must not turn wrapping arithmetic into nowrap.
+            room=op(boolean,'binary:>=',x,word(kind,mask-1))
+            increment=op(sort,'binary:+',x,word(kind,1))
+            wrapped=op(sort,'call:choose',room,increment,word(kind,0))
+            facts=analyse(wrapped)
+            for n in [0,mask-2,mask-1,mask]:
+                actual=evaluate(wrapped,dict(x=n))
+                self.assertLessEqual(facts.minimum,actual);self.assertGreaterEqual(facts.maximum,actual)
+
+    def test_all_comparison_directions_boundaries_and_composite_subjects(self):
+        boolean=value('Bool')
+        rng=random.Random(618024)
+        for kind,width in [('U32',32),('U64',64)]:
+            sort=value(kind);x=var(sort,'x');mask=(1<<width)-1
+            inputs=list(range(260))+[mask,mask-1,mask-255]+[rng.getrandbits(width) for _ in range(40)]
+            for subject in [x,op(sort,'binary:+',x,word(kind,1))]:
+                masked=op(sort,'call:word_and',subject,word(kind,255))
+                for name in ['<','<=','>','>=','==','!=']:
+                    for bound in [0,1,255,256,mask]:
+                        for reverse in [False,True]:
+                            args=[subject,word(kind,bound)]
+                            if reverse:args.reverse()
+                            guard=op(boolean,'binary:'+name,*args)
+                            for arms in [(masked,subject),(subject,masked)]:
+                                source=op(sort,'call:choose',guard,*arms)
+                                facts=analyse(source);alternatives=list(candidates(source))
+                                for n in inputs:
+                                    actual=evaluate(source,dict(x=n))
+                                    self.assertEqual(actual&facts.zero,0)
+                                    self.assertEqual(actual&facts.one,facts.one)
+                                    self.assertLessEqual(facts.minimum,actual)
+                                    self.assertGreaterEqual(facts.maximum,actual)
+                                    for _,replacement in alternatives:
+                                        self.assertEqual(actual,evaluate(replacement,dict(x=n)))
+
     def test_wrapping_addition_does_not_invent_monotonicity(self):
         s=value('U32');x=var(s,'x');inc=op(s,'binary:+',x,word('U32',1))
         facts=analyse(inc)

@@ -550,8 +550,8 @@ capture-avoiding beta reduction. The index retains every original site and adds
 optional normalised search views within its existing node budget. Matching those
 views emits an adapter whose left endpoint is the exact original expression;
 ordinary `Normalize` and `Use` proofs still replay in the kernel. Exhaustion drops
-only optional views. Open local variables and undischarged premises remain
-ineligible for a closed adapter. This does not change compiler semantics, install
+only optional views. Open local variables remain ineligible for a closed adapter. Instantiated
+conditions remain explicit obligations, including through enclosing expressions. This does not change compiler semantics, install
 an optimisation automatically, or imply a performance gain. `test_head_beta.py`
 checks indexed discovery, capture avoidance, resource exhaustion, concrete proof
 replay, forged results and word/float output parity. After exposing a leading
@@ -562,3 +562,32 @@ fold law through record projections or arithmetic siblings without teaching the
 compiler a special projection/fold optimisation. Context traversal and aliases
 share the bounded discovery budget; arbitrary rewriting beneath binders remains
 outside this adapter's scope.
+
+`producers.word_facts` performs bounded, untrusted unsigned-word analysis during
+offline discovery. Facts established by a `choose` condition apply only inside
+that arm. Supported comparison bounds, Boolean negation, true conjunctions and
+false disjunctions refine local scopes; nested constraints intersect, while
+alternative arms union possible values. Wrapping operations retain their fixed
+meaning. Contradictory constraints are conservatively discarded, not used as
+proofs of unreachable code. This is expression analysis, not a whole-program
+control-flow analysis or an assumption that a fallible contract always succeeds.
+
+Offline `ink_planner.llvm_learning --proposal-engine facts` proves the complete
+guarded replacement before publishing any law. The reusable `bounded_low_mask`
+u32/u64 laws additionally allow symbolic masks under the checked condition
+`m & (m + 1) == 0`, including zero and the full word mask. Their universal
+certificates are stored with the other word laws. A use with an arbitrary mask
+cannot discard this premise; source-level selection still replays it. These
+changes add discovery/proof opportunities, not runtime adaptation or a claim
+that every selected simplification improves an application's measured speed.
+
+
+Higher-order exact-source adapters retain instantiated conditions from their
+base law. Each base-law use refers to the corresponding adapter hypothesis;
+ordinary selection must still prove every adapter condition at the source site.
+A discovered callback match neither supplies a premise nor allows it to be
+omitted. This supports conditional callback laws through the existing generic
+instantiator and checker, including renamed parameters and concrete type instances.
+Disposable pattern-index queries also enforce the public store's 0–1024 page
+limit and explicitly close failed reader opens; these are discovery resource
+controls, never mathematical authority.

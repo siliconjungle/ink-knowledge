@@ -13,7 +13,7 @@ def adapter(law_id,law,target):
  closure. Open lexical sites and undischarged premises are never erased.
  """
  from ink_planner.semantic_search import substitute,children,replace
- if law.get('conditions') or law.get('assumptions'):return None
+ if law.get('assumptions'):return None
  arguments={};normal=target;path=()
  if not match(law['from'],target,law['params'],[],{},arguments):
   from .head_beta import reduce,contexts
@@ -40,12 +40,17 @@ def adapter(law_id,law,target):
   free(target)
   for argument in arguments.values():free(argument)
  except ValueError:return None
+ conditions=[{side:substitute(condition[side],arguments)for side in ('from','to')}for condition in law.get('conditions',[])]
+ try:
+  for condition in conditions:
+   for term in condition.values():free(term)
+ except ValueError:return None
  middle=replace(normal,path,substitute(law['from'],arguments))
- use={'Use':dict(law=law_id,arguments=arguments,premises=[])}
+ use={'Use':dict(law=law_id,arguments=arguments,premises=[{'Hypothesis':i}for i in range(len(conditions))])}
  def lift(term,at):
   if not at:return use
   return {'Congruence':[lift(child,at[1:])if i==at[0]else 'Normalize'for i,child in enumerate(children(term))]}
- return dict(semantics='ink-conditional-laws-v1',params=params,conditions=[],
+ return dict(semantics='ink-conditional-laws-v1',params=params,conditions=conditions,
   **{'from':target,'to':replace(normal,path,substitute(law['to'],arguments))},
   proof={'Trans':dict(middle=middle,left='Normalize',right=lift(middle,path))},
   dependencies=[law_id])

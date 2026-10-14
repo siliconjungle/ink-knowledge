@@ -40,6 +40,7 @@ def refresh(store,db,*,schema_ready=False):
     for ident in missing:insert(db,ident,store._read_object(ident))
 
 def candidates(store,sort,head,after=None,limit=1024):
+    if not isinstance(limit,int) or not 0<=limit<=1024:raise ValueError('query limit')
     index=store.root/'index.sqlite';sort=canonical(sort).decode()
     if index.exists():
         with closing(sqlite3.connect(index.as_uri()+'?mode=ro',uri=True))as db:
@@ -69,14 +70,20 @@ class Reader:
         index=self.store.root/'index.sqlite'
         if index.exists():
             db=sqlite3.connect(index.as_uri()+'?mode=ro',uri=True)
-            tables={r[0]for r in db.execute("SELECT name FROM sqlite_master WHERE type='table'")}
-            if {'pattern_roots','pattern_targets','snapshots'}<=tables and db.execute('SELECT 1 FROM snapshots WHERE id=?',(self.store.snapshot_id,)).fetchone():
-                self.db=db
-            else:db.close()
+            try:
+                tables={r[0]for r in db.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+                if {'pattern_roots','pattern_targets','snapshots'}<=tables and db.execute('SELECT 1 FROM snapshots WHERE id=?',(self.store.snapshot_id,)).fetchone():
+                    self.db=db
+                else:db.close()
+            except BaseException:
+                db.close()
+                raise
         return self
     def __exit__(self,*_):
-        if self.db is not None:self.db.close()
+        db,self.db=self.db,None
+        if db is not None:db.close()
     def candidates(self,sort,head,after=None,limit=1024):
+        if not isinstance(limit,int) or not 0<=limit<=1024:raise ValueError('query limit')
         if self.db is None:return candidates(self.store,sort,head,after,limit)
         sql='SELECT p.entry_id FROM pattern_roots p JOIN members m ON m.entry_id=p.entry_id WHERE m.snapshot_id=? AND p.sort=? AND p.head IN (?,?)'
         args=[self.store.snapshot_id,canonical(sort).decode(),head,'*']

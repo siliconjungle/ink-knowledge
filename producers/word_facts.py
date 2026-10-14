@@ -66,9 +66,80 @@ def add_bits(a, b, carry_in=0):
     return zeros, ones
 
 
-def analyse(source, max_nodes=4096):
+def refine(scope, condition, truth, budget=32):
+    """Untrusted branch-local constraints. No bindings or caller contracts cross here.
+
+    Intersections describe simultaneous constraints; branch joins below instead
+    union their possible values. Contradictory constraints are discarded rather
+    than used to invent a value for an unreachable branch.
+    """
+    result = list(scope)
+    remaining = budget
+    def constrain(subject, fact):
+        for index, (prior, old) in enumerate(result):
+            if prior == subject:
+                try:
+                    result[index] = (subject, Facts(fact.width, old.zero | fact.zero,
+                        old.one | fact.one, max(old.minimum, fact.minimum),
+                        min(old.maximum, fact.maximum)))
+                except ValueError:
+                    pass
+                return
+        if len(result) < 64:
+            result.append((subject, fact))
+    def visit(t, answer):
+        nonlocal remaining
+        remaining -= 1
+        if remaining < 0:
+            return
+        if t.get('sort') != value('Bool'):
+            return
+        constrain(t, constant(1, int(answer)))
+        node = t['node']
+        if 'Op' not in node:
+            return
+        name, args = node['Op']
+        if name == 'unary:!' and len(args) == 1:
+            visit(args[0], not answer)
+        elif len(args) == 2 and ((name == 'binary:&&' and answer) or
+                                 (name == 'binary:||' and not answer)):
+            visit(args[0], answer); visit(args[1], answer)
+        elif name in ('binary:==', 'binary:!=', 'binary:<', 'binary:<=', 'binary:>', 'binary:>=') and len(args) == 2:
+            left, right = args
+            if left['sort'] != right['sort']:
+                return
+            relation = name[7:]
+            if 'Word' in left['node'] and 'Word' not in right['node']:
+                left, right = right, left
+                relation = {'<':'>', '<=':'>=', '>':'<', '>=':'<=', '==':'==', '!=':'!='}[relation]
+            kind = left['sort'].get('Value')
+            if kind not in ('U32', 'U64') or 'Word' not in right['node']:
+                return
+            width = 32 if kind == 'U32' else 64
+            mask = (1 << width) - 1
+            n = right['node']['Word']
+            if not isinstance(n, int) or not 0 <= n <= mask:
+                return
+            if not answer:
+                relation = {'<':'>=', '<=':'>', '>':'<=', '>=':'<', '==':'!=', '!=':'=='}[relation]
+            lo, hi = 0, mask
+            if relation == '==':lo = hi = n
+            elif relation == '<':hi = n - 1
+            elif relation == '<=':hi = n
+            elif relation == '>':lo = n + 1
+            elif relation == '>=':lo = n
+            elif n == 0:lo = 1
+            elif n == mask:hi = mask - 1
+            else:return  # An interior hole needs a richer range domain.
+            if 0 <= lo <= hi <= mask:
+                constrain(left, Facts(width, minimum=lo, maximum=hi))
+    visit(condition, truth)
+    return result
+
+
+def analyse(source, max_nodes=4096, *, _scope=()):
     remaining=max_nodes
-    def visit(t, depth=0):
+    def visit(t, depth=0, scope=_scope):
         nonlocal remaining
         remaining-=1
         if remaining<0 or depth>64:
@@ -78,6 +149,9 @@ def analyse(source, max_nodes=4096):
             raise ValueError('Word fact analysis supports unsigned words and Bool')
         width={'Bool':1,'U32':32,'U64':64}[kind];mask=(1<<width)-1
         node=t['node']
+        for subject, fact in reversed(scope):
+            if subject == t:
+                return fact
         if 'Word' in node:return constant(width,node['Word'])
         if 'Bool' in node:return constant(1,int(node['Bool']))
         if 'Op' not in node:return Facts(width)
@@ -90,11 +164,14 @@ def analyse(source, max_nodes=4096):
                'call:wrapping_shr','call:word_widen_u32_to_u64','call:word_narrow_u64_to_u32',
                'binary:&&','binary:||','unary:!'}
         if name not in names:return Facts(width)
-        facts=[visit(a,depth+1) for a in args]
-        if name=='call:choose' and len(facts)==3:
-            cond,a,b=facts
-            if cond.constant is not None:return a if cond.constant else b
+        if name=='call:choose' and len(args)==3:
+            cond=visit(args[0],depth+1,scope)
+            if cond.constant is not None:
+                return visit(args[1 if cond.constant else 2],depth+1,scope)
+            a=visit(args[1],depth+1,refine(scope,args[0],True))
+            b=visit(args[2],depth+1,refine(scope,args[0],False))
             return Facts(width,a.zero&b.zero,a.one&b.one,min(a.minimum,b.minimum),max(a.maximum,b.maximum))
+        facts=[visit(a,depth+1,scope) for a in args]
         if len(facts)==1:
             a=facts[0]
             if name in ('call:word_not','unary:!'):return Facts(width,a.one,a.zero,mask-a.maximum,mask-a.minimum)
@@ -163,9 +240,9 @@ def analyse(source, max_nodes=4096):
     return visit(source)
 
 
-def candidates(source):
+def candidates(source, *, _scope=(), _depth=0):
     """Propose total whole-expression simplifications, with no proof authority."""
-    facts=analyse(source);kind=source['sort']['Value']
+    facts=analyse(source,_scope=_scope);kind=source['sort']['Value']
     if facts.constant is not None:
         candidate=(term(value('Bool'),{'Bool':bool(facts.constant)}) if kind=='Bool'
                    else word(kind,facts.constant))
@@ -174,16 +251,26 @@ def candidates(source):
     if 'Op' not in node:return
     name,args=node['Op']
     if name=='call:choose' and len(args)==3:
-        condition=analyse(args[0]).constant
+        condition=analyse(args[0],_scope=_scope).constant
         if condition is not None:yield 'known-condition',args[1 if condition else 2]
+        elif _depth < 8:
+            branches = list(args)
+            for index in (1,2):
+                scoped=refine(_scope,args[0],index==1)
+                replacement=next(candidates(args[index],_scope=scoped,_depth=_depth+1),None)
+                if replacement is not None:branches[index]=replacement[1]
+            if branches != args:
+                replacement=(branches[1] if branches[1]==branches[2]
+                             else op(source['sort'],'call:choose',*branches))
+                yield 'branch-scoped-facts',replacement
     if name in ('binary:+','call:word_xor') and len(args)==2 and kind!='Bool':
-        a,b=map(analyse,args);mask=(1<<facts.width)-1
+        a,b=(analyse(t,_scope=_scope) for t in args);mask=(1<<facts.width)-1
         if (mask^a.zero)&(mask^b.zero)==0:
             yield 'disjoint-fields',op(source['sort'],'call:word_or',*args)
     if name=='call:word_and' and len(args)==2:
         for i in (0,1):
             literal=args[i]['node'].get('Word')
             if literal is not None:
-                other=analyse(args[1-i]);mask=(1<<facts.width)-1
+                other=analyse(args[1-i],_scope=_scope);mask=(1<<facts.width)-1
                 if (mask^literal)&(mask^other.zero)==0:
                     yield 'redundant-mask',args[1-i]
