@@ -473,11 +473,17 @@ still need whole-workload evidence; proof availability alone grants no selection
 
 `producers.guarded_choices` composes whole-function equality proposals with a
 checked `choose(count(input) >= cutoff, alternative, original)` expression.
-The count is exact Int. The ordinary Cases/Use/Trans proof must establish both
-branches; recipe provenance and cutoff values grant no equality authority.
-Source-extension prefixes are retained. The author accepts concrete equalities
-without remaining conditions/type parameters/assumptions, and bounds repeated
-size-guard authoring. It does not cover retained state or arbitrary inner loops.
+The count is exact Int. A generic database theorem proves
+`a = b => a = choose(p, b, a)` through ordinary Cases/Use/Trans rules. The producer
+instantiates that theorem instead of defining its proof in compiler or planner
+code. Its `equivalence` parameter can select another theorem from the pinned
+snapshot; the installed default is `ink_knowledge/guarded-choice-law.json`.
+Every selected theorem and premise replays; recipe provenance and cutoff values
+grant no equality authority.
+Source-extension prefixes are retained. The author accepts concrete equalities,
+retains their conditions and application premises, and bounds repeated size-guard
+authoring. General type parameters and assumptions must be instantiated first.
+It does not cover retained state or arbitrary inner loops.
 
 Published recipe data chooses base producers and cutoffs. The initial three
 recipes wrap indexed ordered deduplication at 8, 128 and 2048 elements, using the

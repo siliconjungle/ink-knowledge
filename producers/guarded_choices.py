@@ -6,7 +6,9 @@ equality or profitability. Normal plan admission and measurements remain require
 """
 import copy
 import itertools
+import json
 import tempfile
+from importlib.resources import files
 from pathlib import Path
 
 from ink_knowledge import Store, identity, semantic_entry
@@ -14,23 +16,34 @@ from ink_knowledge.proposal_views import ProposalViews
 from producers.semantic_laws import op, value, var, word
 
 
-def guard_entry(ident, entry, condition):
-    """Wrap a concrete, unconditional equality in a separately checked proof."""
+def choice_rule(store=None, ident=None):
+    """Recipe-selected theorem bytes; every use still replays in the kernel."""
+    if ident is not None:
+        if store is None:
+            raise ValueError('a selected guard theorem needs a pinned store')
+        return store.object(ident)
+    return json.loads(files('ink_knowledge').joinpath('guarded-choice-law.json').read_bytes())
+
+
+def guard_entry(ident, entry, condition, equivalence=None):
+    """Wrap a concrete equality, retaining its conditions and their authority."""
     if identity(entry) != ident or entry.get('kind') != 'rewrite':
         raise ValueError('guard requires an authentic rewrite object')
     law = entry['payload']
-    if any(law.get(k) for k in ('types', 'assumptions', 'conditions')):
-        raise ValueError('instantiate and discharge premises before guarding')
+    if any(law.get(k) for k in ('types', 'assumptions')):
+        raise ValueError('instantiate general parameters and assumptions before guarding')
     if condition.get('sort') != value('Bool'):
         raise ValueError('guard must have Boolean sort')
+    rule = choice_rule() if equivalence is None else equivalence
+    rule_id = identity(rule)
     selected = copy.deepcopy(law['to'])
-    proof = {'Cases': dict(condition=condition,
-        on_true={'Trans': dict(middle=selected,
-            left={'Use': dict(law=ident, arguments={n: var(s, n) for n, s in law['params'].items()}, premises=[])},
-            right='Normalize')}, on_false='Normalize')}
-    authored = dict(schema=1, semantics='ink-conditional-laws-v1', **copy.deepcopy(law))
+    proof = {'Use': dict(law=rule_id, types={'A': selected['sort']['Value']},
+        arguments={'a': law['from'], 'b': selected, 'p': condition},
+        premises=[{'Use': dict(law=ident, arguments={n: var(s, n) for n, s in law['params'].items()},
+                              premises=[{'Hypothesis': i} for i in range(len(law.get('conditions', [])))])}])}
+    authored = dict(schema=1, semantics='ink-general-laws-v1', **copy.deepcopy(law))
     authored.update(to=op(selected['sort'], 'call:choose', condition, selected, copy.deepcopy(law['from'])),
-                    proof=proof, dependencies=[ident])
+                    proof=proof, dependencies=[ident, rule_id])
     return semantic_entry(authored)
 
 
@@ -59,7 +72,7 @@ def has_size_guard(term):
     return isinstance(term, list) and any(has_size_guard(v) for v in term)
 
 
-def guarded_rows(row, store, directory, cutoff):
+def guarded_rows(row, store, directory, cutoff, equivalence=None):
     """Preserve source-extension prefixes and guard one whole-function rewrite."""
     steps = row.get('steps', [row['step']] if 'step' in row else [])
     if row.get('status') != 'proposal' or not steps or steps[-1].get('kind') != 'rewrite':
@@ -72,7 +85,8 @@ def guarded_rows(row, store, directory, cutoff):
         return
     application = applications[0]
     ident = application['law']
-    objects = dict(packet['knowledge']['objects'])
+    rule = choice_rule() if equivalence is None else equivalence
+    objects = {**packet['knowledge']['objects'], identity(rule): rule}
     entry = objects[ident]
     if has_size_guard(entry['payload']['from']):
         return
@@ -80,7 +94,7 @@ def guarded_rows(row, store, directory, cutoff):
     for name, sort in sorted(entry['payload']['params'].items()):
         if not isinstance(sort, dict) or not isinstance(sort.get('Value'), dict) or 'List' not in sort['Value']:
             continue
-        obj = guard_entry(ident, entry, list_guard(name, sort, cutoff))
+        obj = guard_entry(ident, entry, list_guard(name, sort, cutoff), rule)
         new = identity(obj)
         views.update({new: obj})
         result = copy.deepcopy(row)
@@ -93,7 +107,7 @@ def guarded_rows(row, store, directory, cutoff):
         yield result
 
 
-def propose(context, base_recipes, cutoff, limit=2):
+def propose(context, base_recipes, cutoff, limit=2, equivalence=None):
     """Compose installed, snapshot-bound producers using bounded recipe data."""
     from ink_knowledge.recipes import execute, load
     if type(limit) is not int or not 1 <= limit <= 16:
@@ -106,6 +120,7 @@ def propose(context, base_recipes, cutoff, limit=2):
     root = Path(context['knowledge_root'])
     snapshot = root / 'store/snapshots' / (context['knowledge_snapshot'] + '.json')
     store = Store(root, snapshot)
+    rule = choice_rule(store, equivalence)
     registry, _ = load(store=store)
     recipes = {r['id']: r for r in registry['recipes']}
     selected = [recipes[name] for name in base_recipes]
@@ -119,7 +134,7 @@ def propose(context, base_recipes, cutoff, limit=2):
                 for index, row in enumerate(itertools.islice(stream, 16)):
                     try:
                         directory = Path(temporary) / identity(recipe) / str(index)
-                        for result in guarded_rows(row, store, directory, cutoff):
+                        for result in guarded_rows(row, store, directory, cutoff, rule):
                             yield result
                             used += 1
                             if used >= limit:

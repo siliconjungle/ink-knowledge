@@ -10,7 +10,7 @@ from pathlib import Path
 from ink_knowledge import Store, canonical, entry, identity, semantic_entry
 from ink_knowledge.proposal_views import ProposalViews
 from ink_knowledge.recipes import execute, load
-from producers.guarded_choices import guard_entry, guarded_rows, list_guard, propose
+from producers.guarded_choices import choice_rule, guard_entry, guarded_rows, list_guard, propose
 from producers.semantic_laws import law, value, var
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -93,6 +93,15 @@ for(const cutoff of [8,128,2048]){
             single = dict(status='proposal', label=original['label'], step=original['steps'][0])
             self.assertEqual(list(guarded_rows(single, store, d / 'single', 8)), rows)
             self.check(d, context, rows[0], 'guarded')
+            bad_rule = copy.deepcopy(choice_rule())
+            bad_rule['payload']['conditions'] = []
+            bad_rule['interface']['conditions'] = []
+            # A valid content hash and membership witness cannot substitute for
+            # the missing equality premise in this database-authored theorem.
+            bad_store = store.extend([bad_rule])
+            loaded = choice_rule(bad_store, identity(bad_rule))
+            bad_rows = list(guarded_rows(original, bad_store, d / 'false-rule', 8, loaded))
+            self.check(d, context, bad_rows[0], 'false-rule', success=False)
             self.node(d, '''import assert from 'node:assert/strict';import * as m from './guarded.mjs';
 for(const n of [0,1,7,8,9]){const xs=Array.from({length:n},(_,i)=>!!(i%2));
  const before=xs.slice();assert.deepEqual(m.call('run',[xs]),xs);assert.deepEqual(xs,before);}''')
@@ -120,7 +129,7 @@ for(const n of [0,1,7,8,9]){const xs=Array.from({length:n},(_,i)=>!!(i%2));
         sort = value({'List': 'Bool'})
         xs = var(sort, 'xs')
         condition = list_guard('xs', sort, 8)
-        for field in ('types', 'assumptions', 'conditions'):
+        for field in ('types', 'assumptions'):
             obj = semantic_entry(law({'xs': sort}, xs, xs))
             # The helper must reject these before handing anything to the checker.
             obj['payload'][field] = ['unresolved']
@@ -133,6 +142,33 @@ for(const n of [0,1,7,8,9]){const xs=Array.from({length:n},(_,i)=>!!(i%2));
             list_guard('xs', value('U32'), 8)
         with self.assertRaisesRegex(ValueError, 'recursive'):
             list(propose({'_guarded_choice_active': True}, ['anything'], 8))
+
+    def test_conditional_rewrite_keeps_its_premise_obligation(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            d = Path(temporary)
+            store, context = self.context(d, 'module conditional; fn run(xs:List<Bool>)->List<Bool>{return xs;}')
+            sort = value({'List': 'Bool'})
+            xs, ys = var(sort, 'xs'), var(sort, 'ys')
+            condition = {'from': xs, 'to': ys}
+            obj = semantic_entry(law({'xs': sort, 'ys': sort}, xs, ys, {'Hypothesis': 0}, conditions=[condition]))
+            ident = identity(obj)
+            packet = dict(schema=1, semantics='ink-evidence-v1', input_core_sha256=context['source'],
+                knowledge=ProposalViews(store, {ident: obj}, d / 'original').bundle([ident]),
+                applications=[dict(function='run', path=[], law=ident, arguments={'xs': xs, 'ys': xs}, premises=['Normalize'])])
+            original = dict(status='proposal', label='conditional-equality', step=dict(kind='rewrite', package=packet))
+            rows = list(guarded_rows(original, store, d / 'guarded', 8))
+            self.assertEqual(len(rows), 2)
+            for i, row in enumerate(rows):
+                p = row['steps'][-1]['package']
+                a = p['applications'][0]
+                self.assertEqual(p['knowledge']['objects'][a['law']]['payload']['conditions'], [condition])
+                self.assertEqual(a['premises'], ['Normalize'])
+                self.check(d, context, row, 'conditional-' + str(i))
+                # The fallback is safe, but cannot justify the selected branch
+                # when the required input equality has not been established.
+                bad = copy.deepcopy(row)
+                bad['steps'][-1]['package']['applications'][0]['arguments']['ys'] = dict(sort=sort, node='Nil')
+                self.check(d, context, bad, 'false-premise-' + str(i), success=False)
 
     def test_base_recipe_comes_from_the_pinned_snapshot(self):
         with tempfile.TemporaryDirectory() as temporary:
