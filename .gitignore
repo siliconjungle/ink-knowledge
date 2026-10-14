@@ -13,3 +13,5 @@ __pycache__/
 /compiled-cache/
 /index-published.json
 /.ink-published-*
+
+/libraries/proofs/ordered-affine-tiles/index.sqlite*
