@@ -14,7 +14,7 @@ SCALARS = {'U32','I32','F32','Bool','String'}
 def policy():
     value = json.loads(files('ink_knowledge').joinpath('automatic-selection.json').read_text())
     if value.get('schema') != 1 or not isinstance(value.get('scope'),str):raise ValueError('automatic selection policy schema')
-    bounds = dict(functions=(1,16), calls=(1,512), candidates=(2,32), rounds=(9,64),
+    bounds = dict(processes=(1,8), functions=(1,16), calls=(1,512), candidates=(2,32), rounds=(9,64),
                   minimum_batch_ms=(1,50), maximum_calls_per_sample=(1,65536),
                   minimum_gain_percent=(1,50), confidence_percent=(90,99),
                   bootstrap_repetitions=(256,16384), expected_calls=(1,1000000000),

@@ -20,7 +20,7 @@
   "candidates": 8,
   "rounds": 11,
   "minimum_batch_ms": 5,
-  "maximum_calls_per_sample": 1024,
+  "maximum_calls_per_sample": 65536,
   "minimum_gain_percent": 5,
   "confidence_percent": 95,
   "bootstrap_repetitions": 2048,
@@ -39,5 +39,6 @@
     "rust": [
       "trusted"
     ]
-  }
+  },
+  "processes": 3
 }

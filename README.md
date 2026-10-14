@@ -500,3 +500,9 @@ are retained; each function/transfer boundary retains its total expected-call
 weight. Integer allocation uses largest remainders and reports the exact rational
 weights, rounded weights, and any size groups merged by the budget. This measures
 synthetic width regimes, not every possible distribution or input combination.
+
+Automatic JavaScript and Rust acquisition use the database policy's bounded fresh-process
+count (currently three). Its larger batch cap lets short calls reach the timing
+floor more often; reaching the cap still does not guarantee a minimum duration.
+Processes vary the deterministic interleaving seed. Process identity and every
+sample remain in the receipt; these are development measurements, not proofs.
