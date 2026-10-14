@@ -48,13 +48,17 @@ class TemplateSites:
             if not isinstance(node,dict)or node.get('Op',[None])[0]!='apply':continue
             if len(self.sites)>=node_limit or reduction_budget[0]<=0:
                 self.head_reduction_declines+=1;continue
-            from .head_beta import reduce
-            try:normal=reduce(target,reduction_budget)
+            from .head_beta import reduce,contexts
+            try:
+                normal=reduce(target,reduction_budget)
+                if normal is not target:
+                    self.head_reductions+=1
+                    for _,inner in contexts(normal,reduction_budget):
+                        if len(self.sites)>=node_limit:raise ValueError('template alias budget')
+                        alias=len(self.sites);self.sites.append((name,path,inner));self.originals[alias]=target
+                        self.by_head.setdefault(shape(inner),[]).append(alias)
             except (ValueError,RecursionError):
                 self.head_reduction_declines+=1;continue
-            if normal is not target:
-                alias=len(self.sites);self.sites.append((name,path,normal));self.originals[alias]=target
-                self.by_head.setdefault(shape(normal),[]).append(alias);self.head_reductions+=1
 
     def matching_sites(self,pattern,params):
         from .higher_patterns import applied_hole
@@ -83,10 +87,17 @@ class TemplateSites:
         return sorted(found)
     def matches(self,pattern,params,type_parameters):
         from .law_templates import infer
+        seen=set()
         for at in self.matching_sites(pattern,params):
             name,path,target=self.sites[at]
             self.attempts+=1
             if self.attempts>self.limit:raise ValueError('template inference budget')
             bindings={}
             if infer(pattern,target,params,type_parameters,bindings)and set(bindings)==set(type_parameters):
+                # Several inner views may instantiate the same law for one
+                # original endpoint. The adapter deterministically lifts its
+                # first match; do not consume proposal slots with duplicates.
+                key=(name,tuple(path),canonical(bindings))
+                if key in seen:continue
+                seen.add(key)
                 yield name,path,self.originals.get(at,target),bindings

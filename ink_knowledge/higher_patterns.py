@@ -12,15 +12,19 @@ def adapter(law_id,law,target):
  The caller supplies the portable definition context and replays the complete
  closure. Open lexical sites and undischarged premises are never erased.
  """
- from ink_planner.semantic_search import substitute,children
+ from ink_planner.semantic_search import substitute,children,replace
  if law.get('conditions') or law.get('assumptions'):return None
- arguments={}
+ arguments={};normal=target;path=()
  if not match(law['from'],target,law['params'],[],{},arguments):
-  from .head_beta import reduce
-  try:normal=reduce(target)
+  from .head_beta import reduce,contexts
+  try:
+   budget=[20_000];normal=reduce(target,budget)
+   if normal is target:return None
+   for path,inner in contexts(normal,budget):
+    arguments={}
+    if match(law['from'],inner,law['params'],[],{},arguments):break
+   else:return None
   except (ValueError,RecursionError):return None
-  arguments={}
-  if normal is target or not match(law['from'],normal,law['params'],[],{},arguments):return None
  if set(arguments)!=set(law['params']):return None
  params={}
  def free(term,depth=0):
@@ -36,10 +40,14 @@ def adapter(law_id,law,target):
   free(target)
   for argument in arguments.values():free(argument)
  except ValueError:return None
- middle=substitute(law['from'],arguments)
+ middle=replace(normal,path,substitute(law['from'],arguments))
+ use={'Use':dict(law=law_id,arguments=arguments,premises=[])}
+ def lift(term,at):
+  if not at:return use
+  return {'Congruence':[lift(child,at[1:])if i==at[0]else 'Normalize'for i,child in enumerate(children(term))]}
  return dict(semantics='ink-conditional-laws-v1',params=params,conditions=[],
-  **{'from':target,'to':substitute(law['to'],arguments)},
-  proof={'Trans':dict(middle=middle,left='Normalize',right={'Use':dict(law=law_id,arguments=arguments,premises=[])})},
+  **{'from':target,'to':replace(normal,path,substitute(law['to'],arguments))},
+  proof={'Trans':dict(middle=middle,left='Normalize',right=lift(middle,path))},
   dependencies=[law_id])
 
 def applied_hole(pattern,params):

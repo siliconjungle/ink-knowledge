@@ -1,7 +1,7 @@
 """Search through lexical bindings; the original endpoints still require proof."""
 import copy,json,os,subprocess,tempfile,unittest
 from pathlib import Path
-from ink_knowledge.head_beta import reduce
+from ink_knowledge.head_beta import reduce,contexts
 from ink_knowledge.template_matching import TemplateSites
 from ink_knowledge.higher_patterns import adapter
 from ink_knowledge import Store,canonical,identity,semantic_entry
@@ -31,15 +31,26 @@ class HeadBeta(unittest.TestCase):
   self.assertEqual(len(sites.sites),count);self.assertEqual(sites.head_reductions,0)
   self.assertGreater(sites.head_reduction_declines,0)
   self.assertEqual(sites.sites[0],('run',(),target))
+  limited=TemplateSites({'functions':{'run':target}},node_limit=count+1)
+  self.assertEqual(limited.sites[:count],sites.sites)
+  self.assertLessEqual(len(limited.sites),count+1)
+  self.assertGreater(limited.head_reduction_declines,0)
+  # Context lifting must not turn a callback-local value into a free value.
+  callback=lam(u,op(u,'call:f',bound(u,0)))
+  self.assertEqual(list(contexts(callback)),[((),callback)])
+  with self.assertRaisesRegex(ValueError,'budget'):list(contexts(target,limit=1))
   law=dict(params={'x':u},conditions=[],**{'from':op(u,'call:f',var(u,'x')),'to':var(u,'x')})
   opened=op(u,'apply',lam(u,op(u,'call:f',bound(u,0))),bound(u,0))
   self.assertIsNone(adapter('0'*64,law,opened))
   conditional=dict(law,conditions=[{'from':var(u,'x'),'to':var(u,'x')}])
   self.assertIsNone(adapter('0'*64,conditional,target))
+  repeated=op(u,'apply',lam(u,op(u,'binary:+',op(u,'call:f',bound(u,0)),op(u,'call:f',bound(u,0)))),var(u,'arg'))
+  matches=list(TemplateSites({'functions':{'run':repeated}}).matches(law['from'],law['params'],[]))
+  self.assertEqual(len([row for row in matches if row[1]==()]),1)
  def test_generic_fold_template_replays_original_bound_source_and_rejects_forgery(self):
   with tempfile.TemporaryDirectory()as temporary:
    d=Path(temporary);source=d/'source.ink';laws=d/'laws.ink'
-   source.write_text('module bound; pub fn words(xs:List<u32>,bias:u32)->u32{let seed=bias+7;return foldl(xs,seed,fn(x,s)=>s*3+x);} pub fn floats(xs:List<f32>,bias:f32)->f32{let seed=bias;return foldr(xs,seed,fn(x,s)=>(s+x)*x);}')
+   source.write_text('module bound; record Totals { sum:u32, count:u32, } pub fn projected(xs:List<u32>,bias:u32)->u32{let seed=Totals {sum:bias,count:0};return foldl(xs,seed,fn(x,s)=>Totals {sum:s.sum+x,count:s.count+1}).sum+bias;} pub fn words(xs:List<u32>,bias:u32)->u32{let seed=bias+7;return foldl(xs,seed,fn(x,s)=>s*3+x);} pub fn floats(xs:List<f32>,bias:f32)->f32{let seed=bias;return foldr(xs,seed,fn(x,s)=>(s+x)*x);}')
    laws.write_text('module laws; law left<A,S>(xs:List<A>,initial:S,step:fn(A,S)->S){foldl(xs,initial,step)==choose(xs==[],initial,foldl(xs,initial,step));proof by induction xs {nil=>normalize;cons(head,tail)=>normalize;};} law right<A,S>(xs:List<A>,initial:S,step:fn(A,S)->S){foldr(xs,initial,step)==choose(xs==[],initial,foldr(xs,initial,step));proof by induction xs {nil=>normalize;cons(head,tail)=>normalize;};}')
    def invoke(*args):
     r=subprocess.run([str(COMPILER),*map(str,args)],capture_output=True,text=True,timeout=120);self.assertEqual(r.returncode,0,r.stderr);return r
@@ -55,18 +66,20 @@ class HeadBeta(unittest.TestCase):
      if obj['payload']['from']==body:
       adapters[name]=(ident,obj)
       applications.append(dict(function=name,path=[],law=ident,arguments={n:dict(sort=s,node={'Free':n})for n,s in obj['payload']['params'].items()},premises=[]))
-   self.assertEqual(set(adapters),{'words','floats'})
+   self.assertEqual(set(adapters),{'words','floats','projected'})
+   self.assertIn('Congruence',adapters['projected'][1]['payload']['proof']['Trans']['right'])
    package=dict(schema=1,semantics='ink-evidence-v1',input_core_sha256=core_id,knowledge=store.bundle([a['law']for a in applications]),applications=applications)
    plan=dict(schema=1,semantics='ink-compiled-plan-v1',input_core_sha256=core_id,steps=[dict(kind='rewrite',package=package)])
    (d/'plan.json').write_bytes(canonical(plan));invoke('check-plan',source,d/'plan.json','--target','javascript')
    invoke('emit-plan',source,d/'plan.json','--target','javascript','-o',d/'selected.mjs')
    invoke('build',source,'--target','javascript','-o',d/'baseline.mjs')
-   driver=d/'check.mjs';driver.write_text("import assert from 'node:assert/strict';import * as a from './baseline.mjs';import * as b from './selected.mjs';for(const xs of [[],[0],[1,2,4294967295]])for(const seed of [0,7,4294967295])assert.deepStrictEqual(a.call('words',[xs,seed]),b.call('words',[xs,seed]));for(const xs of [[],[1e20,-1e20,3],[-0,Infinity,-Infinity,NaN]])for(const seed of [-0,0,1e20])assert.deepStrictEqual(a.functions.floats(xs,seed),b.functions.floats(xs,seed));")
+   driver=d/'check.mjs';driver.write_text("import assert from 'node:assert/strict';import * as a from './baseline.mjs';import * as b from './selected.mjs';for(const xs of [[],[0],[1,2,4294967295]])for(const seed of [0,7,4294967295]){assert.deepStrictEqual(a.call('words',[xs,seed]),b.call('words',[xs,seed]));assert.deepStrictEqual(a.call('projected',[xs,seed]),b.call('projected',[xs,seed]));}for(const xs of [[],[1e20,-1e20,3],[-0,Infinity,-Infinity,NaN]])for(const seed of [-0,0,1e20])assert.deepStrictEqual(a.functions.floats(xs,seed),b.functions.floats(xs,seed));")
    result=subprocess.run(['node',str(driver)],capture_output=True,text=True);self.assertEqual(result.returncode,0,result.stderr)
-   _,obj=adapters['words'];forged=copy.deepcopy(obj);forged['payload']['to']=dict(sort=value('U32'),node={'Word':0})
-   forged=semantic_entry(dict(schema=1,semantics=forged['semantics'],dependencies=forged['dependencies'],**forged['payload']))
-   bad=store.extend([forged]);(d/'forged.json').write_bytes(canonical(bad.bundle([identity(forged)])))
-   result=subprocess.run([str(COMPILER),'knowledge-check',str(d/'core.json'),str(d/'forged.json')],capture_output=True,text=True)
-   self.assertNotEqual(result.returncode,0);self.assertNotIn('hash mismatch',result.stderr)
+   for name in ['words','projected']:
+    _,obj=adapters[name];forged=copy.deepcopy(obj);forged['payload']['to']=dict(sort=value('U32'),node={'Word':0})
+    forged=semantic_entry(dict(schema=1,semantics=forged['semantics'],dependencies=forged['dependencies'],**forged['payload']))
+    store=store.extend([forged]);(d/'forged.json').write_bytes(canonical(store.bundle([identity(forged)])))
+    result=subprocess.run([str(COMPILER),'knowledge-check',str(d/'core.json'),str(d/'forged.json')],capture_output=True,text=True)
+    self.assertNotEqual(result.returncode,0);self.assertNotIn('hash mismatch',result.stderr)
 
 if __name__=='__main__':unittest.main()

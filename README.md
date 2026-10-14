@@ -554,6 +554,11 @@ only optional views. Open local variables and undischarged premises remain
 ineligible for a closed adapter. This does not change compiler semantics, install
 an optimisation automatically, or imply a performance gain. `test_head_beta.py`
 checks indexed discovery, capture avoidance, resource exhaustion, concrete proof
-replay, forged results and word/float output parity. Views currently expose
-leading lambda applications; nested projection contexts need further discovery
-or ordinary composed rewrites.
+replay, forged results and word/float output parity. After exposing a leading
+binding, discovery can also find a law inside an enclosing expression without
+crossing another lexical binder. The adapter lifts `Use` through ordinary
+`Congruence` and retains the complete original source endpoint. This composes a
+fold law through record projections or arithmetic siblings without teaching the
+compiler a special projection/fold optimisation. Context traversal and aliases
+share the bounded discovery budget; arbitrary rewriting beneath binders remains
+outside this adapter's scope.

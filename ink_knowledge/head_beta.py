@@ -3,6 +3,27 @@
 Only immediate lambda applications are reduced. The original source endpoint
 is retained by callers and still needs the kernel's independent Normalize proof.
 """
+def contexts(term, budget=None, limit=20_000):
+    """Bounded enclosing contexts; never cross a lexical binder.
+
+    These paths refer to the reduced search view, not to executable source.
+    Callers must lift a proof back to the complete original expression.
+    """
+    from ink_planner.semantic_search import children
+    shared=budget if budget is not None else [limit]
+    remaining=limit
+    def visit(value,path):
+        nonlocal remaining
+        remaining-=1;shared[0]-=1
+        if remaining<0 or shared[0]<0:raise ValueError('template context budget')
+        if len(path)>128:raise ValueError('template context depth')
+        yield path,value
+        node=value['node']
+        if isinstance(node,dict)and 'Lambda'in node:return
+        for i,child in enumerate(children(value)):
+            yield from visit(child,path+(i,))
+    yield from visit(term,())
+
 def reduce(term, budget=None, limit=20_000):
     from ink_planner.semantic_search import map_children
     shared=budget if budget is not None else [limit]
