@@ -470,3 +470,19 @@ output order are preserved by ordinary list induction and congruence proofs.
 Query-dependent tables and float keys are outside the admitted domain. This does
 not retain an index between public calls. Construction, memory and lookup costs
 still need whole-workload evidence; proof availability alone grants no selection.
+
+`producers.guarded_choices` composes whole-function equality proposals with a
+checked `choose(count(input) >= cutoff, alternative, original)` expression.
+The count is exact Int. The ordinary Cases/Use/Trans proof must establish both
+branches; recipe provenance and cutoff values grant no equality authority.
+Source-extension prefixes are retained. The author accepts concrete equalities
+without remaining conditions/type parameters/assumptions, and bounds repeated
+size-guard authoring. It does not cover retained state or arbitrary inner loops.
+
+Published recipe data chooses base producers and cutoffs. The initial three
+recipes wrap indexed ordered deduplication at 8, 128 and 2048 elements, using the
+existing selection-size grid. The author also replays an unrelated Boolean-list
+law in tests. Additional installed producers can be composed by database recipe
+data without compiler or planner dispatch changes. Normal bounded planning and
+whole-call measurements still decide selection; neither profitable selection nor
+absence of small-input regressions follows from the branch proof.

@@ -1922,6 +1922,84 @@
         "exact-ordered-membership-and-output",
         "measured-whole-call-profitability"
       ]
+    },
+    {
+      "id": "guarded-whole-call-8",
+      "module": "producers.guarded_choices",
+      "function": "propose",
+      "stage": "extension",
+      "requires": [
+        "core"
+      ],
+      "inputs": [
+        "core",
+        "source",
+        "knowledge_snapshot"
+      ],
+      "parameters": {
+        "base_recipes": [
+          "indexed-ordered-dedup"
+        ],
+        "cutoff": 8,
+        "limit": 2
+      },
+      "obligations": [
+        "conservative-typed-extension",
+        "universal-branch-equality",
+        "measured-whole-call-profitability"
+      ]
+    },
+    {
+      "id": "guarded-whole-call-128",
+      "module": "producers.guarded_choices",
+      "function": "propose",
+      "stage": "extension",
+      "requires": [
+        "core"
+      ],
+      "inputs": [
+        "core",
+        "source",
+        "knowledge_snapshot"
+      ],
+      "parameters": {
+        "base_recipes": [
+          "indexed-ordered-dedup"
+        ],
+        "cutoff": 128,
+        "limit": 2
+      },
+      "obligations": [
+        "conservative-typed-extension",
+        "universal-branch-equality",
+        "measured-whole-call-profitability"
+      ]
+    },
+    {
+      "id": "guarded-whole-call-2048",
+      "module": "producers.guarded_choices",
+      "function": "propose",
+      "stage": "extension",
+      "requires": [
+        "core"
+      ],
+      "inputs": [
+        "core",
+        "source",
+        "knowledge_snapshot"
+      ],
+      "parameters": {
+        "base_recipes": [
+          "indexed-ordered-dedup"
+        ],
+        "cutoff": 2048,
+        "limit": 2
+      },
+      "obligations": [
+        "conservative-typed-extension",
+        "universal-branch-equality",
+        "measured-whole-call-profitability"
+      ]
     }
   ],
   "schema": 1,
