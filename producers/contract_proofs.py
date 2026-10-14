@@ -197,7 +197,9 @@ def context_for(context,goal):
     seen_types=set()
     while types-seen_types:
         name=next(iter(types-seen_types));seen_types.add(name);scan(context['records'].get(name,[]))
-    return dict(schema=1,definitions={n:context['definitions'][n] for n in sorted(functions)},records={n:t for n,t in context['records'].items() if n in types},enums={n:t for n,t in context['enums'].items() if n in types},**({'ids':[n for n in context.get('ids',[]) if n in types]} if any(n in types for n in context.get('ids',[])) else {}))
+    groups={i:members for i,members in context.get('recursive_groups',{}).items() if any(n in functions for n in members)}
+    if any(not set(members)<=functions for members in groups.values()):raise ValueError('recursive context closure incomplete')
+    return dict(schema=1,definitions={n:context['definitions'][n] for n in sorted(functions)},records={n:t for n,t in context['records'].items() if n in types},enums={n:t for n,t in context['enums'].items() if n in types},**({'ids':[n for n in context.get('ids',[]) if n in types]} if any(n in types for n in context.get('ids',[])) else {}),**({'recursive_groups':groups} if groups else {}))
 
 def state_proof(objects,a,z,params,hyp=(),depth=0,serial=None,aliases=None,scalar=None,lemma_attempts=None,strengthen=True):
     proof=_state_proof(objects,a,z,params,hyp,depth,serial,aliases,scalar,lemma_attempts,strengthen)

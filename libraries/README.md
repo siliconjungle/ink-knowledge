@@ -80,6 +80,11 @@ laws for ordered folds. `buffer-views.ink` uses scoped read-only clipped ranges;
 `buffer-view-laws.ink` checks their logical slice observations. Algorithms remain
 source, and every use of a law still proves its assumptions.
 
+`checked-trees.ink` supplies an abstract recursive tree whose every nested payload
+retains the checked unique-value interface. Construction, observations and
+immutable replacements have portable recursive definition contexts and 72
+independently replayed pure obligations in the imported conformance fixture.
+
 `recursive-trees.ink` supplies a generic finite tree with ordered leaf traversal,
 leaf counting and mirroring. Source admission checks proper immutable subvalue
 descent; execution does not confer an induction or representation certificate.

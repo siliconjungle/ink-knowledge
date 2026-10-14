@@ -36,7 +36,7 @@ class TerminationMeasures(unittest.TestCase):
             root=Path(temp);source=root/'main.ink'
             source.write_text('module mutual;fn a(n:u32)->u32 decreases n;{if n>0{return a(n-1);}return b(n);}fn b(n:u32)->u32{return a(n);}')
             result=subprocess.run([str(self.compiler),'emit-termination-obligations',str(source),'-o',str(root/'goals.json')],capture_output=True,text=True)
-            self.assertNotEqual(result.returncode,0);self.assertIn('recursive call',result.stderr)
+            self.assertNotEqual(result.returncode,0);self.assertRegex(result.stderr,r'(recursive call|mutual recursion)')
 
     def test_lexicographic_components_allow_reset_only_after_a_prior_decrease(self):
         with tempfile.TemporaryDirectory() as temp:

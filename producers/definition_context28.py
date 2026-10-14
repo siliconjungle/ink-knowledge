@@ -30,31 +30,66 @@ def capture(core, subject, roots):
     program = core['program']
     functions = {f['name']: f for f in program['functions']}
     definitions = {}
-
-    def visit(name, active):
-        if name in definitions:
-            return
-        if name in active:
-            raise ValueError('cyclic definition context')
-        if len(active) >= 64 or len(active) + len(definitions) >= 128:
+    bodies = {}
+    pending = list(sorted(set(roots)))
+    while pending:
+        name = pending.pop()
+        if name in bodies:
+            continue
+        if len(bodies) >= 128:
             raise ValueError('definition context closure limit')
         if name not in functions or name not in subject['functions']:
             raise ValueError('definition context requires a supported semantic body: '+name)
         function = functions[name]
         body = subject['functions'][name]
         callees = calls(body, functions)
-        for callee in sorted(callees):
-            visit(callee, active | {name})
-        definition = dict(params=copy.deepcopy(function['params']), result=function['result'],
-                          body=copy.deepcopy(body),
-                          callees={n: definitions[n]['sha256'] for n in sorted(callees)})
-        definitions[name] = dict(sha256=identity(definition), definition=definition)
+        bodies[name] = dict(params=copy.deepcopy(function['params']), result=function['result'],
+                            body=copy.deepcopy(body), callees={n: '' for n in sorted(callees)})
+        pending.extend(sorted(callees))
 
-    for root in sorted(set(roots)):
-        visit(root, set())
+    indices = {}; low = {}; stack = []; active = set(); components = []
+    def visit(name):
+        indices[name] = low[name] = len(indices)
+        stack.append(name); active.add(name)
+        for callee in bodies[name]['callees']:
+            if callee not in indices:
+                visit(callee); low[name] = min(low[name], low[callee])
+            elif callee in active:
+                low[name] = min(low[name], indices[callee])
+        if low[name] == indices[name]:
+            members = []
+            while True:
+                member = stack.pop(); active.remove(member); members.append(member)
+                if member == name: break
+            components.append(sorted(members))
+    for name in sorted(bodies):
+        if name not in indices: visit(name)
+
+    groups = {}
+    for members in components:
+        # Tarjan produces dependencies before their callers.
+        for name in members:
+            for callee in bodies[name]['callees']:
+                if callee not in members:
+                    bodies[name]['callees'][callee] = definitions[callee]['sha256']
+        cyclic = len(members) > 1 or members[0] in bodies[members[0]]['callees']
+        if cyclic:
+            payload = {name: copy.deepcopy(bodies[name]) for name in members}
+            for definition in payload.values():
+                definition['callees'] = {n:i for n,i in definition['callees'].items() if n not in members}
+            group = identity(['ink-recursive-definitions-v1', payload])
+            groups[group] = members
+            for name in members:
+                for callee in bodies[name]['callees']:
+                    if callee in members: bodies[name]['callees'][callee] = group
+        for name in members:
+            definitions[name] = dict(sha256=identity(bodies[name]), definition=bodies[name])
+
     context = dict(schema=1, definitions=dict(sorted(definitions.items())),
                    records=copy.deepcopy(program.get('records', {})),
                    enums=copy.deepcopy(program.get('enums', {})))
+    if groups:
+        context['recursive_groups'] = dict(sorted(groups.items()))
     if program.get('ids'):
         context['ids']=copy.deepcopy(program['ids'])
     if len(canonical(context)) > 4_000_000:
