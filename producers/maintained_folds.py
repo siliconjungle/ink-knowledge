@@ -84,7 +84,7 @@ def contribution_choice(contribution,subject,delta,add,objects):
     proof=prove(original,optimized,[('key',subject['key']),('row',subject['row'])])
     return dict(function=function,proof=proof)
 
-def produce(source,compiler,directory,keeps=None,capacity=0,source_core=False,guarded_update=False,guard_zero=False,extrema=False):
+def produce(source,compiler,directory,keeps=None,capacity=0,source_core=False,guarded_update=False,guard_zero=False,extrema=False,groups=None):
     source=Path(source).resolve();compiler=Path(compiler).resolve();directory=Path(directory);directory.mkdir(parents=True,exist_ok=True)
     flags=['--core']if source_core else []
     with tempfile.TemporaryDirectory(prefix='ink-maintained-folds-')as temporary:
@@ -117,10 +117,24 @@ def produce(source,compiler,directory,keeps=None,capacity=0,source_core=False,gu
         update_right=call(update,[var('total'),var('old'),var('new')])
         from producers.point_delta import normal
         update_proof=scalar(update_left,update_right,ring.prove(normal(update_left,objects),normal(update_right,objects)))
+        if groups is None:
+            groups=json.loads((Path(__file__).parent/'data/maintained-groups.json').read_bytes())
+        if not isinstance(groups,list)or len(groups)>16:raise ValueError('group descriptor budget')
         from producers.aggregate_delta import setup
         certificates={}
         for subject in subjects['subjects']:
             if keeps is not None and subject['keep']not in keeps:continue
+            if subject['result']=='Bool':
+                from producers.boolean_groups import author
+                failures=[]
+                for spec in groups:
+                    try:
+                        views.append(author(subject,objects,add,spec));break
+                    except (ValueError,KeyError)as error:
+                        if os.environ.get('INK_PROOF_DEBUG'):raise
+                        failures.append(str(error))
+                else:declined.append(dict(keep=subject['keep'],reason='no proved database group: '+str(failures)))
+                continue
             if extrema:
                 # Word maximum/minimum keeps become extremum views (Rust only).
                 from producers.maintained_extrema import author
@@ -187,7 +201,7 @@ def produce(source,compiler,directory,keeps=None,capacity=0,source_core=False,gu
         (directory/'production.json').write_text(json.dumps(dict(source=subjects['source'],views=len(views),declined=declined),indent=2)+'\n')
         return plan
 
-def candidates(context):
+def candidates(context,groups=None):
     if context.get('representation')or context.get('maintained')or context.get('emit_target')not in('javascript','rust','rust-wasm'):
         yield dict(status='declined',label='maintained-folds',reason='requires JavaScript or Rust source state capability');return
     if context.get('emit_target')!='javascript':
@@ -196,14 +210,14 @@ def candidates(context):
         with tempfile.TemporaryDirectory(prefix='ink-maintained-candidates-')as temporary:
             temp=Path(temporary);source=temp/'source.json';source.write_bytes(canonical(context['core']))
             try:
-                plan=produce(source,context['compiler'],temp/'map',source_core=True,extrema=True)
+                plan=produce(source,context['compiler'],temp/'map',source_core=True,extrema=True,groups=groups)
                 yield dict(status='proposal',label='maintained-folds/rust',steps=plan['steps'])
             except (ValueError,subprocess.TimeoutExpired)as e:yield dict(status='declined',label='maintained-folds',reason=str(e))
         return
     with tempfile.TemporaryDirectory(prefix='ink-maintained-candidates-')as temporary:
         temp=Path(temporary);source=temp/'source.json';source.write_bytes(canonical(context['core']))
         try:
-            plan=produce(source,context['compiler'],temp/'map',source_core=True)
+            plan=produce(source,context['compiler'],temp/'map',source_core=True,groups=groups)
             yield dict(status='proposal',label='maintained-folds/map',steps=plan['steps'])
             from producers.maintained_updates import guarded_word_update
             guarded=copy.deepcopy(plan);guarded['steps'][0]['package']=guarded_word_update(plan['steps'][0]['package'],temp/'guarded-knowledge')

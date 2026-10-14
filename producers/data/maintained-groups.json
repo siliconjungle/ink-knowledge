@@ -1,0 +1,42 @@
+[
+  {
+    "result": "Bool",
+    "zero": {
+      "Bool": false
+    },
+    "combine": {
+      "Binary": {
+        "op": "!=",
+        "left": {
+          "Var": "a"
+        },
+        "right": {
+          "Var": "b"
+        }
+      }
+    },
+    "inverse": {
+      "Var": "a"
+    }
+  },
+  {
+    "result": "Bool",
+    "zero": {
+      "Bool": true
+    },
+    "combine": {
+      "Binary": {
+        "op": "==",
+        "left": {
+          "Var": "a"
+        },
+        "right": {
+          "Var": "b"
+        }
+      }
+    },
+    "inverse": {
+      "Var": "a"
+    }
+  }
+]

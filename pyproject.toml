@@ -12,5 +12,5 @@ description = "Canonical Ink knowledge objects, snapshots and SQLite discovery"
 packages = ["ink_knowledge", "producers"]
 
 [tool.setuptools.package-data]
-ink_knowledge = ["index.sql", "structural-costs.json", "producer-catalog.json", "implementation-recipes.json", "property-probes.json", "automatic-selection.json", "state-selection.json"]
+ink_knowledge = ["index.sql", "structural-costs.json", "cost-model-basis.json", "producer-catalog.json", "implementation-recipes.json", "property-probes.json", "automatic-selection.json", "state-selection.json"]
 producers = ["data/*.json", "data/*.json.gz"]

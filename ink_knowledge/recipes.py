@@ -34,13 +34,15 @@ def load(path=None,store=None):
         raise ValueError('recipe registry schema')
     ids=set()
     for recipe in registry['recipes']:
-        if not {'id','module','function','parameters','stage'}<=set(recipe)or set(recipe)-{'id','module','function','parameters','stage','requires','obligations','inputs'}or recipe['id']in ids:
+        if not {'id','module','function','parameters','stage'}<=set(recipe)or set(recipe)-{'id','module','function','parameters','stage','requires','obligations','inputs','priority'}or recipe['id']in ids:
             raise ValueError('recipe fields or duplicate identity')
         if not MODULE.fullmatch(recipe['module']) or not re.fullmatch('[a-z][a-z0-9_]*',recipe['function']):
             raise ValueError('recipes must name installed knowledge producers')
         if recipe['stage'] not in {'rewrite','representation','definitions','properties','physical','routing','resources','migration','extension','maintained','protocol'}:
             raise ValueError('recipe stage')
         if not isinstance(recipe['parameters'],dict):raise ValueError('recipe parameters')
+        priority=recipe.get('priority',0)
+        if type(priority)is not int or not -100<=priority<=100:raise ValueError('recipe priority')
         for field in ['requires','obligations','inputs']:
             if not isinstance(recipe.get(field,[]),list)or any(not isinstance(v,str)or not v for v in recipe.get(field,[])):raise ValueError('recipe '+field)
         ids.add(recipe['id'])

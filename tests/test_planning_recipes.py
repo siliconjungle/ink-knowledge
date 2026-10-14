@@ -59,6 +59,17 @@ class RegistryCoverage(unittest.TestCase):
             self.assertEqual(rows[0]['step'],dict(kind='maintained',package=package))
             self.assertEqual(list(published(dict(knowledge_root=d,knowledge_snapshot=store.snapshot_id,source='b'*64))),[])
 
+    def test_recipe_priority_is_bounded_scheduling_metadata(self):
+        registry,_=load()
+        with tempfile.TemporaryDirectory()as d:
+            p=Path(d)/'registry.json'
+            for value in [-100,0,100]:
+                registry['recipes'][0]['priority']=value;p.write_text(json.dumps(registry))
+                self.assertEqual(load(p)[0]['recipes'][0]['priority'],value)
+            for value in [True,False,1.5,'-10',None,-101,101]:
+                registry['recipes'][0]['priority']=value;p.write_text(json.dumps(registry))
+                with self.assertRaisesRegex(ValueError,'recipe priority'):load(p)
+
     def test_every_public_layout_parameter_has_a_registry_recipe(self):
         import inspect
         from producers.representations import generate
