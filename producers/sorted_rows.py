@@ -411,7 +411,8 @@ class Law:
 
     def rule(self, cite):
         return law_rule(self.name, [n for n, _ in self.params], self.conditions, self.guards,
-                        self.left, self.right, self.default, cite, COMMUTATIONS.get(self.name))
+                        self.left, self.right, self.default, cite,
+                        COMMUTATIONS.get(family_base(self.name)))
 
 
 # Laws whose two sides differ only by the order of two writes: apply only
@@ -450,6 +451,29 @@ def lt(a, z):
     return binary('<', a, z)
 
 
+def signed_lt(a, z):
+    """The projection's order on i32 keys (core/src/action_model/keys.rs):
+    words shifted down by 2^31 with wrapping and compared, a strict total
+    order on every word."""
+    shift = lambda x: binary('-', x, {'U64': 2147483648})
+    return binary('<', shift(a), shift(z))
+
+
+# Key orders with their own insertion, sortedness and order laws, keyed by the
+# suffix of their published names. Both order word keys (sort U64), so lookup,
+# removal and replacement laws are shared; u32 and u64 keys use plain `<`.
+FAMILIES = (('', lt), ('_signed', signed_lt))
+ORDERED_ROLES = ('insert', 'above', 'sorted')
+EQUALITY_FACTS = ('word_unequal_symmetric', 'word_differ_unequal', 'word_differ_unequal_symmetric', 'word_equal_transitive')
+
+
+def family_base(name):
+    for suffix, _ in FAMILIES:
+        if suffix and name.endswith(suffix):
+            return name[:-len(suffix)]
+    return name
+
+
 def eq(a, z):
     return binary('==', a, z)
 
@@ -458,9 +482,9 @@ def is_(term, value):
     return {'from': term, 'to': value}
 
 
-def definitions(lib):
+def definitions(lib, less=lt, suffix=''):
     """The projection's own row definitions (core/src/action_model): insertion
-    by word order, and strictly ascending keys above an exclusive bound."""
+    by the key order, and strictly ascending keys above an exclusive bound."""
     N = lib.names
     M = lambda scrutinee, *branches: match(scrutinee, list(branches))
     rows_id, row = N['WordRows'], {'Data': N['StateRow']}
@@ -469,35 +493,49 @@ def definitions(lib):
     h, x, t = map(var, ('head', 'value', 'tail'))
     nil = construct(rows_id, 0)
     cons = lambda key, value, tail: construct(rows_id, 1, key, value, tail)
-    lib.function('insert', [['rows', RS], ['key', 'U64'], ['new', row]], RS,
+    lib.function('insert' + suffix, [['rows', RS], ['key', 'U64'], ['new', row]], RS,
                  M(r, ([], cons(k, n, nil)),
-                   (['head', 'value', 'tail'], choice(lt(k, h), cons(k, n, r), cons(h, x, self_call(t, k, n))))), 0)
+                   (['head', 'value', 'tail'], choice(less(k, h), cons(k, n, r), cons(h, x, self_call(t, k, n))))), 0)
     sk, st = var('sorted_key'), var('sorted_tail')
-    above = lib.function('above', [['rows', RS], ['bound', 'U64']], 'Bool',
+    above = lib.function('above' + suffix, [['rows', RS], ['bound', 'U64']], 'Bool',
                          M(r, ([], T), (['sorted_key', 'sorted_value', 'sorted_tail'],
-                                        choice(lt(b, sk), self_call(st, sk), F))), 0)
-    lib.function('sorted', [['rows', RS]], 'Bool',
+                                        choice(less(b, sk), self_call(st, sk), F))), 0)
+    lib.function('sorted' + suffix, [['rows', RS]], 'Bool',
                  M(r, ([], T), (['sorted_key', 'sorted_value', 'sorted_tail'], call(above, st, sk))))
 
 
 # Word facts, checked by bit-blasting: (name, params, conditions, left, right).
-def word_statements():
+def word_statements(less=lt, suffix=''):
+    """Order facts for one key order; the plain family also states the
+    order-independent equality facts every family shares."""
     a, b_, c, d = map(var, ('a', 'b', 'c', 'd'))
-    return [
-        ('word_less_transitive', ['a', 'b', 'c'], [is_(lt(a, b_), T), is_(lt(b_, c), T)], lt(a, c), T),
-        ('word_less_total', ['a', 'b'], [is_(lt(b_, a), F), is_(eq(b_, a), F)], lt(a, b_), T),
-        ('word_at_most_unequal', ['b', 'c', 'd'], [is_(lt(c, b_), F), is_(lt(c, d), T)], eq(b_, d), F),
-        ('word_at_most_not_above', ['b', 'c', 'd'], [is_(lt(c, b_), F), is_(lt(c, d), T)], lt(d, b_), F),
-        ('word_equal_not_less', ['a', 'b'], [is_(eq(a, b_), T)], lt(b_, a), F),
+    order = [
+        ('word_less_transitive', ['a', 'b', 'c'], [is_(less(a, b_), T), is_(less(b_, c), T)], less(a, c), T),
+        ('word_less_total', ['a', 'b'], [is_(less(b_, a), F), is_(eq(b_, a), F)], less(a, b_), T),
+        ('word_at_most_unequal', ['b', 'c', 'd'], [is_(less(c, b_), F), is_(less(c, d), T)], eq(b_, d), F),
+        ('word_at_most_not_above', ['b', 'c', 'd'], [is_(less(c, b_), F), is_(less(c, d), T)], less(d, b_), F),
+        ('word_equal_not_less', ['a', 'b'], [is_(eq(a, b_), T)], less(b_, a), F),
+    ]
+    equality = [
         ('word_unequal_symmetric', ['a', 'b'], [is_(eq(a, b_), F)], eq(b_, a), F),
         ('word_differ_unequal', ['a', 'b'], [is_(binary('!=', a, b_), T)], eq(a, b_), F),
         ('word_differ_unequal_symmetric', ['a', 'b'], [is_(binary('!=', a, b_), T)], eq(b_, a), F),
-        ('word_less_asymmetric', ['a', 'b'], [is_(lt(a, b_), T)], lt(b_, a), F),
+    ]
+    tail = [
+        ('word_less_asymmetric', ['a', 'b'], [is_(less(a, b_), T)], less(b_, a), F),
+    ]
+    shared = [
         ('word_equal_transitive', ['a', 'b', 'c'], [is_(eq(a, c), T), is_(eq(b_, c), T)], eq(a, b_), T),
     ]
+    named = [(name + suffix, *rest) for name, *rest in order + tail]
+    if suffix:
+        return named
+    # Keep the plain family's published order (and identities) unchanged.
+    out = named[:5] + equality + named[5:] + shared
+    return out
 
 
-def statements(N):
+def statements(N, less=lt, suffix=''):
     """Row laws in proof order, with how each is proved. `N` maps role names
     (WordRows, StateRow, get, remove, replace, contains, insert, above,
     sorted) to definition identities, general or program-specific."""
@@ -516,6 +554,7 @@ def statements(N):
     pl = var('payload')
     cases, induction = ('cases', 'rows'), lambda *g: ('induction', 'rows', list(g))
     apart = [is_(eq(o, k), F)]
+    lt = less
     out = [
         (Law('above_weaken', P('rows', 'bound', 'mid'), [], [(lt(b, m), True), (A(r, m), True)], A(r, b), T, T), cases),
         (Law('above_remove', P('rows', 'bound', 'key'), [], [(A(r, b), True)], A(D(r, k), b), T, T), induction('bound')),
@@ -544,12 +583,21 @@ def statements(N):
         (Law('replace_replace_commute', P('rows', 'key', 'new', 'other', 'payload'), apart, [],
              R(R(r, k, n), o, pl), R(R(r, o, pl), k, n), r), induction()),
     ]
+    for law, _ in out:
+        law.name += suffix
     return out
 
 
-def word_laws():
+def word_laws(less=lt, suffix=''):
     return [Law(name, [(p, 'U64') for p in params], conditions, [], left, right, right)
-            for name, params, conditions, left, right in word_statements()]
+            for name, params, conditions, left, right in word_statements(less, suffix)]
+
+
+def family_names(names, suffix):
+    """Role identities for one key order: its own insertion and sortedness,
+    the shared lookup, removal and replacement."""
+    return {role: names[role + (suffix if role in ORDERED_ROLES else '')] for role in names
+            if role in ('WordRows', 'StateRow', 'RowOption', 'get', 'remove', 'replace', 'contains', *ORDERED_ROLES)}
 
 
 def cite_use(theorem, law):
@@ -557,14 +605,27 @@ def cite_use(theorem, law):
 
 
 def build(lib, compiler, certificates):
-    """Add sorted-row definitions and checked laws to a state-calculus library."""
-    definitions(lib)
-    N = lib.names
+    """Add sorted-row definitions and checked laws, per key order, to a
+    state-calculus library."""
+    laws = {}
+    for suffix, less in FAMILIES:
+        laws.update(build_family(lib, compiler, certificates, less, suffix))
+    return laws
+
+
+def build_family(lib, compiler, certificates, less, suffix):
+    definitions(lib, less, suffix)
+    N = family_names(lib.names, suffix)
     rows_id = N['WordRows']
     h, x, t = map(var, ('head', 'value', 'tail'))
     nil, cons = construct(rows_id, 0), construct(rows_id, 1, h, x, t)
     rules, laws = [], {}
-    for law in word_laws():
+    # Order-independent equality facts are published once (plain family) and
+    # cited by every family.
+    shared = [law for law in word_laws() if law.name in EQUALITY_FACTS] if suffix else []
+    for law in shared:
+        rules.append(law.rule(cite_use(lib.names[law.name], law)))
+    for law in word_laws(less, suffix):
         goal = dict(params=[[p, s] for p, s in law.params], conditions=law.conditions, **{'from': law.left, 'to': law.right})
         cert = word_certificate(compiler, goal, certificates)
         theorem = lib.store(law.name, 'Theorem', dict(**goal, proof={'BitVector': dict(
@@ -614,7 +675,7 @@ def build(lib, compiler, certificates):
             return {'GeneralizedInduction': dict(variable='rows', generalize=generalize, **{'from': lhs, 'to': rhs}, cases=cases)}
         return {'Induction': body}
 
-    for law, how in statements(N):
+    for law, how in statements(N, less, suffix):
         lhs, rhs = law.statement()
         proof = by_cases(law, lhs, rhs) if how[0] == 'cases' else by_induction(law, lhs, rhs, how[2])
         theorem = lib.store(law.name, 'Theorem', dict(params=[[p, s] for p, s in law.params], conditions=law.conditions,
@@ -661,43 +722,52 @@ def declaration(objects, i):
 
 
 def table_roles(model, table, predicate, objects):
-    """Program definitions playing each general role, or None when the table's
-    keys are not words ordered by `<` (the general laws' key domain)."""
+    """Program definitions playing each general role and the key order's name
+    suffix, or None when the table's key order has no published laws."""
     get = declaration(objects, table['get'])['Function']
     option = get['result']['Data']
     sorted_body = declaration(objects, predicate)['Function']['body']
     above = sorted_body['Match']['branches'][1]['body']['Call']['function']
     insert = declaration(objects, table['insert'])['Function']
     condition = insert['body']['Match']['branches'][1]['body']['If']['condition']
-    if condition != lt(var('key'), var('head')) or insert['params'][1][1] != 'U64':
+    if insert['params'][1][1] != 'U64':
+        return None
+    suffix = next((s for s, less in FAMILIES if condition == less(var('key'), var('head'))), None)
+    if suffix is None:
         return None
     value = model['types'][json.dumps(table['value_type'], sort_keys=True, separators=(',', ':'))]
     return dict(WordRows=table['datatype'], StateRow=value, RowOption=option, get=table['get'], remove=table['remove'],
-                replace=table['replace'], contains=table['contains'], insert=table['insert'], above=above, sorted=predicate)
+                replace=table['replace'], contains=table['contains'], insert=table['insert'], above=above, sorted=predicate), suffix
 
 
 def program_rules(model, sorted_tables, objects, names):
     """Rewrite rules for one module: word facts, and instances of the general
     row laws for every table whose keys are words."""
-    general = {role: names['state-calculus/' + role] for role in ROLES}
     used, rules = set(), []
-    for law in word_laws():
+    found = [table_roles(model, table, predicate, objects)
+             for table, predicate in zip(model['tables'], sorted_tables['predicates'])]
+    families = {f[1] for f in found if f is not None}
+    order_laws = word_laws() + [law for suffix, less in FAMILIES if suffix in families and suffix
+                                for law in word_laws(less, suffix)]
+    for law in order_laws:
         theorem = names['state-calculus/' + law.name]
 
         def cite(bind, proofs, theorem=theorem, law=law):
             used.add(theorem)
             return cite_use(theorem, law)(bind, proofs)
         rules.append(law.rule(cite))
-    for table, predicate in zip(model['tables'], sorted_tables['predicates']):
-        roles = table_roles(model, table, predicate, objects)
-        if roles is None:
+    for entry in found:
+        if entry is None:
             continue
+        roles, suffix = entry
+        general = {role: names['state-calculus/' + role + (suffix if role in ORDERED_ROLES else '')] for role in ROLES}
         definitions = {general[r]: roles[r] for r in ROLES if r != 'StateRow'}
         sorts = {general['StateRow']: roles['StateRow']}
         mapping = {general[r]: roles[r] for r in ROLES}
-        laws = [law for law, _ in statements(roles)]
+        laws = [law for law, _ in statements(roles, dict(FAMILIES)[suffix], suffix)]
         for name in EQUATIONS:
             laws.append(published_law(name, declaration(objects, names['state-calculus/' + name])['Theorem'], mapping))
+        # Instances cite the family's published theorem names.
         for law in laws:
             theorem = names['state-calculus/' + law.name]
 
