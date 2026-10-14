@@ -97,6 +97,13 @@ class RegistryCoverage(unittest.TestCase):
         self.assertEqual({r['buffers']for r in recipe['parameters']['source_strategies']},{'scoped','direct'})
         self.assertTrue(any(r['id']=='source-capabilities'for r in registry['recipes']))
 
+    def test_global_and_modular_discovery_are_peer_recipes(self):
+        registry,_=load()
+        recipes={r['id']:r for r in registry['recipes']}
+        global_recipe=recipes['semantic-laws'];modular_recipe=recipes['modular-semantic-laws']
+        self.assertEqual(modular_recipe,dict(global_recipe,id='modular-semantic-laws',parameters={'modular':True}))
+        self.assertEqual(global_recipe.get('priority',0),0)
+
     def test_published_recipe_is_discovered_without_planner_dispatch(self):
         recipe=dict(id='published-family',stage='representation',module='producers.planning_recipes',function='representations',parameters={'retain_queries':False},requires=['model'],obligations=['universal-source-action-and-observation-preservation'])
         with tempfile.TemporaryDirectory()as directory:

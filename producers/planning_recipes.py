@@ -167,7 +167,7 @@ def product(context):
                     'product/'+peer['representation'])
         except (ValueError,KeyError)as error:yield decline('product/'+peer['representation'],error)
 
-def semantic(context):
+def semantic(context,modular=False):
     """The generic semantic planner discovers every typed rewrite root and all
     installed specialisers. No operation or theorem-name selector is added here.
     """
@@ -180,6 +180,7 @@ def semantic(context):
             '--budget',str(context.get('semantic_budget',4096)),
             '--alternatives',str(d/'alternatives.jsonl'),'--stream-alternatives','--time-seconds',str(context.get('semantic_seconds',600)),'--compact-output','-o',str(out),
             '--diagnostics',str(d/'diagnostics.json')]
+        if modular:command+=['--modular-cache',str(d/'modular-cache'),'--modular-prefixes-only']
         if context.get('semantic_rounds') is not None:command+=['--rounds',str(context['semantic_rounds'])]
         if context.get('properties'):
             properties=d/'properties.json';properties.write_bytes(canonical(context['properties']));command+=['--properties',str(properties)]

@@ -617,3 +617,11 @@ instantiator and checker, including renamed parameters and concrete type instanc
 Disposable pattern-index queries also enforce the public store's 0–1024 page
 limit and explicitly close failed reader opens; these are discovery resource
 controls, never mathematical authority.
+
+The default planning registry includes global and modular semantic search as peer
+rewrite recipes. Modular search delivers the checked best combined prefix after
+each improved function, keeping its output bounded by the function count. Neither
+recipe names algorithms or grants priority to a theorem; both discover installed
+laws and require complete source equality. Their structural scores rank search
+hypotheses only. Existing measured whole-workload selection decides profitability,
+and can retain the baseline when no comparable profitable evidence exists.

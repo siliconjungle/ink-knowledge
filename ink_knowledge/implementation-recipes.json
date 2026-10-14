@@ -50,6 +50,25 @@
       "stage": "rewrite"
     },
     {
+      "function": "semantic",
+      "id": "modular-semantic-laws",
+      "inputs": [
+        "core",
+        "properties"
+      ],
+      "module": "producers.planning_recipes",
+      "obligations": [
+        "source-equality-and-complete-observations"
+      ],
+      "parameters": {
+        "modular": true
+      },
+      "requires": [
+        "core"
+      ],
+      "stage": "rewrite"
+    },
+    {
       "function": "action_coalescing",
       "id": "whole-action-coalescing",
       "inputs": [
