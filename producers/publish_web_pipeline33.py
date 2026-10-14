@@ -27,7 +27,7 @@ def stage(root, compiler, rows_path, output):
         raise ValueError('preserve existing admission evidence; choose a new output')
     original = Store(root)
     old = set(original.members())
-    names = json.loads((root / 'store/names.json').read_text())
+    names = original.names
     data = json.loads(rows_path.read_text())
     rows = data if isinstance(data, list) else data['rows']
     objects = {oid: original.object(oid) for oid in sorted(old)}
@@ -92,15 +92,15 @@ def stage(root, compiler, rows_path, output):
     roots = sorted(fresh | shared)
     for start in range(0, len(roots), 32):
         admit(roots[start:start + 32])
-    if sha(compiler) != compiler_hash or Store(root).snapshot_id != original.snapshot_id:
+    if sha(compiler) != compiler_hash or Store(root).publication_id != original.publication_id:
         raise ValueError('compiler or canonical catalogue changed during admission')
     receipt = dict(status='checked', previous_snapshot=original.snapshot_id,
                    previous_entries=len(old), fair_prior_snapshot=prior.snapshot_id,
                    fair_prior_entries=len(prior_ids), snapshot=current.snapshot_id,
                    entries=len(objects), fresh_entries=sorted(fresh),
                    shared_old_entries=sorted(shared), rows_sha256=sha(rows_path),
-                   original_names_sha256=sha(root / 'store/names.json'),
-                   staged_names_sha256=sha(current.data / 'names.json'),
+                   original_names_sha256=hashlib.sha256(canonical(original.names) + b'\n').hexdigest(),
+                   staged_names_sha256=hashlib.sha256(canonical(current.names) + b'\n').hexdigest(),
                    commands_sha256=sha(output / 'commands.json'),
                    admission_bindings={p.name: sha(p) for p in sorted(output.glob('admission-*.json'))},
                    compiler=str(compiler), compiler_sha256=compiler_hash,
@@ -130,18 +130,19 @@ def publish(root, staged, receipt_path):
         raise ValueError('candidate omitted a previous immutable object')
     if candidate_ids - previous_ids != set(receipt['fresh_entries']) | set(receipt['shared_old_entries']):
         raise ValueError('staged extension membership changed')
-    names = json.loads((candidate.data / 'names.json').read_text())
-    old_names = json.loads((root / 'store/names.json').read_text())
+    names = candidate.names
+    old_names = original.names
     if any(names.get(n) != i for n, i in old_names.items()):
         raise ValueError('candidate omitted or changed a previous discovery name')
-    if sha(root / 'store/names.json') != receipt['original_names_sha256'] or sha(candidate.data / 'names.json') != receipt['staged_names_sha256']:
+    if hashlib.sha256(canonical(original.names) + b'\n').hexdigest() != receipt['original_names_sha256'] or hashlib.sha256(canonical(candidate.names) + b'\n').hexdigest() != receipt['staged_names_sha256']:
         raise ValueError('discovery names changed after staging')
     if sha(staged / 'commands.json') != receipt['commands_sha256']:
         raise ValueError('staged admission evidence changed')
     for path, digest in receipt['admission_bindings'].items():
         if sha(staged / path) != digest:
             raise ValueError('staged checked proof view changed')
-    result = Store.publish(root, [candidate.object(i) for i in candidate.members()], names)
+    result = Store.publish(root, [candidate.object(i) for i in candidate.members()], names,
+                           expected_publication=original.publication_id)
     result.rebuild()
     previous = Store(root, root / 'store/snapshots' / (receipt['previous_snapshot'] + '.json'))
     if set(previous.members()) != previous_ids or not previous_ids <= set(result.members()):

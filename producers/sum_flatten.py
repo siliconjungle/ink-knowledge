@@ -87,8 +87,7 @@ def produce(source, compiler, directory, source_core=False, publish=None):
     write(directory / 'layouts.json', layouts)
     if publish is not None:
         publication = Store(publish)
-        names_path = publication.data / 'names.json'
-        names = json.loads(names_path.read_bytes()) if names_path.exists() else {}
+        names = publication.names
         for layout in layouts:
             key = identity(layout['sum_type'])
             names['sum-codec/' + key + '/roundtrip'] = layout['roundtrip']

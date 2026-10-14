@@ -16,7 +16,7 @@ from producers.representations import generate as cached
 
 def publish(root, source_root, compiler):
     root,source_root,compiler=Path(root).resolve(),Path(source_root).resolve(),Path(compiler).resolve()
-    previous=Store(root);objects={i:previous.object(i) for i in previous.members()};names=read(previous.data/'names.json')
+    previous=Store(root);objects={i:previous.object(i) for i in previous.members()};names=previous.names
     laws=[]
     for name,law in named_laws():
         obj=semantic_entry(law);i=identity(obj);objects[i]=obj;names['rewrite/'+name]=i;laws.append(i)

@@ -264,7 +264,7 @@ def publish(root,compiler,report):
     import hashlib,subprocess,tempfile
     root=Path(root).resolve();compiler=Path(compiler).resolve()
     compiler_hash=hashlib.sha256(compiler.read_bytes()).hexdigest()
-    original=Store(root);old_ids=set(original.members());names=json.loads((original.data/'names.json').read_text())
+    original=Store(root);old_ids=set(original.members());names=original.names
     lib=build(CanonicalLibrary());objects=[original.object(i)for i in sorted(old_ids)]+list(lib.objects.values())
     names.update({'state-calculus/'+n:i for n,i in lib.names.items()})
     with tempfile.TemporaryDirectory(prefix='ink-state-admission-')as temp:

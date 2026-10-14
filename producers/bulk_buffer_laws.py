@@ -40,7 +40,7 @@ def examples():
 
 def publish(output):
     output=Path(output);previous=Store(output);objects=[]
-    names=json.loads((output/'store/names.json').read_text());roots=json.loads((output/'store/rewrite-view.json').read_text())['roots'];entries=[]
+    names=previous.names;roots=json.loads((output/'store/rewrite-view.json').read_text())['roots'];entries=[]
     for name,proof in examples().items():
         obj=semantic_entry(proof);i=identity(obj);objects.append(obj);entries.append(i);names['rewrite/'+name]=i
         # Operational proof helpers cannot become source replacements.

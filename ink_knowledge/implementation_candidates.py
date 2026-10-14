@@ -49,7 +49,7 @@ def publish_candidates(root, packages, *, shared_knowledge=False):
     """Extend a publication without dropping existing entries or names."""
     root = Path(root)
     objects = {}; previous=None
-    if (root/'store/snapshot.json').exists():
+    if Store.is_published(root):
         previous = Store(root)
     candidates = []
     for package in packages:

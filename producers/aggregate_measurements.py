@@ -11,7 +11,7 @@ sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 from ink_knowledge import Store, identity
 
 def publish(reports,requests,target,directory,compilation=None,candidate_ids=None,compiler_sha256=None):
-    store=Store(directory) if (directory/'store/snapshot.json').exists() else Store.publish(directory,[])
+    store=Store(directory) if Store.is_published(directory) else Store.publish(directory,[])
     candidates={}
     packages={candidate:store.object(candidate)['payload']['package'] for candidate in (candidate_ids or {}).values()}
     for report in reports:

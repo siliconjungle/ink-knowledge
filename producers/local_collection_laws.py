@@ -81,10 +81,10 @@ def examples():
 def publish(output):
     output = Path(output)
     names, objects, roots = {}, [], []
-    if (output/'store/snapshot.json').exists():
+    if Store.is_published(output):
         previous = Store(output)
         objects = [previous.object(i) for i in previous.members()]
-        names = json.loads((output/'store/names.json').read_text())
+        names = previous.names
         view = output/'store/rewrite-view.json'
         if view.exists(): roots = json.loads(view.read_text())['roots']
     laws = examples()

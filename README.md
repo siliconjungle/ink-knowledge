@@ -37,7 +37,7 @@ Kinds are `definition`, `theorem`, `rewrite`, `implementation`, `representation`
 
 Identity is SHA-256 of UTF-8 JSON with lexically sorted object keys, no whitespace, and no trailing newline. Files add one newline for readability. JSON numbers are integers in the shared Rust/Python range; measured durations are decimal strings. Dependencies and index lists are sorted and unique. Display names live separately and have no authority. The Rust checker verifies the typed mathematical interface against the payload.
 
-`store/trees/` contains authenticated sorted leaves of at most 64 IDs and binary branch nodes. `store/snapshots/<id>.json` pins a Merkle root; `store/snapshot.json` selects the current snapshot. A bounded exported view carries selected roots, their exact dependency closure and membership proofs. The core authenticates membership, hashes, semantics, proof terms and applicability. It never needs the complete database. New snapshots do not invalidate replay of a plan carrying an older pinned view.
+`store/trees/` contains authenticated sorted leaves of at most 64 IDs and binary branch nodes. `store/snapshots/<id>.json` pins a Merkle root; `store/publication.json` atomically selects the current snapshot and the hash of its immutable alias map in `store/names/<id>.json`. A bounded exported view carries selected roots, their exact dependency closure and membership proofs. The core authenticates membership, hashes, semantics, proof terms and applicability. It never needs the complete database. New snapshots do not invalidate replay of a plan carrying an older pinned view.
 
 Publication serializes writers with a private SQLite transaction at
 `store/.publication.sqlite` (a coordination file, never a proof or index).
@@ -51,12 +51,31 @@ the same coordination when publishing their membership trees.
 
 Immutable files are completed privately and linked into place without replacing
 an existing path. Concurrent identical creators can both succeed; differing
-bytes report a collision. These guarantees concern concurrent visibility and
-normal process termination. The two mutable name/snapshot pointers are still
-replaced separately: interruption or I/O failure between replacements can leave
-names from a different publication. Membership checks reject references absent
-from the selected snapshot. Content and proofs still authenticate on retrieval
-and admission.
+bytes report a collision. Readers capture the small publication record and load
+its hash-checked names lazily through `Store.names`. `Store.publication_id` binds
+both snapshot and names, so names-only changes are visible to staging and copy
+checks. `Store.is_published(root)` checks the selector rather than a mirror.
+`Store.publish(..., expected_publication=id)` checks that generation under the
+writer lock before replacing it; ordinary `publish` remains explicit replacement.
+
+The old `names.json` and `snapshot.json` files are recoverable mirrors. Writers
+bootstrap the old selector before changing either mirror, then commit through one
+atomic selector replacement. A precommit error leaves the old generation selected;
+rollback attempts to restore mirrors. `Store.recover(root)` or the next publication
+restores them after a killed writer or persistent write failure. Raw mirror readers
+can still observe an uncommitted pair and must use the Store API for current reads.
+Malformed selectors or altered immutable name maps fail rather than falling back.
+These guarantees cover concurrent visibility and process interruption, not power
+loss durability; this protocol does not fsync files and directories.
+
+An explicit snapshot path still means those exact file bytes, including historical
+pins, independently of the current selector. A snapshot does not pin display names:
+for an explicit pin, `Store.names` captures current aliases on first access and
+filters them to that snapshot's membership. Use content IDs for durable references.
+Names and selector hashes never establish proof authority. Content, membership and
+proofs still authenticate on retrieval and admission. Corpus isolation installs the
+captured pair, checks the complete generation identity, and omits coordinator and
+temporary publication files.
 
 `store/observations/<id>.json` stores performance evidence separately. Each observation pins program, plan and knowledge IDs; hardware, driver, toolchain, backend and bridge; shape, distribution, concurrency and residency; full-call nanosecond samples and peak allocation (`null` when unmeasured, distinct from measured zero). Observations do not change the proof snapshot or become proof premises.
 

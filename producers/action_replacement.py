@@ -99,7 +99,7 @@ def produce(before,after,selected,directory,knowledge_root=None,snapshot=None,so
     from producers.definition_bridges import bridges
     bridge,bridge_roots=bridges(before['objects'],after['objects'],objects)
     database=Store(Path(knowledge_root) if knowledge_root else Path(__file__).resolve().parents[1],snapshot)
-    names=read(database.data/'names.json')
+    names=database.names
     roles={n:names['action-laws/'+n] for n in ['StateRow','WordRows','remove','remove_idempotence']}
     # Retrieve pinned database bytes. Authoring the four-entry induction library
     # is a separate command; proposals instantiate it rather than regenerate it.

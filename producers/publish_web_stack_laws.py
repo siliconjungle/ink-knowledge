@@ -31,7 +31,7 @@ def publish(root, compiler, report, producers, expected_previous=None):
     if expected_previous and original.snapshot_id != expected_previous:
         raise ValueError('canonical catalogue differs from the requested prior pin')
     original_ids = set(original.members())
-    original_names = json.loads((root / 'store/names.json').read_text())
+    original_names = original.names
     names, batch, provenance = dict(original_names), [], []
     for producer in producers:
         module = importlib.import_module('producers.' + producer)

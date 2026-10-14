@@ -103,7 +103,7 @@ def main():
         frozen_count = update_frozen_data(a.data, rows)
         objects = [semantic_entry(r['law']) for r in rows]
         names = {'word-identities/'+r['name']: identity(semantic_entry(r['law'])) for r in rows}
-        store = (Store(a.output_store).extend(objects, names) if (a.output_store/'store/snapshot.json').exists()
+        store = (Store(a.output_store).extend(objects, names) if Store.is_published(a.output_store)
                  else Store.publish(a.output_store, objects, names))
         receipt = dict(compiler_sha256=compiler_hash, requested=len(requested), checked=len(rows),
                        frozen_laws=frozen_count, failures=failures, snapshot=store.snapshot_id, rows=rows)

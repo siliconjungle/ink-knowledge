@@ -538,7 +538,7 @@ def publish_checked(staged,root,compiler,source,report, *, candidate_root=None,p
     receipt=json.loads(checked.stdout);proposal=json.loads(raw)
     if receipt.get('status')!='checked' or receipt.get('representation')!=proposal['representation'] or receipt.get('source')!=proposal['input_core_sha256']:raise ValueError('admission receipt mismatch')
     old=Store(root);candidate=Store(candidate_root or staged);previous=old.snapshot_id
-    names=read(root/'store/names.json');names.update(read(candidate.root/'store/names.json'))
+    names=candidate.names
     admitted=old.extend((candidate.object(i) for i in candidate.members()),names,leaf_size=2)
     # Immutable compact snapshots are ordinary database history. They keep
     # authenticated views below the existing request bound as the catalog grows.
@@ -553,7 +553,7 @@ def publish_checked(staged,root,compiler,source,report, *, candidate_root=None,p
         from ink_knowledge.implementation_candidates import publish_candidates,identity_selection
         admitted,implementations=publish_candidates(root,[identity_selection(receipt['source']),proposal],shared_knowledge=True)
     else:admitted.refresh_index()
-    result=dict(implementations=implementations,status='checked',source=receipt['source'],representation=receipt['representation'],previous_snapshot=previous,snapshot=admitted.snapshot_id,view_snapshot=candidate.snapshot_id,request_sha256=hashlib.sha256(raw).hexdigest(),obligations=len(receipt['obligations']),entries=read(candidate.root/'store/names.json'))
+    result=dict(implementations=implementations,status='checked',source=receipt['source'],representation=receipt['representation'],previous_snapshot=previous,snapshot=admitted.snapshot_id,view_snapshot=candidate.snapshot_id,request_sha256=hashlib.sha256(raw).hexdigest(),obligations=len(receipt['obligations']),entries=candidate.names)
     Path(report).parent.mkdir(parents=True,exist_ok=True);Path(report).write_bytes(canonical(result)+b'\n')
     return result
 

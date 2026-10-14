@@ -10,7 +10,7 @@ from ink_knowledge.store import entry,read
 from producers.physical_capabilities import MATH,var
 
 def publish(root,plans,selection=None):
- st=Store(root);objects={};names=read(st.data/'names.json');codec_roots=set();cap_roots=set();fusion_roots=set()
+ st=Store(root);objects={};names=st.names;codec_roots=set();cap_roots=set();fusion_roots=set()
  for path in plans:
   package=read(path)
   for step in package['steps']:

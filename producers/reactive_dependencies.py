@@ -58,7 +58,7 @@ def publish(root,compiler,report):
     root=Path(root).resolve();compiler=Path(compiler).resolve()
     old=Store(root);old_ids=set(old.members());lib=build(CanonicalLibrary())
     objects=[old.object(i) for i in sorted(old_ids)]+list(lib.objects.values())
-    names=json.loads((old.data/'names.json').read_text())
+    names=old.names
     names.update({'reactive-dependencies/'+name:i for name,i in lib.names.items()})
     compiler_hash=hashlib.sha256(compiler.read_bytes()).hexdigest()
     with tempfile.TemporaryDirectory(prefix='ink-reactive-laws-') as temporary:

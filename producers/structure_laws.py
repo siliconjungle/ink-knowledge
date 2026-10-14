@@ -94,8 +94,7 @@ def publish(compiler, root, source=LIBRARY):
         published[name] = identity(entry)
     check(compiler, objects, sorted(published.values()))
     store = Store(root)
-    names = read(root / 'store' / 'names.json') if (root / 'store' / 'names.json').exists() else {}
-    names = dict(names, **{'structure-laws/' + name: ident for name, ident in published.items()})
+    names = {'structure-laws/' + name: ident for name, ident in published.items()}
     store = store.extend(objects.values(), names)
     store.ensure_index()
     return dict(laws=sorted(published), snapshot=store.snapshot_id)
