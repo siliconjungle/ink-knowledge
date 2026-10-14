@@ -1,0 +1,34 @@
+{
+  "schema": 1,
+  "keep": [
+    {
+      "path": "ink_knowledge",
+      "reason": "Canonical database and discovery machinery"
+    },
+    {
+      "path": "producers",
+      "reason": "Proof-producing source and admitted frozen proof library"
+    },
+    {
+      "path": "tests",
+      "reason": "Proof/integrity/applicability regression inputs"
+    },
+    {
+      "path": "store",
+      "reason": "Existing authenticated publication and exact canonical proof inputs"
+    },
+    {
+      "path": "libraries",
+      "reason": "Existing authored reusable algorithms and proof inputs"
+    },
+    {
+      "path": "pyproject.toml",
+      "reason": "Exact library packaging configuration"
+    },
+    {
+      "path": "README.md",
+      "reason": "Database architecture and reproduction documentation"
+    }
+  ],
+  "safe_to_remove": []
+}

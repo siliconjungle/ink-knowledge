@@ -20,3 +20,5 @@ __pycache__/
 **/.ink-object-*
 
 **/store/.ink-pointer-*
+
+/producers/data/**/.authoring.lock
