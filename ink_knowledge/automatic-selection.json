@@ -25,6 +25,8 @@
   "confidence_percent": 95,
   "bootstrap_repetitions": 2048,
   "expected_calls": 10000,
+  "phase_budget": 64,
+  "maximum_phase_regression_percent": 0,
   "boundaries": {
     "default": [
       "trusted"

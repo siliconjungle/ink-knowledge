@@ -1,16 +1,19 @@
 import unittest
-from ink_knowledge.selection_probes import create,supported
+from ink_knowledge.selection_probes import create,supported,stratify
 
 class TypedProbes(unittest.TestCase):
     def test_boundary_inputs_are_typed_and_do_not_depend_on_source_name(self):
         program=dict(records={'R':[['x','I32'],['flag','Bool']]},functions=[dict(name='entry',params=[['rows',{'List':{'Named':'R'}}],['key','I32']],result='Bool',body={'Num':17})])
-        spec,receipt=create(dict(program=program));calls=spec['phases']['call:entry']
+        spec,receipt=create(dict(program=program));calls=[c for rows in spec['phases'].values() for c in rows]
         self.assertEqual(len(calls),24);self.assertEqual(receipt['calls'],24)
         self.assertEqual({len(c['args'][0])for c in calls},{0,8,128,2048})
         for c in calls:
             for r in c['args'][0]:self.assertTrue(-2147483648<=r['x']<=2147483647 and type(r['flag'])is bool)
         program['functions'][0]['name']='unrelated'
-        other,_=create(dict(program=program));self.assertEqual([c['args']for c in calls],[c['args']for c in other['phases']['call:unrelated']])
+        self.assertEqual(sum(spec['profile'].values()),10000)
+        self.assertEqual(len(spec['phases']),4)
+        for rows in spec['phases'].values():self.assertEqual(len({len(c['args'][0])for c in rows}),1)
+        other,_=create(dict(program=program));self.assertEqual([c['args']for c in calls],[c['args']for rows in other['phases'].values()for c in rows])
     def test_declines_effectful_recursive_and_inexact_transfer_boundaries(self):
         self.assertIsNone(create(dict(program=dict(states=['state'],functions=[])))[0])
         self.assertFalse(supported({'Named':'Node'},{'Node':[['tail',{'List':{'Named':'Node'}}]]}))
@@ -61,9 +64,32 @@ class TypedProbes(unittest.TestCase):
         records={'Box':[['rows',{'List':{'List':'U32'}}]]}
         program=dict(records=records,functions=[dict(name='entry',params=[['x',{'Named':'Box'}]],result='Bool',body={})])
         spec,_=create(dict(program=program),'javascript')
-        sizes={len(c['args'][0]['rows'])for c in spec['phases']['call:entry:compact']}
+        calls=[c for phase,rows in spec['phases'].items()if ':compact:' in phase for c in rows]
+        sizes={len(c['args'][0]['rows'])for c in calls}
         self.assertEqual(sizes,{0,8,128,2048})
-        self.assertTrue(all(len(v)<=1 for c in spec['phases']['call:entry:compact']for v in c['args'][0]['rows']))
+        self.assertTrue(all(len(v)<=1 for c in calls for v in c['args'][0]['rows']))
+
+    def test_phase_budget_retains_calls_weights_and_reports_merged_sizes(self):
+        phases={'a':list(range(8)), 'b':list(range(8))}
+        sizes={k:[0,0,8,8,128,128,2048,2048]for k in phases}
+        divided,weights,receipt=stratify(phases,sizes,10000,5)
+        self.assertEqual(len(divided),5)
+        for phase in phases:
+            keys=[k for k,v in receipt.items()if v['original_phase']==phase]
+            self.assertEqual([c for k in keys for c in divided[k]],phases[phase])
+            self.assertEqual(sum(weights[k]for k in keys),10000)
+        self.assertTrue(any(v['merged_sizes']for v in receipt.values()))
+        with self.assertRaisesRegex(ValueError,'phase budget'):stratify(phases,sizes,10000,1)
+
+    def test_integer_weight_rounding_does_not_invent_extra_calls(self):
+        divided,weights,receipt=stratify({'x':[0,1,2]}, {'x':[0,8,128]}, 10, 64)
+        self.assertEqual(list(weights.values()),[4,3,3])
+        self.assertEqual(sum(weights.values()),10)
+        self.assertTrue(all(v['ideal_weight_numerator']==10 and v['ideal_weight_denominator']==3 for v in receipt.values()))
+        divided,weights,receipt=stratify({'x':[0,1,2,3,4]}, {'x':[0,8,128,2048,4096]}, 2, 64)
+        self.assertEqual(sum(weights.values()),2)
+        self.assertEqual([v for rows in divided.values()for v in rows],list(range(5)))
+        self.assertTrue(all(w>0 for w in weights.values()))
 
     def test_named_enums_and_identifiers_use_exact_declared_wire_carriers(self):
         program=dict(enums={'Choice':['First','Last']},ids=['Tag'],functions=[dict(name='entry',params=[['tag',{'Named':'Tag'}],['choice',{'Named':'Choice'}]],result={'Named':'Choice'},body={})])

@@ -492,3 +492,11 @@ law in tests. Additional installed producers can be composed by database recipe
 data without compiler or planner dispatch changes. Normal bounded planning and
 whole-call measurements still decide selection; neither profitable selection nor
 absence of small-input regressions follows from the branch proof.
+
+Automatic selection probes partition variable-width inputs into bounded,
+contiguous size groups before timing them. `automatic-selection.json` controls
+the phase budget and tolerated demonstrated phase regression. All original calls
+are retained; each function/transfer boundary retains its total expected-call
+weight. Integer allocation uses largest remainders and reports the exact rational
+weights, rounded weights, and any size groups merged by the budget. This measures
+synthetic width regimes, not every possible distribution or input combination.
