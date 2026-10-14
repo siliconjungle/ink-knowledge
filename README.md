@@ -362,6 +362,16 @@ variables. It rejects other local dependencies and emits an ordinary adapter
 proof with the exact source endpoint. Template matching remains untrusted: the
 kernel replays the universal law, adapter, source context and dependency closure.
 
+`ink_knowledge.law_templates.from_general(store, law_id)` exposes a stored
+polymorphic semantic law as an indexed template. The template uses the original
+law through snapshot-authenticated `fixed_dependencies`; concrete instances
+still replay ordinary proofs. This factory refuses laws with unproved conditions
+or assumptions. It introduces no compiler rule or algorithm-specific matcher.
+`libraries/independent-fold-batching.ink` uses this path to batch independent
+folds while retaining each state's exact operation order, including floating
+arithmetic. Its supporting map lemmas are proof dependencies, not automatically
+enabled search rules. Profitability remains a separate measured decision.
+
 ## Composable knowledge and indexed growth
 
 Source algorithm templates can import other snapshot-owned algorithms, bind their

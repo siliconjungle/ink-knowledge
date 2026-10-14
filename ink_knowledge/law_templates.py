@@ -7,6 +7,35 @@ import copy
 from .store import semantic_entry,identity
 SEMANTICS='ink-semantic-law-template-v1'
 
+def from_general(store, ident):
+    """Author an indexed template that uses a pinned polymorphic law.
+
+    This is proposal data. Ordinary proof replay still checks the law and every
+    concrete instance. Assumption-bearing laws need explicit premise synthesis.
+    """
+    from .store import entry
+    obj=store.object(ident);law=obj['payload'];names=law.get('types',[])
+    if obj['kind']!='rewrite' or obj['semantics']!='ink-general-laws-v1':
+        raise ValueError('expected a general semantic law')
+    if not isinstance(names,list)or not 1<=len(names)<=8 or any(not isinstance(n,str)or not n.isidentifier()for n in names)or len(names)!=len(set(names)) or law.get('conditions') or law.get('assumptions'):
+        raise ValueError('template requires type parameters and no unproved premises')
+    def rename(value):
+        if isinstance(value,dict):
+            if set(value)=={'Named'} and value['Named'] in names:
+                return {'Named':'$'+value['Named']}
+            return {k:rename(v)for k,v in value.items()}
+        if isinstance(value,list):return [rename(v)for v in value]
+        return copy.deepcopy(value)
+    params=rename(law['params'])
+    instance=dict(schema=1,semantics='ink-general-laws-v1',params=params,conditions=[],
+        **{'from':rename(law['from']),'to':rename(law['to'])},
+        proof={'Use':dict(law=ident,types={n:{'Named':'$'+n}for n in names},
+                         arguments={n:dict(sort=sort,node={'Free':n})for n,sort in params.items()},premises=[])},
+        dependencies=[ident])
+    return entry('definition',SEMANTICS,dict(type_parameters=names,law=instance,
+        dependencies={},fixed_dependencies=[ident]),dependencies=[ident])
+
+
 def substitute_types(value,bindings):
     if isinstance(value,dict):
         if set(value)=={'Named'} and isinstance(value['Named'],str) and value['Named'].startswith('$'):
@@ -43,10 +72,15 @@ def generate(store,subject,core):
             obj=store.object(ident)
             if obj['kind']!='definition' or obj['semantics']!=SEMANTICS:raise ValueError('law template dependency role')
             payload=obj['payload']
-            if set(payload)!={'type_parameters','law','dependencies'}:raise ValueError('law template fields')
+            if set(payload)-{'type_parameters','law','dependencies','fixed_dependencies'} or not {'type_parameters','law','dependencies'}<=set(payload):raise ValueError('law template fields')
             names=payload['type_parameters']
             if not isinstance(names,list)or not 1<=len(names)<=8 or len(set(names))!=len(names)or any(not isinstance(n,str)or not n.isidentifier()for n in names):raise ValueError('law template type parameters')
             if not isinstance(payload['dependencies'],dict)or len(payload['dependencies'])>64:raise ValueError('law template dependency budget')
+            fixed=payload.get('fixed_dependencies',[])
+            if not isinstance(fixed,list)or len(fixed)>64 or any(not isinstance(i,str)for i in fixed)or len(fixed)!=len(set(fixed)):raise ValueError('fixed law dependency budget')
+            for dependency in fixed:
+                if store.object(dependency)['kind']!='rewrite':raise ValueError('fixed law dependency role')
+            if len(fixed)+len(payload['dependencies'])>64:raise ValueError('law template dependency budget')
             templates[ident]=payload
             pending.extend(dep for dep in payload['dependencies'].values() if dep not in templates)
         if len(templates)>4096:raise ValueError('law template count budget')
@@ -73,7 +107,7 @@ def generate(store,subject,core):
             if isinstance(v,dict):return {k:dependencies[x]if k=='law' and isinstance(x,str) and x in dependencies else references(x)for k,x in v.items()}
             if isinstance(v,list):return [references(x)for x in v]
             return v
-        candidate=references(candidate);candidate['dependencies']=sorted(set(dependencies.values()))
+        candidate=references(candidate);candidate['dependencies']=sorted(set(dependencies.values())|set(payload.get('fixed_dependencies',[])))
         if nominal_types(candidate):candidate=bind(candidate,core,subject)
         obj=semantic_entry(candidate);ident=identity(obj);objects[ident]=obj
         if len(objects)>1024:raise ValueError('instantiated law template budget')
