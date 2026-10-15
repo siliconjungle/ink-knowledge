@@ -758,3 +758,11 @@ Cancellation retains observations for an explicit restart. These algorithms gran
 no AD, convergence, equality or profitability authority. The canonical proof
 snapshot is unchanged by this source-library addition; the distribution retains
 cross-target session checks, compiled durable recovery and the frozen-corpus audit.
+
+`libraries/policy_gradient.ink` supplies generic categorical score-function learning,
+masked choices, authored returns/baselines and trajectory gradients. Applications
+provide masses and derivatives, random inputs, rewards, constraints and versioned
+feedback. The distribution retains independent finite differences, contextual
+learning, exact Adam resume and cross-target execution. This is F32 authored source,
+not a compiler objective, exact-real sampling proof or convergence guarantee. The
+canonical proof snapshot is unchanged by this library addition.
