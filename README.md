@@ -11,6 +11,14 @@ they do not certify an entire matcher, generated backend or implicit String
 replacement. The distribution exposes the library as `std:bit_automata` and
 retains matched benchmark sources and adverse/small-input controls.
 
+`producers.function_correspondence` authors explicitly requested pairs of pure
+functions as ordinary normalization laws, admitting their exact portable
+contexts before publication. Two polynomial/nonlinear derivative-batching
+correspondences are in `store/differential-batching-view.json`; fixtures and
+negative source-attachment tests are under `tests/`. They compare those exact
+generated implementations, not the correctness of the general AD transform or
+any backend. The stored equations do not make an automatic profitability choice.
+
 ## Storage contract
 
 `ink_knowledge/automatic-selection.json` owns bounded pure-call probe sizes,
