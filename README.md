@@ -582,3 +582,13 @@ Hoisting currently requires reviewed numeric/list operation trees. Nested string
 construction and unanalysed source helper calls are declined even when the outer
 result is scalar. This restricts proposal scope; it does not add an equality axiom
 or treat a guessed totality fact as a proof premise.
+
+`producers.point_delta.normal` keeps a bounded cache of successful call normal forms
+inside one invocation, after 32 helper expansions. Exact argument structure,
+function identity and remaining depth distinguish entries; registry/mode changes
+in later invocations start fresh. Hits return fresh JSON containers. Small,
+unsupported or oversized values continue through ordinary authoring computation.
+This reduces repeated helper-DAG expansion, never caches proof verdicts, and does
+not change Convert replay or its budgets. The V8 source pass records repeated-DAG
+and captured-obligation controls separately from compiled runtime performance in
+the distribution's `bench/v8-learning/normalizer`.
