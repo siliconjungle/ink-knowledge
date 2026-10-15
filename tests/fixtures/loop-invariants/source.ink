@@ -13,3 +13,6 @@ pub fn whole_choice(xs:List<u32>,ys:List<u32>,c:Bool)->List<u32>{return xs.map(f
 pub fn dependent(xs:List<u32>)->List<u32>{return xs.map(fn(x)=>foldl(xs,x,fn(y)=>fn(a)=>a+x*y));}
 pub fn conditional(xs:List<u32>,ys:List<u32>)->List<u32>{return xs.map(fn(x)=>choose(x>0,foldl(ys,0,fn(y)=>fn(a)=>a+y),0));}
 pub fn stopping(xs:List<u32>,ys:List<u32>)->u32{return fold_until(xs,0,fn(x)=>fn(a)=>a>5,fn(x)=>fn(a)=>a+x+foldl(ys,0,fn(y)=>fn(b)=>b+y));}
+pub fn prepared(xs:List<u32>,ys:List<u32>)->List<u32>{return xs.map(fn(i)=>ys.map(fn(y)=>(y*3+7)*5).at_or(i,999));}
+pub fn prepared_float(xs:List<u32>,ys:List<f32>)->List<f32>{return xs.map(fn(i)=>ys.map(fn(y)=>(y*2.0+1.0)*3.0).at_or(i,0.0));}
+pub fn prepared_dependent(xs:List<u32>,ys:List<u32>)->List<u32>{return xs.map(fn(i)=>ys.map(fn(y)=>(y+i)*3+7).at_or(i,999));}

@@ -64,7 +64,7 @@ fn indirect(xs:List<u32>,ys:List<u32>,a:String,b:String)->List<u32>{return xs.ma
         with tempfile.TemporaryDirectory()as tmp:
             d=Path(tmp);_,subject,rows,packet=prepare(d,compiler)
             functions={a['function']for a in packet['applications']}
-            self.assertEqual(functions,{'mapped','filtered','folded','right','nested','floats','whole_choice','wide','signed','booleans','captured'})
+            self.assertEqual(functions,{'mapped','filtered','folded','right','nested','floats','whole_choice','wide','signed','booleans','captured','prepared','prepared_float'})
             for name,raw in rows:
                 if name.split('/')[1] not in ('nested','captured'):
                     self.assertEqual(raw['to']['node']['Op'][0],'call:choose')
@@ -74,6 +74,7 @@ fn indirect(xs:List<u32>,ys:List<u32>,a:String,b:String)->List<u32>{return xs.ma
                     if name=='signed':
                         xs=[x if x<2147483648 else x-4294967296 for x in xs]
                         ys=[x if x<2147483648 else x-4294967296 for x in ys]
+                    if name=='prepared_float':ys=[float(x)for x in ys]
                     args=[xs,ys]+([7]if name in ('folded','right','nested','floats')else [False]if name=='whole_choice'else [])
                     p=d/'input.json';p.write_text(json.dumps(args))
                     def run(extra):

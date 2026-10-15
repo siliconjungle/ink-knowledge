@@ -78,12 +78,19 @@ def callback_body(loop):
     return index, depth, inner
 
 
+def prepared_value(sort):
+    if not isinstance(sort,dict) or set(sort)!={'Value'}:return False
+    carrier=sort['Value']
+    return (isinstance(carrier,str)and carrier in SCALARS)or(
+        isinstance(carrier,dict)and set(carrier)=={'List'}and numeric_carrier(carrier['List']))
+
+
 def candidates(body, depth):
     pending, found, key_bytes = [body], {}, 0
     while pending:
         term = pending.pop()
         node = term['node']
-        if isinstance(term['sort'], dict) and term['sort'].get('Value') in SCALARS and isinstance(node, dict) and 'Op' in node:
+        if prepared_value(term['sort']) and isinstance(node, dict) and 'Op' in node:
             try:
                 extracted = extract_hole(term, depth)
             except ValueError:
