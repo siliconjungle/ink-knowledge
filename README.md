@@ -729,3 +729,22 @@ laws or adding them to the existing word-identity proposal catalogue. The
 `store/conditional-facts-view.json` contains four admitted examples. This is
 inspired by Freerange's range/requirements approach; it adds no trusted inference
 premises, general floating-point domain or runtime profitability exception.
+
+`libraries/autodiff.ink`, `libraries/neural.ink` and `libraries/learning.ink` are
+ordinary authored source for prepared reverse graphs, ReGLU network construction
+and explicit F32 Adam state. The distribution exposes `std:autodiff`, `std:neural`
+and `std:learning`. These add algorithms, not equality or approximation authority.
+Hard-step/index estimators and sparse zero-cotangent behavior are explicit policy;
+high-level VJP/MSE computes a fresh forward run. They are inspired by the pinned
+MIT-licensed Handwired numeric runtime and learned gallery, with independently
+authored Ink code. Reverse order, F32 moment arithmetic and source-opaque graph
+validation have their own stated meanings; they are not bit parity with every
+upstream interface or a general AD correctness proof. The companion typed-callback contract packet was regenerated through ordinary
+proof replay: 23 obligations and 14 newly published canonical objects.
+`store/typed-callback-contracts-view.json` retains that source-bound view; its
+publication receipt distinguishes these contracts from AD-correctness claims.
+
+The current recipe catalogue also retires an older unaliased `maintained-folds`
+configuration that conflicted with the explicit current registry. Historical
+snapshots retain its object. `store/recipe-discovery-repair.json` records both
+identities; this repairs discovery and grants no proof or profitability authority.
