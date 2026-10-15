@@ -49,6 +49,31 @@ class HeadBeta(unittest.TestCase):
   repeated=op(u,'apply',lam(u,op(u,'binary:+',op(u,'call:f',bound(u,0)),op(u,'call:f',bound(u,0)))),var(u,'arg'))
   matches=list(TemplateSites({'functions':{'run':repeated}}).matches(law['from'],law['params'],[]))
   self.assertEqual(len([row for row in matches if row[1]==()]),1)
+ def test_conditional_adapter_requires_explicit_true_premises_after_head_reduction(self):
+  from producers.semantic_laws import law
+  with tempfile.TemporaryDirectory()as temporary:
+   d=Path(temporary);source=d/'source.ink'
+   source.write_text('module conditional_adapter;fn valid(x:u32)->u32{let alias=x;return x+alias;}fn distinct(x:u32,y:u32)->u32{let alias=y;return x+alias;}')
+   def invoke(*args):return subprocess.run([str(COMPILER),*map(str,args)],capture_output=True,text=True,timeout=120)
+   result=invoke('emit-core',source,'-o',d/'core.json');self.assertEqual(result.returncode,0,result.stderr)
+   result=invoke('emit-semantic',d/'core.json','--core','-o',d/'subject.json');self.assertEqual(result.returncode,0,result.stderr)
+   subject=json.loads((d/'subject.json').read_text());u=value('U32');a,b=var(u,'a'),var(u,'b')
+   original=semantic_entry(law({'a':u,'b':u},op(u,'binary:+',a,b),op(u,'binary:+',a,a),
+    {'Congruence':['Normalize',{'Sym':{'Hypothesis':0}}]},conditions=[{'from':a,'to':b}]))
+   ident=identity(original);store=Store.publish(d/'knowledge',[original])
+   for name in ['valid','distinct']:
+    authored=adapter(ident,original['payload'],subject['functions'][name]);self.assertIsNotNone(authored)
+    obj=semantic_entry(dict(schema=1,**authored));root=identity(obj);store=store.extend([obj])
+    packet=dict(schema=1,semantics='ink-evidence-v1',input_core_sha256=subject['input_core_sha256'],
+     knowledge=store.bundle([root]),applications=[dict(function=name,path=[],law=root,
+      arguments={n:var(s,n)for n,s in authored['params'].items()},premises=['Normalize'])])
+    path=d/(name+'.json');path.write_bytes(canonical(packet));result=invoke('check-selection',d/'core.json',path)
+    self.assertEqual(result.returncode==0,name=='valid',result.stderr)
+    if name=='distinct':self.assertIn('premise 0',result.stderr)
+    else:
+     packet['applications'][0]['premises']=[];path.write_bytes(canonical(packet));result=invoke('check-selection',d/'core.json',path)
+     self.assertNotEqual(result.returncode,0);self.assertIn('arity',result.stderr)
+
  def test_generic_fold_template_replays_original_bound_source_and_rejects_forgery(self):
   with tempfile.TemporaryDirectory()as temporary:
    d=Path(temporary);source=d/'source.ink';laws=d/'laws.ink'

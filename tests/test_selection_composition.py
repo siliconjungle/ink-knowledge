@@ -72,6 +72,27 @@ for(const n of [0,1,7,8,9])for(const q of [0,1,7,8,9]){
             bad['applications'][0]['law']=new;bad['knowledge']=ProposalViews(store,{**objects,new:obj},d/'forged').bundle([new])
             self.check(d,bad,'missing-premise',success=False)
 
+    def test_bitvector_premise_survives_callback_alpha_renaming(self):
+        from producers.bitvector_proofs import certificate
+        with tempfile.TemporaryDirectory()as temporary:
+            d=Path(temporary);core,subject,store=self.source(d,'module word_premise; fn run(xs:List<u32>,a:u32)->List<u32>{return xs.map(fn(x)=>word_and(x,31)+a*0);}')
+            u=value('U32');boolean=value('Bool');x,a=var(u,'x'),var(u,'a')
+            masked=op(u,'call:word_and',x,word('U32',31));condition=op(boolean,'binary:<=',masked,op(u,'call:word_or',a,word('U32',31)))
+            true=dict(sort=boolean,node={'Bool':True})
+            rule=semantic_entry(law({'x':u,'a':u},op(u,'binary:+',masked,op(u,'binary:*',a,word('U32',0))),masked,'Normalize',conditions=[{'from':condition,'to':true}]))
+            ident=identity(rule);body=subject['functions']['run']
+            path,target=next((p,t)for p,t in positions(body)if isinstance(t['node'],dict)and t['node'].get('Op',[None])[0]=='binary:+')
+            opened_condition=substitute(condition,{'x':var(u,'__ink_scope_0'),'a':a})
+            goal=dict(params={'__ink_scope_0':u,'a':u},conditions=[],**{'from':opened_condition,'to':true})
+            (d/'goal.json').write_bytes(canonical(goal));self.compiler('semantic-bitvector-obligation',d/'core.json',d/'goal.json','--core','-o',d/'cnf.json')
+            proof=certificate(json.loads((d/'cnf.json').read_text()),seconds=5,conflicts=20000,total_seconds=5)
+            apps=[dict(function='run',path=list(path),law=ident,arguments={'x':bound(u,0),'a':a},
+                premises=[{'BitVector':dict(hypotheses=[],certificate=proof)}])]
+            packet=self.packet(subject,store,{ident:rule},apps,d/'local-proof');self.check(d,packet,'local')
+            combined=compose(packet,subject,core,store,d/'whole-proof');self.check(d,combined,'whole')
+            self.node(d,"""import assert from 'node:assert/strict';import * as m from './whole.mjs';
+for(const xs of [[],[0,1,31,32,4294967295]])for(const a of [0,1,4294967295])assert.deepEqual(m.call('run',[xs,a]),xs.map(x=>x&31)); """)
+
     def test_branch_and_lazy_boolean_facts_remain_scoped(self):
         with tempfile.TemporaryDirectory()as temporary:
             d=Path(temporary);core,subject,store=self.source(d,'module branch; fn run(xs:List<Bool>,flag:Bool)->List<Bool>{return xs.map(fn(x)=>choose(flag,x && flag,x || flag));}')

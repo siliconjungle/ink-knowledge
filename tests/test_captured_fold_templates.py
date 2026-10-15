@@ -68,7 +68,13 @@ class CapturedFolds(unittest.TestCase):
   from ink_knowledge.higher_patterns import adapter
   row=templates(self.rule)[0]['object']['payload']['law'];conditional=copy.deepcopy(row)
   conditional['conditions']=[{'from':row['from'],'to':row['to']}]
-  self.assertIsNone(adapter('0'*64,conditional,row['from']))
+  adapted=adapter('0'*64,conditional,row['from'])
+  self.assertIsNotNone(adapted)
+  # Matching higher-order holes may eta-expand their arguments. The
+  # instantiated obligation must remain explicit in the derived law.
+  self.assertEqual(len(adapted['conditions']),len(conditional['conditions']))
+  self.assertIn("'Hypothesis': 0",repr(adapted['proof']))
+  self.assertEqual(adapted['dependencies'],['0'*64])
  def test_normal_search_admits_capture_conversion_without_forcing_a_winner(self):
   import sys
   d=self.directory/'normal-search';d.mkdir()
