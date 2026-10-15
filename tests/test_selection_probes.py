@@ -98,3 +98,28 @@ class TypedProbes(unittest.TestCase):
         for calls in spec['phases'].values():
             for c in calls:
                 tag,choice=c['args'];self.assertRegex(tag,r'^[0-9a-f]{32}$');self.assertIn(choice,{'Choice.First','Choice.Last'})
+
+    def test_contract_roles_not_names_define_probe_entries_and_small_seeds(self):
+        import copy
+        fn=lambda n:dict(name=n,params=[['xs',{'List':'U32'}],['n','U32']],result='U32',body={'Num':1})
+        program=dict(functions=[fn(n)for n in ['entry','body','check','__ink_requires_user']],contracts=dict(implementations=[dict(name='body',specification='entry')],precondition_checks={'entry':'check','body':'check'}))
+        spec,receipt=create(dict(program=program),'javascript')
+        self.assertEqual(set(spec['phases']),{'call:'+name+':'+mode for name in ['entry','__ink_requires_user']for mode in ['trusted','portable','compact']})
+        calls=spec['phases']['call:entry:trusted'];self.assertEqual(len(calls[0]['args'][0]),1);self.assertEqual(calls[0]['args'][1],1)
+        self.assertEqual({d['function']for d in receipt['declined']},{'body','check'})
+        renamed=copy.deepcopy(program)
+        for f in renamed['functions']:f['name']='z'+f['name']
+        renamed['contracts']=dict(implementations=[dict(name='zbody',specification='zentry')],precondition_checks={'zentry':'zcheck','zbody':'zcheck'})
+        other,_=create(dict(program=renamed),'javascript');self.assertEqual([c['args']for c in calls],[c['args']for c in other['phases']['call:zentry:trusted']])
+    def test_policy_rejects_unbounded_or_malformed_seed_cases(self):
+        from unittest.mock import patch
+        from ink_knowledge import selection_probes as probes
+        import json
+        policy=probes.policy()
+        class Resource:
+            def joinpath(self,*args):return self
+            def read_text(self):return json.dumps(policy)
+        for bad in [[[True,'random']],[[4097,'random']],[[1,[]]],[[1,'unknown']],[[1,'random']]*17]:
+            policy['seed_cases']=bad
+            with patch.object(probes,'files',return_value=Resource()):
+                with self.assertRaisesRegex(ValueError,'seed cases'):probes.policy()
