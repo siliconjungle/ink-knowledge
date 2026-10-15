@@ -15,6 +15,9 @@ class ProofAuthoringDeadline(unittest.TestCase):
         problem=dict(clauses=[[1],[-1]],sha256='test-obligation')
         proof=certificate(problem,seconds=1,total_seconds=1)
         self.assertEqual(proof['steps'][-1]['clause'],[])
+        self.assertNotIn('encoding',proof)
+        shared=certificate(dict(problem,encoding='shared-v2'),seconds=1,total_seconds=1)
+        self.assertEqual(shared['encoding'],'shared-v2')
         for invalid in (0,-1,601):
             with self.assertRaises(ValueError):certificate(problem,total_seconds=invalid)
 

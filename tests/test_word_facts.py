@@ -18,6 +18,8 @@ def evaluate(t,values):
                 'binary:*':lambda:a[0]*a[1],
                 'call:wrapping_shl':lambda:a[0]<<(a[1]%width),
                 'call:wrapping_shr':lambda:a[0]>>(a[1]%width),
+                'call:rotate_left':lambda:(a[0]<<(a[1]%width))|(a[0]>>((-a[1])%width)),
+                'call:rotate_right':lambda:(a[0]>>(a[1]%width))|(a[0]<<((-a[1])%width)),
                 'binary:<':lambda:a[0]<a[1],'binary:>=':lambda:a[0]>=a[1],
                 'binary:<=':lambda:a[0]<=a[1],'binary:>':lambda:a[0]>a[1],
                 'binary:==':lambda:a[0]==a[1],'binary:!=':lambda:a[0]!=a[1],

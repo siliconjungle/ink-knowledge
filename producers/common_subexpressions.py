@@ -13,6 +13,13 @@ from producers.beta_specialization15 import free_parameters
 SCALARS = ('U32', 'U64', 'I32', 'F32', 'Bool')
 
 
+def barrier(term):
+    node = term['node']
+    return isinstance(node, dict) and ('Lambda' in node or
+        ('Op' in node and node['Op'][0] in ('call:choose','binary:&&','binary:||')))
+
+
+
 def candidates(scope):
     counts, terms, sizes = Counter(), {}, {}
     pending = [scope]
@@ -20,8 +27,6 @@ def candidates(scope):
     while pending:
         term = pending.pop()
         node = term['node']
-        if isinstance(node, dict) and 'Lambda' in node:
-            continue
         if isinstance(term['sort'], dict) and term['sort'].get('Value') in SCALARS and isinstance(node, dict) and 'Op' in node:
             key = canonical(term)
             key_bytes += len(key)
@@ -29,7 +34,8 @@ def candidates(scope):
                 return []
             counts[key] += 1
             terms[key] = term
-        pending.extend(children(term))
+        if not barrier(term):
+            pending.extend(children(term))
     for key, term in terms.items():
         if counts[key] > 1:
             sizes[key] = sum(1 for _ in positions(term))
@@ -44,7 +50,7 @@ def share(scope, expression):
     def visit(term):
         if canonical(term) == needle:
             return bound(expression['sort'], 0)
-        if isinstance(term['node'], dict) and 'Lambda' in term['node']:
+        if barrier(term):
             return term
         for i, child in enumerate(children(term)):
             term = set_child(term, i, visit(child))
@@ -62,8 +68,10 @@ def specialize(subject, core):
                 break
         if len(sites) > 4096:
             continue
-        scopes = [((), body)] + [(path+(0,), term['node']['Lambda']) for path, term in sites
-                                if isinstance(term['node'], dict) and 'Lambda' in term['node']]
+        scopes = [((), body)]
+        for path, term in sites:
+            if barrier(term):
+                scopes.extend((path+(i,), child) for i, child in enumerate(children(term)))
         for path, scope in scopes[:32]:
             for expression in candidates(scope):
                 target = replace(body, path, share(scope, expression))

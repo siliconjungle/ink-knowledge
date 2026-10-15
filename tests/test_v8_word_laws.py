@@ -54,12 +54,18 @@ class V8WordLaws(unittest.TestCase):
             for i,row in enumerate(rows):
                 result = check([row['law']], 'valid-'+str(i))
                 self.assertEqual(result.returncode, 0, (row['name'],result.stderr))
-            for name in ('u32/or_covers_mask','u64/bitfield_checks','u64/shift_right_count_mask'):
+            for name in ('u32/or_covers_mask','u64/bitfield_checks','u64/shift_right_count_mask','u64/rotate_left_xor'):
                 original = next(r['law'] for r in rows if r['name']==name)
                 bad = copy.deepcopy(original); bad['conditions']=[]; bad['proof']['BitVector']['hypotheses']=[]
                 self.assertNotEqual(check([bad],name.replace('/','-')+'-premise').returncode,0)
             bad = copy.deepcopy(rows[0]['law']); bad['proof']['BitVector']['certificate']['steps']=[]
             self.assertNotEqual(check([bad],'proof').returncode,0)
+            rotated=copy.deepcopy(next(r['law']for r in rows if r['name']=='u32/rotate_left_or'))
+            rotated['proof']['BitVector'].pop('semantics')
+            self.assertNotEqual(check([rotated],'wrong-source-semantics').returncode,0)
+            rotated=copy.deepcopy(next(r['law']for r in rows if r['name']=='u32/rotate_left_or'))
+            rotated['proof']['BitVector']['certificate'].pop('encoding')
+            self.assertNotEqual(check([rotated],'wrong-gate-encoding').returncode,0)
             self.assertEqual(specialize({'functions':{}},{}),[])
 
     def test_discovery_uses_renamed_sites_and_actual_count_premise(self):

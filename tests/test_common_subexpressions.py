@@ -20,6 +20,8 @@ fn sum_twice(xs:List<u32>)->u32{return foldl(xs,0,fn(x)=>fn(a)=>a+x)+foldl(xs,0,
 fn nested(xs:List<u32>,outer:u32)->List<u32>{return xs.map(fn(x)=>(x+outer)*(x+outer));}
 fn shadow(xs:List<u32>,outer:u32)->List<u32>{return xs.map(fn(x)=>(x+outer)+foldl(xs,0,fn(x)=>fn(y)=>(x+y)*(x+y)));}
 fn floats(x:f32)->f32{return (x*2.0)+(x*2.0);}
+fn conditional(c:Bool,x:u64)->u64{return choose(c,(x*7)+(x*7),0);}
+fn short_circuit(c:Bool,x:u32)->Bool{return c && (x*7+x*7>0);}
 fn separate(xs:List<u32>)->List<u32>{return xs.map(fn(x)=>x+1).concat(xs.map(fn(x)=>x+1));}
 '''
         with tempfile.TemporaryDirectory()as tmp:
@@ -35,11 +37,13 @@ fn separate(xs:List<u32>)->List<u32>{return xs.map(fn(x)=>x+1).concat(xs.map(fn(
                 proposal=bind(raw,model,subject);obj=semantic_entry(proposal);store=Store.publish(d/('knowledge'+str(number)),[obj])
                 # One whole-function law per packet, independently bound to source.
                 function=name.split('/')[1]
+                if function in ('conditional','short_circuit'):
+                    self.assertEqual(proposal['to']['node']['Op'][0],{'conditional':'call:choose','short_circuit':'binary:&&'}[function])
                 packet=dict(schema=1,semantics='ink-evidence-v1',input_core_sha256=subject['input_core_sha256'],knowledge=store.bundle([identity(obj)]),
                             applications=[dict(function=function,path=[],law=identity(obj),arguments={n:dict(sort=s,node={'Free':n}) for n,s in proposal['params'].items()},premises=[])])
                 selected=d/'selection.json';selected.write_bytes(canonical(packet));run('check-selection',core,selected)
                 cases={'scalar':[[0],[18446744073709551615]],'sum_twice':[[[]],[[0,4294967295,7]]],
-                       'nested':[[[1,7,4294967295],4294967295]],'shadow':[[[1,7,4294967295],4]],'floats':[[0.0],[-0.0],[1.25],[-3.5]]}
+                       'nested':[[[1,7,4294967295],4294967295]],'shadow':[[[1,7,4294967295],4]],'floats':[[0.0],[-0.0],[1.25],[-3.5]],'conditional':[[False,18446744073709551615],[True,18446744073709551615]],'short_circuit':[[False,4294967295],[True,4294967295]]}
                 for args in cases[function]:
                     inp=d/'input.json';inp.write_text(json.dumps(args))
                     a=run('run',core,function,inp,'--core');b=run('run',core,function,inp,'--core','--selection',selected)

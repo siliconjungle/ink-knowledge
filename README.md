@@ -544,3 +544,11 @@ and preserves captured de Bruijn references when inserting a binder. These are
 whole-function source-bound `Normalize` laws using existing application/lambda
 syntax. Proposal size and count bounds grant no correctness or profitability
 authority; original and shared alternatives remain available to generic search.
+
+Source word certificates can opt into `--semantics fixed-words-v2 --encoding
+shared-v2` during offline `author_word_identities` acquisition. Fixed rotate
+meanings are reconstructed by the versioned source circuit; matching shift/rotate
+identities remain untrusted database proposals. Legacy source semantics and
+literal encoding stay the defaults. The certificate producer retains its chosen
+gate encoding, and every resulting law replays in the independent core. Scalar
+sharing also keeps lazy choice/Boolean regions separate.
