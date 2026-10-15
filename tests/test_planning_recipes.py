@@ -67,8 +67,9 @@ class RegistryCoverage(unittest.TestCase):
         # Whole-action replacements are composed by the graph; authoring model
         # and temporary output paths are plumbing, not layout strategies.
         # Access descriptions are recomputed by their source-bound recipe.
-        expected=set(inspect.signature(generate).parameters)-{'model','directory','replacement','access'}
+        expected=set(inspect.signature(generate).parameters)-{'model','directory','replacement','access','cache_arguments'}
         self.assertEqual(covered,expected)
+        self.assertTrue(any(r['function']=='parameter_cache' and r['inputs']==['core','model'] for r in registry['recipes']))
         self.assertTrue(any(r['function']=='point_access_cache' and r['inputs']==['core','model'] for r in registry['recipes']))
     def test_all_other_authoring_parameters_have_recipe_domains(self):
         import inspect

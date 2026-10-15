@@ -29,7 +29,7 @@ def unchanged_query(model,action):
             and args[1]=={'Bool':False} and args[2]==var('version')
             and args[3]==cons(model['state'],0,[var(n) for n in action['case']['bindings']])
             and args[4]==cons(model['events'],0,[]))
-def generate(model,directory,replacement=None,cache_query=None,retain_queries=True,preserve_cache=False,compact_queries=False,delta_query=False,aggregate_query=False,dynamic_delta=False,columnar=False,packed_booleans=False,column_points=False,column_mutations=False,ordered_queries=(), indexed=False, fused_queries=(), dense_slots=0, membership_query=False,access=None,source_domain=False):
+def generate(model,directory,replacement=None,cache_query=None,retain_queries=True,preserve_cache=False,compact_queries=False,delta_query=False,aggregate_query=False,dynamic_delta=False,columnar=False,packed_booleans=False,column_points=False,column_mutations=False,ordered_queries=(), indexed=False, fused_queries=(), dense_slots=0, membership_query=False,access=None,source_domain=False,cache_arguments=None):
     if source_domain and not model.get('source_domain'):raise ValueError('source domain requires checked source invariants')
     semantics='ink-source-representation-v2'if source_domain else REP
     if fused_queries:
@@ -47,6 +47,13 @@ def generate(model,directory,replacement=None,cache_query=None,retain_queries=Tr
     column_points=column_points or column_mutations
     columnar=columnar or packed_booleans or column_points
     if columnar and cache_query:raise ValueError('compose column and cache candidates separately')
+    if cache_arguments is not None:
+        if not cache_query or not preserve_cache or compact_queries or replacement:
+            raise ValueError('parameter cache requires preserved queries without compact/replacement composition')
+        if access is not None or any((delta_query,aggregate_query,dynamic_delta,membership_query)):
+            raise ValueError('parameter cache repair composition is not enabled yet')
+        if not unchanged_query(model,model['actions'][cache_query]):
+            raise ValueError('parameter cache requires a direct unchanged source query')
     objects=dict(model['objects']);L={'Data':model['state']}
     # Mapped point replies match types inferred from a get's result and a
     # record field. Those carrier declarations must be explicit dependencies.
@@ -104,6 +111,11 @@ def generate(model,directory,replacement=None,cache_query=None,retain_queries=Tr
         # The second physical layout has a redundant validity field. It can be
         # replaced with any database-defined maintained view with the same proofs.
         cache=model['actions'][cache_query] if reverse and cache_query else None
+        hot_guard=None;hot_equalities=[]
+        if cache and cache_arguments is not None:
+            from producers.parameter_cache import specialize_cache
+            cache,hot_guard,hot_equalities=specialize_cache(cache,cache_arguments,directory)
+
         if cache and (len(cache['params'])!=2 or cache['case']['normal'].get('Construct',{}).get('constructor')!=0 or cache['case']['normal']['Construct']['arguments'][1]!={'Bool':False}):raise ValueError('producer supports a parameterless query with a direct reply')
         cache_sort=model['objects'][cache['result']['Data']]['payload']['declaration']['Datatype']['constructors'][0]['fields'][0] if cache else None
         physical_fields=layout['fields'] if layout else fields
@@ -170,7 +182,7 @@ def generate(model,directory,replacement=None,cache_query=None,retain_queries=Tr
             if use_delta:
                 delta_pair=add({'Datatype':dict(constructors=[dict(name='CacheDelta',fields=[cache_sort,cache_sort])])})
                 delta_sort={'Data':delta_pair}
-            carrier_needed=retain or maintain or (cached_read and not compact_queries)
+            carrier_needed=retain or maintain or (cached_read and (not compact_queries or hot_guard is not None))
             if carrier_needed:
                 carrier=[delta_sort if use_delta else cache_sort,a['result']] if maintain else [P,a['result']]
                 pair=add({'Datatype':dict(constructors=[dict(name='CacheTransition' if maintain else 'RetainedQuery',fields=carrier)])});result={'Data':pair}
@@ -189,6 +201,10 @@ def generate(model,directory,replacement=None,cache_query=None,retain_queries=Tr
             elif cached_read:
                 obsid=a['result']['Data'];normal=cache['case']['normal']['Construct']['arguments']
                 reply=cons(obsid,0,[var('cached_reply'),{'Bool':False},var('version'),cons(model['state'],0,[var(n) for n in names]),normal[4]])
+                if hot_guard is not None:
+                    from producers.point_delta import choice
+                    cold=call(sa['function'],[cons(model['state'],0,[var(n)for n in names])]+args)
+                    reply=choice(hot_guard,reply,cold)
                 body=match(var('initial'),[(pnames,cons(pair,0,[var('initial'),reply]) if carrier_needed else reply)])
                 execute=fun(params,result,body)
                 if not carrier_needed:
@@ -267,7 +283,24 @@ def generate(model,directory,replacement=None,cache_query=None,retain_queries=Tr
                 observation=trans(subst(direct_eq,call(observe,[var('replacement')])),convert(call(observe,[all_right]),same))
             elif cache and name==cache_query:
                 bound=cons(model['state'],0,[var(n) for n in names]);start=call(observe,[call(execute,[call(encode,[var('logical')])]+args)])
-                equality=add({'Theorem':dict(params=[['logical',L]]+rest,conditions=[],**{'from':start,'to':same},proof={'Induction':dict(variable='logical',**{'from':start,'to':same},cases=[dict(bindings=names,proof=convert(call(observe,[call(execute,[call(encode,[bound])]+args)]),call(sa['function'],[bound]+args)))])})})
+                left_bound=call(observe,[call(execute,[call(encode,[bound])]+args)])
+                right_bound=call(sa['function'],[bound]+args)
+                branch_proof=convert(left_bound,right_bound)
+                if hot_guard is not None:
+                    from producers.point_delta import sub,replace
+                    current=right_bound;steps=[]
+                    for parameter,term,witness in hot_equalities:
+                        context=replace(current,var(parameter),var('hot_cache_argument'))
+                        steps.append({'Substitute':dict(variable='hot_cache_argument',context=context,equality=witness)})
+                        current=sub(current,{parameter:term})
+                    from producers.point_delta import normal
+                    expanded=normal(left_bound,objects)
+                    context=replace(expanded,hot_guard,var('hot_cache_condition'))
+                    split={'Substitute':dict(variable='hot_cache_condition',context=context,equality={'Hypothesis':0})}
+                    branch_proof={'BoolSplit':dict(condition=hot_guard,**{'from':left_bound,'to':right_bound},
+                        on_false=trans(convert(left_bound,expanded),split,convert(replace(expanded,hot_guard,{'Bool':False}),right_bound)),
+                        on_true=trans(convert(left_bound,expanded),split,convert(replace(expanded,hot_guard,{'Bool':True}),current),{'Sym':trans(*steps)}))}
+                equality=add({'Theorem':dict(params=[['logical',L]]+rest,conditions=[],**{'from':start,'to':same},proof={'Induction':dict(variable='logical',**{'from':start,'to':same},cases=[dict(bindings=names,proof=branch_proof)])})})
                 observation=trans(convert(observed,call(observe,[call(execute,[relation(var('physical'),var('logical'))[0]]+args)])),subst(eq,call(observe,[call(execute,[var('replacement')]+args)])),convert(call(observe,[call(execute,[relation(var('physical'),var('logical'))[1]]+args)]),start),{'Use':dict(theorem=equality,arguments=[var('logical')]+args,premises=[])})
             elif column_point and retain:
                 index,key=column_point
@@ -384,7 +417,7 @@ def substitute_names(x,mapping):
     if isinstance(x,str):return mapping.get(x,x)
     return x
 def main():
-    p=argparse.ArgumentParser(description=__doc__);p.add_argument('model',type=Path);p.add_argument('-o','--output',type=Path,required=True);p.add_argument('--replacement',type=Path);p.add_argument('--selected-model',type=Path);p.add_argument('--cache-query');p.add_argument('--preserve-cache',action='store_true',help='propose checked cache reuse on aborts and changes to unrelated tables');p.add_argument('--compact-queries',action='store_true',help='propose query transitions without carrying a second copy of table roots');p.add_argument('--aggregate-query',action='store_true',help='propose universal word sum/count or Boolean any/all update proofs');p.add_argument('--delta-query',action='store_true',help='propose proved fixed-key remove/replace cache deltas, retaining refresh fallback');p.add_argument('--dynamic-delta',action='store_true',help='prove guarded dynamic-key remove/replace deltas and skip unrelated insert refresh');p.add_argument('--rebuild-queries',action='store_true',help='comparison candidate: refresh physical state even after ordinary queries')
+    p=argparse.ArgumentParser(description=__doc__);p.add_argument('model',type=Path);p.add_argument('-o','--output',type=Path,required=True);p.add_argument('--replacement',type=Path);p.add_argument('--selected-model',type=Path);p.add_argument('--cache-query');p.add_argument('--cache-arguments',type=json.loads,help='JSON list of one to four exact U64/Bool arguments, guarded with original-query fallback');p.add_argument('--preserve-cache',action='store_true',help='propose checked cache reuse on aborts and changes to unrelated tables');p.add_argument('--compact-queries',action='store_true',help='propose query transitions without carrying a second copy of table roots');p.add_argument('--aggregate-query',action='store_true',help='propose universal word sum/count or Boolean any/all update proofs');p.add_argument('--delta-query',action='store_true',help='propose proved fixed-key remove/replace cache deltas, retaining refresh fallback');p.add_argument('--dynamic-delta',action='store_true',help='prove guarded dynamic-key remove/replace deltas and skip unrelated insert refresh');p.add_argument('--rebuild-queries',action='store_true',help='comparison candidate: refresh physical state even after ordinary queries')
     p.add_argument('--columnar',action='store_true',help='propose ordinary key/record-field columns with universal round-trip proofs')
     p.add_argument('--source-domain',action='store_true',help='admit against exact checked source invariants; logical restore validates before encoding')
     p.add_argument('--packed-booleans',action='store_true',help='pack record Bool fields into a proved u64 bit column; implies --columnar')
@@ -398,5 +431,5 @@ def main():
     a=p.parse_args();a.output.parent.mkdir(parents=True,exist_ok=True)
     replacement=read(a.replacement) if a.replacement else None
     if replacement:replacement['selected_model']=read(a.selected_model)
-    result=generate(read(a.model),a.output.parent/'database',replacement,a.cache_query,not a.rebuild_queries,a.preserve_cache,a.compact_queries,a.delta_query,a.aggregate_query,a.dynamic_delta,a.columnar,a.packed_booleans,a.column_points,a.column_mutations,a.ordered_query,a.column_index,a.fuse_query,a.dense_slots,a.membership_query,source_domain=a.source_domain);a.output.write_text(json.dumps(result,indent=2)+'\n')
+    result=generate(read(a.model),a.output.parent/'database',replacement,a.cache_query,not a.rebuild_queries,a.preserve_cache,a.compact_queries,a.delta_query,a.aggregate_query,a.dynamic_delta,a.columnar,a.packed_booleans,a.column_points,a.column_mutations,a.ordered_query,a.column_index,a.fuse_query,a.dense_slots,a.membership_query,source_domain=a.source_domain,cache_arguments=a.cache_arguments);a.output.write_text(json.dumps(result,indent=2)+'\n')
 if __name__=='__main__':main()

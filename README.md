@@ -552,3 +552,15 @@ identities remain untrusted database proposals. Legacy source semantics and
 literal encoding stay the defaults. The certificate producer retains its chosen
 gate encoding, and every resulting law replays in the independent core. Scalar
 sharing also keeps lazy choice/Boolean regions separate.
+
+Guarded parameter-cache authoring extends `producers.representations` with
+`--cache-query NAME --cache-arguments '[7,true]' --preserve-cache`. One exact tuple
+of one to four U64/Bool arguments gets a maintained reply; an exact scalar guard
+falls back to the original query on every other tuple. Ordinary universal source
+representation, rollback, snapshot and migration proofs still replay; explicit
+Boolean splits and bit-vector witnesses justify specialization. The
+`guarded-parameter-cache` recipe seeds at most four bounded boundary/source-literal
+proposals, with no hotness premise or automatic profitability exception. Repair,
+compact-protocol and replacement composition currently decline. Parameterless
+proposal bytes remain unchanged. See `tests/test_parameter_cache.py` for admission,
+rehashing controls, exact scalar bounds and legacy packet identity.

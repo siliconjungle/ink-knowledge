@@ -17,6 +17,25 @@
       "stage": "representation"
     },
     {
+      "id": "guarded-parameter-cache",
+      "function": "parameter_cache",
+      "module": "producers.planning_recipes",
+      "parameters": {},
+      "stage": "representation",
+      "inputs": [
+        "core",
+        "model"
+      ],
+      "requires": [
+        "core",
+        "model"
+      ],
+      "obligations": [
+        "universal-source-action-and-observation-preservation",
+        "explicit-guarded-argument-equality"
+      ]
+    },
+    {
       "function": "source_algorithms",
       "id": "database-source-algorithms",
       "inputs": [
