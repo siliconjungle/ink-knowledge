@@ -681,3 +681,25 @@ proposals, with no hotness premise or automatic profitability exception. Repair,
 compact-protocol and replacement composition currently decline. Parameterless
 proposal bytes remain unchanged. See `tests/test_parameter_cache.py` for admission,
 rehashing controls, exact scalar bounds and legacy packet identity.
+
+The `loop_invariants` producer proposes scalar lexical hoisting from strict
+regions of non-stopping map/filter/left-fold/right-fold callbacks. It keeps an
+explicit empty-list guard and shifts nested captures hygienically. Existing
+source binding and Normalize proofs must accept every whole-function proposal;
+structural ranking and candidate bounds provide no correctness or profitability
+authority. Conditional-only work and early-stopping callbacks are excluded.
+
+Hoisting currently requires reviewed numeric/list operation trees. Nested string
+construction and unanalysed source helper calls are declined even when the outer
+result is scalar. This restricts proposal scope; it does not add an equality axiom
+or treat a guessed totality fact as a proof premise.
+
+`producers.point_delta.normal` keeps a bounded cache of successful call normal forms
+inside one invocation, after 32 helper expansions. Exact argument structure,
+function identity and remaining depth distinguish entries; registry/mode changes
+in later invocations start fresh. Hits return fresh JSON containers. Small,
+unsupported or oversized values continue through ordinary authoring computation.
+This reduces repeated helper-DAG expansion, never caches proof verdicts, and does
+not change Convert replay or its budgets. The V8 source pass records repeated-DAG
+and captured-obligation controls separately from compiled runtime performance in
+the distribution's `bench/v8-learning/normalizer`.

@@ -5,6 +5,7 @@ The core knows no query/update pattern and rechecks all future-state obligations
 """
 from producers.action_replacement import var,call,cons,convert,trans
 from producers.cache_maintenance import variables
+import json
 
 def choice(c,t,f):return {'If':dict(condition=c,on_true=t,on_false=f)}
 def binary(n,a,b):return {'Binary':dict(op=n,left=a,right=b)}
@@ -52,10 +53,62 @@ def binding_names(t):
     here=set().union(*(set(b['bindings'])for b in t['Match']['branches']))if 'Match'in t else set()
     return here|set().union(*(binding_names(x)for x in t.values()))if t else here
 
+class _CallCache:
+    """Exact invocation-local authoring results, never proof verdicts.
+
+    Definitions and modes are fixed during one synchronous normalization. Do
+    not carry entries into another call, even if it uses the same registry.
+    Preserve JSON container order and return fresh containers on a hit.
+    """
+    MAX_ENTRIES=256
+    MAX_BYTES=2_000_000
+    MAX_ENTRY_BYTES=8192
+    WARMUP_CALLS=32
+
+    def __init__(self):
+        self.entries={};self.bytes=0;self.calls=0
+
+    @classmethod
+    def encode(cls,value):
+        pending=[value];nodes=0;characters=0
+        while pending:
+            item=pending.pop();nodes+=1
+            if nodes>128:return None
+            if type(item)is dict:
+                if any(type(k)is not str for k in item):return None
+                pending.extend(item.keys());pending.extend(item.values())
+            elif type(item)is list:pending.extend(item)
+            elif type(item)is str:characters+=len(item)
+            elif type(item)is int:
+                if item.bit_length()>256:return None
+            elif item is not None and type(item)is not bool:return None
+            if characters>cls.MAX_ENTRY_BYTES:return None
+        encoded=json.dumps(value,separators=(',',':'))
+        return encoded if len(encoded)<=cls.MAX_ENTRY_BYTES else None
+
+    def key(self,function,args,depth):
+        # Depth matters: a result established with more remaining unfolding
+        # work must not let a deeper occurrence evade the existing limit.
+        return self.encode([function,args,depth])
+
+    def get(self,key):
+        return self.entries.get(key) if key is not None else None
+
+    def put(self,key,value):
+        if key is None or key in self.entries or len(self.entries)>=self.MAX_ENTRIES:return
+        encoded=self.encode(value)
+        if encoded is None or self.bytes+len(key)+len(encoded)>self.MAX_BYTES:return
+        self.entries[key]=encoded;self.bytes+=len(key)+len(encoded)
+
+
 def normal(t,objects,depth=0,opaque=(),*,blocked=(),eager=()):
     """Authoring computation only. Every proposed reduction is checked by Convert."""
+    return _normal(t,objects,depth,opaque,blocked,eager,_CallCache())
+
+
+def _normal(t,objects,depth,opaque,blocked,eager,cache):
     if depth>96:raise ValueError('point delta producer depth budget')
-    recur=lambda t:normal(t,objects,depth+1,opaque,blocked=blocked,eager=eager)
+    recur=lambda t:_normal(t,objects,depth+1,opaque,blocked,eager,cache)
     if not isinstance(t,dict):return t
     if 'Call' in t:
         x=t['Call'];args=[recur(a) for a in x['arguments']];decl=objects[x['function']]['payload']['declaration']
@@ -63,6 +116,12 @@ def normal(t,objects,depth=0,opaque=(),*,blocked=(),eager=()):
         if x['function'] in blocked and not (x['function']in eager and any('Construct'in a for a in args)):return call(x['function'],args)
         f=decl['Function']
         if f['recursive'] is not None and 'Construct' not in args[f['recursive']]:return call(x['function'],args)
+        # Small authoring jobs should not pay for structural keys. Repeated
+        # expansion earns the bounded cache within this invocation only.
+        cache.calls+=1;key=None
+        if cache.calls>cache.WARMUP_CALLS:
+            key=cache.key(x['function'],args,depth);cached=cache.get(key)
+            if cached is not None:return json.loads(cached)
         body=f['body']
         def selfcalls(x):
             if isinstance(x,dict):
@@ -70,7 +129,9 @@ def normal(t,objects,depth=0,opaque=(),*,blocked=(),eager=()):
                 return {k:selfcalls(v) for k,v in x.items()}
             if isinstance(x,list):return [selfcalls(v) for v in x]
             return x
-        return recur(sub(selfcalls(body),dict(zip([n for n,_ in f['params']],args))))
+        result=recur(sub(selfcalls(body),dict(zip([n for n,_ in f['params']],args))))
+        if key is not None:cache.put(key,result)
+        return result
     if 'If' in t:
         x=t['If'];c=recur(x['condition'])
         if 'Bool' in c:return recur(x['on_true' if c['Bool'] else 'on_false'])
