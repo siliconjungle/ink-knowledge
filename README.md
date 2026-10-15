@@ -570,3 +570,10 @@ proposals, with no hotness premise or automatic profitability exception. Repair,
 compact-protocol and replacement composition currently decline. Parameterless
 proposal bytes remain unchanged. See `tests/test_parameter_cache.py` for admission,
 rehashing controls, exact scalar bounds and legacy packet identity.
+
+The `loop_invariants` producer proposes scalar lexical hoisting from strict
+regions of non-stopping map/filter/left-fold/right-fold callbacks. It keeps an
+explicit empty-list guard and shifts nested captures hygienically. Existing
+source binding and Normalize proofs must accept every whole-function proposal;
+structural ranking and candidate bounds provide no correctness or profitability
+authority. Conditional-only work and early-stopping callbacks are excluded.
