@@ -104,13 +104,14 @@ class TypedProbes(unittest.TestCase):
         fn=lambda n:dict(name=n,params=[['xs',{'List':'U32'}],['n','U32']],result='U32',body={'Num':1})
         program=dict(functions=[fn(n)for n in ['entry','body','check','__ink_requires_user']],contracts=dict(implementations=[dict(name='body',specification='entry')],precondition_checks={'entry':'check','body':'check'}))
         spec,receipt=create(dict(program=program),'javascript')
-        self.assertEqual(set(spec['phases']),{'call:'+name+':'+mode for name in ['entry','__ink_requires_user']for mode in ['trusted','portable','compact']})
-        calls=spec['phases']['call:entry:trusted'];self.assertEqual(len(calls[0]['args'][0]),1);self.assertEqual(calls[0]['args'][1],1)
+        self.assertEqual({s['original_phase']for s in receipt['size_strata'].values()},{'call:'+name+':'+mode for name in ['entry','__ink_requires_user']for mode in ['trusted','portable','compact']})
+        calls=[c for rows in spec['phases'].values()for c in rows if c['function']=='entry'and c['boundary']=='trusted']
+        self.assertTrue(any(len(c['args'][0])==1 and c['args'][1]==1 for c in calls))
         self.assertEqual({d['function']for d in receipt['declined']},{'body','check'})
         renamed=copy.deepcopy(program)
         for f in renamed['functions']:f['name']='z'+f['name']
         renamed['contracts']=dict(implementations=[dict(name='zbody',specification='zentry')],precondition_checks={'zentry':'zcheck','zbody':'zcheck'})
-        other,_=create(dict(program=renamed),'javascript');self.assertEqual([c['args']for c in calls],[c['args']for c in other['phases']['call:zentry:trusted']])
+        other,_=create(dict(program=renamed),'javascript');self.assertEqual([c['args']for c in calls],[c['args']for rows in other['phases'].values()for c in rows if c['function']=='zentry'and c['boundary']=='trusted'])
     def test_policy_rejects_unbounded_or_malformed_seed_cases(self):
         from unittest.mock import patch
         from ink_knowledge import selection_probes as probes
