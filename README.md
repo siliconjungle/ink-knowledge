@@ -8,10 +8,16 @@ Immutable knowledge data for [Ink](https://github.com/siliconjungle/ink-lang), w
 distributions, measurement controls and the required profitability margin.
 `selection_probes.create(core)` authors probes from supported exact typed
 signatures and source constants; it does not use function names or theorem IDs
-to choose behaviour. Recursive/unsupported transfers and state/action/event
+to choose behaviour. Unsupported transfers and state/action/event
 lifecycles decline. Synthetic probes are workload proposals, not observed user
-usage or correctness evidence. Planner measurement and proof checking remain
-separate. `ProposalViews.update` refreshes authenticated proposal membership for
+usage or correctness evidence. Contract support roles are taken from checked
+metadata, so generated checks and implementation bodies do not receive duplicate
+synthetic usage. Bounded `seed_cases` add constructor-sized proposals for guarded
+entries; they do not imply the guard holds. The planner runs the original checked
+ingress guard and filters only false proposals, retaining every requested phase
+and binding observations to the actual retained inputs. Supplied workloads remain
+strict; a phase with no admissible proposal retains the baseline. Planner
+measurement and proof checking remain separate. `ProposalViews.update` refreshes authenticated proposal membership for
 intermediate search states; membership still grants no theorem authority.
 
 `store/objects/<sha256>.json` contains canonical entries. Every entry has exactly these fields:
