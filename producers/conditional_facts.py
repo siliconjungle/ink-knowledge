@@ -16,6 +16,8 @@ from .word_facts import analyse_candidates
 from .beta_specialization15 import free_parameters
 from .author_word_identities import checked_law, update_frozen_data
 from .workspace import compiler_path
+from .call_facts import expand
+from .definition_context28 import bind
 
 
 def acquire(source, compiler, directory, *, store_root=None, frozen=None, seconds=5):
@@ -28,16 +30,18 @@ def acquire(source, compiler, directory, *, store_root=None, frozen=None, second
     for args in [('emit-core',source,'-o',core),('emit-semantic',core,'--core','-o',subject)]:
         result=subprocess.run([str(compiler),*map(str,args)],capture_output=True,text=True,timeout=120)
         if result.returncode:raise ValueError(result.stderr[-4000:])
-    model=json.loads(subject.read_bytes());objects={};applications=[];attempts=[];rows=[]
+    model=json.loads(subject.read_bytes());executable=json.loads(core.read_bytes());objects={};applications=[];attempts=[];rows=[]
     if len(model['functions'])>256:raise ValueError('Fact acquisition function limit')
     for function, original in sorted(model['functions'].items()):
         started=time.monotonic_ns()
+        summary=None;analysed=original
         try:
-            facts, proposals=analyse_candidates(original)
+            analysed,summary=expand(original,executable,model)
+            facts, proposals=analyse_candidates(analysed)
         except ValueError as error:
             attempts.append(dict(function=function,status='unknown',reason=str(error)));continue
         if not proposals:
-            attempts.append(dict(function=function,status='no-candidate',facts=asdict(facts)));continue
+            attempts.append(dict(function=function,status='no-candidate',facts=asdict(facts),call_summary=summary));continue
         seen=set()
         for label,candidate in proposals[:4]:
             key=identity(candidate)
@@ -46,7 +50,13 @@ def acquire(source, compiler, directory, *, store_root=None, frozen=None, second
             with tempfile.TemporaryDirectory(prefix='ink-conditional-facts-')as tmp:
                 try:
                     params=free_parameters(original)
-                    law,proof=checked_law(compiler,core,dict(params=params,conditions=[],**{'from':original,'to':candidate}),Path(tmp),seconds=seconds)
+                    scalar_law,proof=checked_law(compiler,core,dict(params=params,conditions=[],**{'from':analysed,'to':candidate}),Path(tmp),seconds=seconds)
+                    law=scalar_law
+                    if analysed!=original:
+                        law=bind(dict(scalar_law,**{'from':original,'proof':{'Trans':dict(middle=analysed,left='Normalize',right=scalar_law['proof'])}}),executable,model)
+                        object_=semantic_entry(law);local_view=Store.publish(Path(tmp)/'whole-call',[object_]);view=Path(tmp)/'whole-call.json';view.write_bytes(canonical(local_view.bundle([identity(object_)])))
+                        check=subprocess.run([str(compiler),'knowledge-check',str(core),str(view)],capture_output=True,text=True,timeout=120)
+                        if check.returncode:raise ValueError(check.stderr[-4000:])
                 except (ValueError,subprocess.TimeoutExpired)as error:
                     attempts.append(dict(function=function,label=label,status='unproved',reason=str(error)));continue
             obj=semantic_entry(law);ident=identity(obj);objects[ident]=obj
@@ -57,7 +67,7 @@ def acquire(source, compiler, directory, *, store_root=None, frozen=None, second
                     arguments={n:dict(sort=s,node={'Free':n})for n,s in params.items()},premises=[]))
             rows.append(dict(name='conditional-facts/'+ident,law=law))
             attempts.append(dict(function=function,label=label,status='checked',law=ident,
-                facts=asdict(facts),proof=proof,elapsed_ns=time.monotonic_ns()-started))
+                facts=asdict(facts),call_summary=summary,proof=proof,elapsed_ns=time.monotonic_ns()-started))
     if hashlib.sha256(source.read_bytes()).hexdigest()!=source_hash or hashlib.sha256(compiler.read_bytes()).hexdigest()!=compiler_hash:
         raise ValueError('Acquisition input changed')
     # Check the complete packet before publishing into an installed database.
