@@ -2,6 +2,15 @@
 
 Immutable knowledge data for [Ink](https://github.com/siliconjungle/ink-lang), with a rebuildable SQLite discovery index. Search and execution policy live in [ink-planner](https://github.com/siliconjungle/ink-planner); proof checking stays in Ink's independently buildable semantic core. Storage never grants proof authority.
 
+`libraries/bit_automata.ink` provides ordinary packed bit-state source algorithms:
+checked construction of 1..32-octet literal masks, non-overlapping matching and
+explicit strided/transposed packed inputs. `bit-circuit-laws.ink` supplies eight
+replayed scalar proof components, published under `bits/` with
+`store/bit-circuit-view.json`. These proofs establish their scalar equations;
+they do not certify an entire matcher, generated backend or implicit String
+replacement. The distribution exposes the library as `std:bit_automata` and
+retains matched benchmark sources and adverse/small-input controls.
+
 ## Storage contract
 
 `ink_knowledge/automatic-selection.json` owns bounded pure-call probe sizes,
