@@ -41,6 +41,17 @@ fn tile(a:List<u32>,b:List<u32>,side:u32,row:u32,col:u32)->Tile {
   w:repeat_until(side,0,fn(s)=>false,fn(k,s)=>s+a.at_or(row*side+k,0)*b.at_or(k*side+col+3,0))};
 }
 '''
+        source += '''
+fn vector_words(xs:List<u32>,seed:Vec2<u32>)->Vec2<u32>{
+ return vec2(foldl(xs,seed.x,fn(x,s)=>s*3+x),foldl(xs,seed.y,fn(x,s)=>(s+x)^17));
+}
+fn vector_floating(xs:List<f32>,a:f32,b:f32)->Vec3<f32>{
+ return vec3(foldl(xs,a,fn(x,s)=>s+x),foldl(xs,b,fn(x,s)=>s*x),foldl(xs,a+b,fn(x,s)=>(s+x)*x));
+}
+fn vector_tile(a:List<u32>,b:List<u32>,side:u32,row:u32,col:u32)->Vec4<u32>{
+ return vec4('''+','.join('repeat_until(side,side-side,fn(s)=>false,fn(k,s)=>s+a.at_or(row*side+k,0)*b.at_or(k*side+col+'+str(lane)+',0))'for lane in range(4))+''');
+}
+'''
         with tempfile.TemporaryDirectory() as temporary:
             d = Path(temporary)
             text = d / 'source.ink'
@@ -58,7 +69,7 @@ fn tile(a:List<u32>,b:List<u32>,side:u32,row:u32,col:u32)->Tile {
             checked = json.loads(core.read_text())
             meaning = json.loads(subject.read_text())
             proposals = specialize(meaning, checked)
-            self.assertEqual(len(proposals), 6)
+            self.assertEqual(len(proposals), 10)
             objects = {}
             for name, law in proposals:
                 obj = semantic_entry(law)
@@ -69,12 +80,14 @@ fn tile(a:List<u32>,b:List<u32>,side:u32,row:u32,col:u32)->Tile {
                 run(compiler, 'knowledge-check', core, view)
                 # Change only the emitted second lane to read the first lane.
                 # The original proof cannot authorize coupled accumulators.
-                if name.startswith('floating_'):
+                if name.startswith('floating_')or name.startswith('vector_floating_'):
                     forged = copy.deepcopy(law)
                     def couple(value):
                         if isinstance(value, dict):
                             if value.get('Op', [None])[0] == 'field:second':
                                 value['Op'][0] = 'field:first'
+                            if name.startswith('vector_floating_')and value.get('Op',[None])[0]=='field:y':
+                                value['Op'][0]='field:x'
                             for child in value.values():
                                 couple(child)
                         elif isinstance(value, list):
@@ -82,7 +95,7 @@ fn tile(a:List<u32>,b:List<u32>,side:u32,row:u32,col:u32)->Tile {
                                 couple(child)
                     couple(forged['to'])
                     bad = semantic_entry(forged)
-                    bank = Store.publish(d / 'forged', [bad])
+                    bank = Store.publish(d / ('forged-'+name), [bad])
                     view.write_bytes(canonical(bank.bundle([identity(bad)])))
                     result = subprocess.run([compiler, 'knowledge-check', core, view],
                                             capture_output=True, text=True, timeout=60)
@@ -117,13 +130,13 @@ fn tile(a:List<u32>,b:List<u32>,side:u32,row:u32,col:u32)->Tile {
             env = dict(os.environ, PYTHONPATH=os.pathsep.join(map(str, [root/'knowledge', root/'planner'])))
             report = json.loads(run('python3', '-m', 'ink_planner.semantic_search',
                 '--compiler', compiler, '--core', core, '--snapshot', bank.data/'snapshot.json',
-                '--knowledge-root', bank.root, '--cost-model', costs, '--budget', '64',
-                '--rounds', '6', '--time-seconds', '30', '-o', selected, env=env).stdout)
+                '--knowledge-root', bank.root, '--cost-model', costs, '--budget', '128',
+                '--rounds', '10', '--time-seconds', '60', '-o', selected, env=env).stdout)
             self.assertTrue(any(x['module'] == 'producers.product_fusion' and x['candidates']
                                 for x in report['database']['producers']))
             applied = {x['law'] for x in json.loads(selected.read_text())['applications']}
-            self.assertTrue({identity(semantic_entry(p)) for name, p in proposals
-                             if not name.endswith('_induction')} <= applied)
+            expected={identity(semantic_entry(p)):name for name,p in proposals if not name.endswith('_induction')}
+            self.assertTrue(set(expected)<=applied,{key:name for key,name in expected.items()if key not in applied})
             run(compiler, 'check-selection', core, selected)
             run(compiler, 'build', core, '--core', '--target', 'javascript', '-o', d/'baseline.mjs')
             run(compiler, 'build', core, '--core', '--selection', selected,
@@ -133,9 +146,9 @@ fn tile(a:List<u32>,b:List<u32>,side:u32,row:u32,col:u32)->Tile {
 import {functions as a} from './baseline.mjs';
 import {functions as b} from './selected.mjs';
 for(const seed of [0,1,0xffffffff]) for(const xs of [[],[1],[0xffffffff,3,5],Array.from({length:129},(_,i)=>(i*7919)>>>0)])
- assert.deepEqual(b.statistics(xs,seed),a.statistics(xs,seed));
+ {assert.deepEqual(b.statistics(xs,seed),a.statistics(xs,seed));assert.deepEqual(b.vector_words(xs,[seed,seed]),a.vector_words(xs,[seed,seed]));}
 for(const seed of [0,-0,1,Infinity,-Infinity,NaN]) for(const xs of [[],[0,-0],[1e20,-1e20,1],[Infinity,0],[-Infinity,NaN,1],[1.1,2.2,3.3]])
- assert.deepEqual(b.floating(xs,seed,seed),a.floating(xs,seed,seed));
+ {assert.deepEqual(b.floating(xs,seed,seed),a.floating(xs,seed,seed));assert.deepEqual(b.vector_floating(xs,seed,seed),a.vector_floating(xs,seed,seed));}
 for(const seed of [0,-0,1,1.1,1e20,Infinity,-Infinity,NaN]) for(const count of [0,1,2,9])
  assert.deepEqual(b.iterate(count,seed,seed),a.iterate(count,seed,seed));
 for(const side of [0,1,2,3,4,5,7,9]){
@@ -147,6 +160,8 @@ for(const side of [0,1,2,3,4,5,7,9]){
    return [name,sum];}));
   assert.deepEqual(a.tile(left,right,side,row,col),expected);
   assert.deepEqual(b.tile(left,right,side,row,col),expected);
+  assert.deepEqual(a.vector_tile(left,right,side,row,col),Object.values(expected));
+  assert.deepEqual(b.vector_tile(left,right,side,row,col),Object.values(expected));
  }
 }
 ''')

@@ -9,6 +9,21 @@ from producers.owned_fold_contracts import closed
 from producers.beta_specialization15 import beta_normalize
 from producers.definition_context28 import bind
 
+def product_fields(term,core):
+    """Recognise a source product constructor; this grants no rewrite authority."""
+    node=term['node'];operation=node.get('Op')if isinstance(node,dict)else None
+    if not operation:return []
+    name,arguments=operation
+    if name.startswith('record:'):
+        fields=core['program']['records'].get(name[7:],[])
+        return fields if len(fields)==len(arguments)else []
+    if name not in ('call:vec2','call:vec3','call:vec4'):return []
+    vector=term['sort'].get('Value',{})
+    vector=vector.get('Vector')if isinstance(vector,dict)else None
+    if vector and vector[1]in (2,3,4)and name=='call:vec'+str(vector[1])and len(arguments)==vector[1]:
+        return [(field,vector[0])for field in 'xyzw'[:vector[1]]]
+    return []
+
 
 def specialize(subject, core=None):
     if not core:
@@ -33,10 +48,12 @@ def specialize(subject, core=None):
     for function, root in sorted(subject['functions'].items()):
         for path, source in positions(root):
             record = operation(source)
-            if not record or not record[0].startswith('record:') or not closed(source):
+            if not record:
                 continue
-            fields = core['program']['records'].get(record[0][7:], [])
+            fields = product_fields(source,core)
             if not 2 <= len(fields) <= 8 or len(fields) != len(record[1]):
+                continue
+            if not closed(source):
                 continue
             folds = [operation(t) for t in record[1]]
             if any(not f or f[0] != 'call:foldl' or len(f[1]) != 3 for f in folds):

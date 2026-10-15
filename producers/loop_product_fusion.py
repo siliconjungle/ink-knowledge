@@ -15,6 +15,7 @@ from producers.definition_context28 import bind
 def specialize(subject, core=None):
     if not core:
         return []
+    from producers.product_fusion import product_fields
     u, boolean = value('U32'), value('Bool')
     false = term(boolean, {'Bool': False})
     one, zero = word('U32', 1), word('U32', 0)
@@ -38,11 +39,13 @@ def specialize(subject, core=None):
     for function, root in sorted(subject['functions'].items()):
         for path, source in positions(root):
             record = operation(source)
-            if not record or not record[0].startswith('record:') or not closed(source):
+            if not record:
                 continue
-            fields = core['program']['records'].get(record[0][7:], [])
+            fields = product_fields(source,core)
             loops = [operation(t) for t in record[1]]
             if not 2 <= len(fields) <= 8 or len(fields) != len(loops):
+                continue
+            if not closed(source):
                 continue
             if any(not f or f[0] != 'call:repeat_until' or len(f[1]) != 4 for f in loops):
                 continue
