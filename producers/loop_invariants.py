@@ -12,6 +12,49 @@ from producers.semantic_laws import bound, lam, law, op, value, word
 
 CALLBACKS = {'method:map': (1, 1), 'method:filter': (1, 1), 'call:foldl': (2, 2), 'call:foldr': (2, 2)}
 
+# A conservative proposal domain, not a theorem whitelist in the checker.
+# Moving a scalar can also move nested computations: strings have a fixed
+# concatenation failure boundary, and helper calls can hide those operations.
+# Broader domains need their own demand/failure analysis before proposing motion.
+TOTAL_OPS = frozenset(['apply', 'neg', 'nat.word', 'nat.succ',
+    *CALLBACKS, 'call:choose', 'call:count', 'call:sum', 'method:at_or',
+    *('binary:'+n for n in ['+','-','*','==','!=','<','<=','>','>=','&&','||']),
+    *('call:'+n for n in ['quot_or','rem_or','word_widen_u32_to_u64',
+        'word_narrow_u64_to_u32','word_not','word_and','word_or','word_xor',
+        'wrapping_shl','wrapping_shr','rotate_left','rotate_right','sqrt',
+        'f32_div','is_nan','is_finite','floor','ceil','trunc','round_ties_even',
+        'f32_bits','f32_from_bits','f32_from_u32','f32_from_u64','f32_from_i32',
+        'popcount','leading_zeros','trailing_zeros'])])
+
+
+def numeric_carrier(ty):
+    return (isinstance(ty,str) and ty in (*SCALARS,'Int')) or (
+        isinstance(ty,dict) and set(ty)=={'List'} and numeric_carrier(ty['List']))
+
+
+def numeric_sort(sort):
+    if sort=='Nat':
+        return True
+    if not isinstance(sort,dict):
+        return False
+    if set(sort)=={'Value'}:
+        return numeric_carrier(sort['Value'])
+    return set(sort)=={'Arrow'} and all(numeric_sort(s) for s in sort['Arrow'])
+
+
+def numeric_loop(loop, functions):
+    for _,term in positions(loop):
+        if not numeric_sort(term['sort']):
+            return False
+        node=term['node']
+        if isinstance(node,dict) and 'Op' in node:
+            name=node['Op'][0]
+            if name not in TOTAL_OPS or (name.startswith('call:') and name[5:] in functions):
+                return False
+        elif node!='Nil' and (not isinstance(node,dict) or not set(node)<={'Free','Bound','Word','Float','Bool','Nat','Lambda','Cons'}):
+            return False
+    return True
+
 
 def callback_body(loop):
     node = loop['node']
@@ -92,7 +135,7 @@ def specialize(subject, core):
         loops = 0
         for path, loop in sites:
             info = callback_body(loop)
-            if info is None:
+            if info is None or not numeric_loop(loop,subject.get('functions',{})):
                 continue
             loops += 1
             if loops > 32:

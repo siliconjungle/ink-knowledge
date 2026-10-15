@@ -43,6 +43,22 @@ def prepare(directory, compiler):
 
 
 class LoopInvariants(unittest.TestCase):
+    def test_declines_nested_string_failure_and_unanalysed_helpers(self):
+        compiler=Path(os.environ['INK_COMPILER']).resolve()
+        extra='''
+fn len_join(a:String,b:String)->u32{return string_byte_len(string_concat(a,b));}
+fn text(xs:List<u32>,ys:List<u32>,a:String,b:String)->List<u32>{return xs.map(fn(x)=>string_byte_len(string_concat(a,b))+foldl(ys,0,fn(y)=>fn(z)=>z+y)+x);}
+fn indirect(xs:List<u32>,ys:List<u32>,a:String,b:String)->List<u32>{return xs.map(fn(x)=>len_join(a,b)+foldl(ys,0,fn(y)=>fn(z)=>z+y)+x);}
+'''
+        with tempfile.TemporaryDirectory()as tmp:
+            d=Path(tmp);(d/'source.ink').write_text(SOURCE.read_text()+extra)
+            for args in [('emit-core',d/'source.ink','-o',d/'core.json'),('emit-semantic',d/'core.json','--core','-o',d/'semantic.json')]:
+                r=subprocess.run([str(compiler),*map(str,args)],capture_output=True,text=True,timeout=60)
+                self.assertEqual(r.returncode,0,r.stderr)
+            rows=specialize(json.loads((d/'semantic.json').read_bytes()),json.loads((d/'core.json').read_bytes()))
+            self.assertFalse(any(n.split('/')[1]in ('text','indirect')for n,_ in rows))
+            self.assertTrue(any('/mapped/'in n for n,_ in rows))
+
     def test_checked_candidates_and_strict_regions(self):
         compiler=Path(os.environ['INK_COMPILER']).resolve()
         with tempfile.TemporaryDirectory()as tmp:

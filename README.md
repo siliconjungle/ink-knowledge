@@ -577,3 +577,8 @@ explicit empty-list guard and shifts nested captures hygienically. Existing
 source binding and Normalize proofs must accept every whole-function proposal;
 structural ranking and candidate bounds provide no correctness or profitability
 authority. Conditional-only work and early-stopping callbacks are excluded.
+
+Hoisting currently requires reviewed numeric/list operation trees. Nested string
+construction and unanalysed source helper calls are declined even when the outer
+result is scalar. This restricts proposal scope; it does not add an equality axiom
+or treat a guessed totality fact as a proof premise.
