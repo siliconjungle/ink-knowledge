@@ -766,3 +766,12 @@ feedback. The distribution retains independent finite differences, contextual
 learning, exact Adam resume and cross-target execution. This is F32 authored source,
 not a compiler objective, exact-real sampling proof or convergence guarantee. The
 canonical proof snapshot is unchanged by this library addition.
+
+### Prepared binary64 text geometry
+
+`libraries/prepared_text.ink` ports Pretext's simple prepared counter and geometry
+walkers as ordinary source (`std:prepared_text` in the distribution). Immutable
+measured data is separate from varying widths; count/height and complete cursor
+observations have distinct execution paths. F64, shape/capacity validation,
+explicit rejection of complex break kinds and the upstream license are retained.
+This is not font measurement, full Pretext fidelity or upstream speed parity.
