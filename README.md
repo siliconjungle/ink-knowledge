@@ -748,3 +748,13 @@ The current recipe catalogue also retires an older unaliased `maintained-folds`
 configuration that conflicted with the explicit current registry. Historical
 snapshots retain its object. `store/recipe-discovery-repair.json` records both
 identities; this repairs discovery and grants no proof or profitability authority.
+
+
+`libraries/learning_session.ink` adds ordinary model/observation-generic continuous
+sessions: bounded ordered feedback, explicit overflow/discard, source work budgets,
+pause and publication cadence, serving/candidate separation and ticket/base-version
+checks. The model type carries the complete optimizer chosen by its application.
+Cancellation retains observations for an explicit restart. These algorithms grant
+no AD, convergence, equality or profitability authority. The canonical proof
+snapshot is unchanged by this source-library addition; the distribution retains
+cross-target session checks, compiled durable recovery and the frozen-corpus audit.
