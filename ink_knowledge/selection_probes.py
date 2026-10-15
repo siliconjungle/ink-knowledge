@@ -22,6 +22,8 @@ def policy():
         if type(value.get(name)) is not int or not lo<=value[name]<=hi:raise ValueError('automatic selection '+name)
     if not isinstance(value.get('sizes'),list) or not 1<=len(value['sizes'])<=8 or any(type(n)is not int or not 0<=n<=4096 for n in value['sizes']):raise ValueError('automatic selection sizes')
     if not isinstance(value.get('patterns'),list) or not value['patterns'] or not set(value['patterns'])<=PATTERNS:raise ValueError('automatic selection patterns')
+    seeds=value.get('seed_cases',[])
+    if not isinstance(seeds,list) or len(seeds)>16 or any(not isinstance(c,list) or len(c)!=2 or type(c[0])is not int or not 0<=c[0]<=4096 or not isinstance(c[1],str) or c[1]not in PATTERNS for c in seeds):raise ValueError('automatic selection seed cases')
     boundaries=value.get('boundaries',{})
     if not isinstance(boundaries,dict) or set(boundaries)!={'default','javascript','rust'}:raise ValueError('automatic selection boundary profiles')
     for target,modes in boundaries.items():
@@ -68,6 +70,13 @@ def create(core,target=None):
     records.update({name:{'id':True}for name in program.get('ids',[])})
     if program.get('states') or program.get('actions') or program.get('events'):
         return None,dict(reason='state/action/event lifecycle requires supplied workload evidence')
+    contracts=program.get('contracts',{})
+    # Use checked source roles, never naming conventions, to avoid assigning
+    # synthetic usage to generated checks and duplicate implementation bodies.
+    support=set(contracts.get('precondition_checks',{}).values())|set(contracts.get('value_validators',{}))|set(contracts.get('invariant_checks',[]))
+    support.update(i['name']for i in contracts.get('implementations',[]))
+    functions=[f for f in program['functions']if f['name']not in support]
+    declined.extend(dict(function=f['name'],reason='contract support function; probe its source entry')for f in program['functions']if f['name']in support)
     constants=[]
     def walk(v):
         if isinstance(v,dict):
@@ -83,7 +92,7 @@ def create(core,target=None):
     def boundaries(f):
         types=[t for _,t in f['params']]+[f['result']]
         return [mode for mode in modes if all(supported(t,records,wire=mode!='trusted')and inhabited(t,records)for t in types)]
-    eligible=sum(bool(boundaries(f))for f in program['functions'])
+    eligible=sum(bool(boundaries(f))for f in functions)
     per_function=max(1,p['calls']//len(modes)//max(1,min(p['functions'],eligible)))
     def scalar(t,index,high=False):
         if t=='Unit':return None
@@ -141,15 +150,18 @@ def create(core,target=None):
                 item=randomise(item)
             items.append(item)
         return items
-    for function in program['functions']:
+    for function in functions:
         function_modes=boundaries(function)
         if not function_modes:
             declined.append(dict(function=function['name'],reason='unsupported exact probe transfer type'));continue
         if function_count>=p['functions']:declined.append(dict(function=function['name'],reason='probe function budget'));continue
         calls=[];combinations=[(n,pattern)for n in p['sizes']for pattern in p['patterns']]
         indices=set(int(i*len(combinations)/min(per_function,len(combinations)))for i in range(min(per_function,len(combinations))))
-        for index,(n,pattern)in enumerate(combinations):
-                if index not in indices:continue
+        selected=[case for index,case in enumerate(combinations)if index in indices]
+        if function['name']in contracts.get('precondition_checks',{}):
+            seeds=[tuple(c)for c in p.get('seed_cases',[])]
+            selected=(seeds+[case for case in selected if case not in seeds])[:per_function]
+        for n,pattern in selected:
                 if count+len(function_modes)>p['calls']:break
                 rng=random.Random(0x1491+n)
                 try:args=[argument(t,n,pattern,rng)for _,t in function['params']]
