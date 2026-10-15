@@ -712,3 +712,12 @@ This reduces repeated helper-DAG expansion, never caches proof verdicts, and doe
 not change Convert replay or its budgets. The V8 source pass records repeated-DAG
 and captured-obligation controls separately from compiled runtime performance in
 the distribution's `bench/v8-learning/normalizer`.
+
+`producers.conditional_facts` discovers whole-function unsigned equalities from
+known bits, ranges and one excluded value. Relational comparisons refine both
+operands, and excluded points survive wrapping addition/subtraction/XOR with a
+constant. Offline acquisition constructs and replays RUP proofs before publishing
+laws or adding them to the existing word-identity proposal catalogue. The
+`store/conditional-facts-view.json` contains four admitted examples. This is
+inspired by Freerange's range/requirements approach; it adds no trusted inference
+premises, general floating-point domain or runtime profitability exception.

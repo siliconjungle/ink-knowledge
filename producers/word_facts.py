@@ -15,6 +15,7 @@ class Facts:
     one: int = 0
     minimum: int = 0
     maximum: int | None = None
+    excludes: int | None = None
 
     def __post_init__(self):
         if self.width not in (1, 32, 64):
@@ -24,6 +25,13 @@ class Facts:
         if self.width not in (1, 32, 64) or (self.zero | self.one) & ~mask or self.zero & self.one:
             raise ValueError('Inconsistent word facts')
         lo, hi = max(self.minimum, self.one), min(maximum, mask ^ self.zero)
+        excluded = self.excludes
+        if excluded is not None and (type(excluded) is not int or not 0 <= excluded <= mask):
+            raise ValueError('Excluded point outside word domain')
+        # An excluded endpoint is expressible by the interval itself. Keep at
+        # most one interior hole; losing another hole is conservative.
+        if excluded == lo:lo += 1
+        if excluded == hi:hi -= 1
         if not 0 <= lo <= hi <= mask:
             raise ValueError('Inconsistent unsigned range')
         # Every value in an unsigned interval shares the prefix above the
@@ -36,6 +44,9 @@ class Facts:
         object.__setattr__(self, 'one', one)
         object.__setattr__(self, 'minimum', lo)
         object.__setattr__(self, 'maximum', hi)
+        # Retain an endpoint exclusion after tightening its range too: its
+        # exact image remains useful through a wrapping bijection.
+        object.__setattr__(self, 'excludes', excluded)
 
     @property
     def constant(self):
@@ -66,7 +77,7 @@ def add_bits(a, b, carry_in=0):
     return zeros, ones
 
 
-def refine(scope, condition, truth, budget=32):
+def refine(scope, condition, truth, budget=32, *, relational=True):
     """Untrusted branch-local constraints. No bindings or caller contracts cross here.
 
     Intersections describe simultaneous constraints; branch joins below instead
@@ -79,9 +90,10 @@ def refine(scope, condition, truth, budget=32):
         for index, (prior, old) in enumerate(result):
             if prior == subject:
                 try:
+                    hole = fact.excludes if fact.excludes is not None else old.excludes
                     result[index] = (subject, Facts(fact.width, old.zero | fact.zero,
                         old.one | fact.one, max(old.minimum, fact.minimum),
-                        min(old.maximum, fact.maximum)))
+                        min(old.maximum, fact.maximum), hole))
                 except ValueError:
                     pass
                 return
@@ -113,26 +125,57 @@ def refine(scope, condition, truth, budget=32):
                 left, right = right, left
                 relation = {'<':'>', '<=':'>=', '>':'<', '>=':'<=', '==':'==', '!=':'!='}[relation]
             kind = left['sort'].get('Value')
-            if kind not in ('U32', 'U64') or 'Word' not in right['node']:
+            if kind not in ('U32', 'U64'):
                 return
             width = 32 if kind == 'U32' else 64
             mask = (1 << width) - 1
-            n = right['node']['Word']
-            if not isinstance(n, int) or not 0 <= n <= mask:
-                return
             if not answer:
                 relation = {'<':'>=', '<=':'>', '>':'<=', '>=':'<', '==':'!=', '!=':'=='}[relation]
+            # Relational narrowing uses already established ranges, never the
+            # assumption that wrapping expressions are monotone in their inputs.
+            # Refining the expression's result is valid even if it is x + 1.
+            if 'Word' not in right['node']:
+                if not relational:return
+                try:
+                    a = analyse(left, max_nodes=512, _scope=tuple(result), _relational=False)
+                    b = analyse(right, max_nodes=512, _scope=tuple(result), _relational=False)
+                except ValueError:
+                    return
+                if relation in ('>','>='):
+                    left,right,a,b = right,left,b,a
+                    relation = '<' if relation == '>' else '<='
+                if relation in ('<','<='):
+                    strict = int(relation == '<')
+                    if b.maximum >= strict:
+                        constrain(left, Facts(width, maximum=b.maximum-strict))
+                    if a.minimum + strict <= mask:
+                        constrain(right, Facts(width, minimum=a.minimum+strict))
+                elif relation == '==':
+                    constrain(left, b);constrain(right, a)
+                elif b.constant is not None:
+                    constrain(left, Facts(width, excludes=b.constant))
+                elif a.constant is not None:
+                    constrain(right, Facts(width, excludes=a.constant))
+                return
+            n = right['node']['Word']
+            if type(n) is not int or not 0 <= n <= mask:return
             lo, hi = 0, mask
             if relation == '==':lo = hi = n
             elif relation == '<':hi = n - 1
             elif relation == '<=':hi = n
             elif relation == '>':lo = n + 1
             elif relation == '>=':lo = n
-            elif n == 0:lo = 1
-            elif n == mask:hi = mask - 1
-            else:return  # An interior hole needs a richer range domain.
+            elif n == 0:
+                constrain(left, Facts(width, excludes=0));return
+            elif n == mask:
+                constrain(left, Facts(width, excludes=mask));return
+            else:
+                constrain(left, Facts(width, excludes=n));return
             if 0 <= lo <= hi <= mask:
                 constrain(left, Facts(width, minimum=lo, maximum=hi))
+    # A second bounded pass lets x < y consume a later y <= 255 conjunct.
+    # This is a discovery budget, not a fixed-point or completeness claim.
+    visit(condition, truth)
     visit(condition, truth)
     return result
 
@@ -167,7 +210,7 @@ class _FactMemo:
         self.charge += charge
 
 
-def analyse(source, max_nodes=4096, *, _scope=(), _memo=None):
+def analyse(source, max_nodes=4096, *, _scope=(), _memo=None, _relational=True):
     remaining = max_nodes
     peaks = []
 
@@ -179,7 +222,7 @@ def analyse(source, max_nodes=4096, *, _scope=(), _memo=None):
             if peaks:
                 peaks[-1] = max(peaks[-1], depth)
             return uncached(t, depth, scope)
-        key = (id(t), tuple((id(subject), fact) for subject, fact in scope))
+        key = (id(t), _relational, tuple((id(subject), fact) for subject, fact in scope))
         found = _memo.entries.get(key)
         if found is not None:
             facts, cost, height, held_node, held_scope = found
@@ -229,16 +272,20 @@ def analyse(source, max_nodes=4096, *, _scope=(), _memo=None):
             cond=visit(args[0],depth+1,scope)
             if cond.constant is not None:
                 return visit(args[1 if cond.constant else 2],depth+1,scope)
-            a=visit(args[1],depth+1,refine(scope,args[0],True))
-            b=visit(args[2],depth+1,refine(scope,args[0],False))
-            return Facts(width,a.zero&b.zero,a.one&b.one,min(a.minimum,b.minimum),max(a.maximum,b.maximum))
+            a=visit(args[1],depth+1,refine(scope,args[0],True,relational=_relational))
+            b=visit(args[2],depth+1,refine(scope,args[0],False,relational=_relational))
+            holes = [hole for hole in (a.excludes,b.excludes) if hole is not None]
+            excludes = next((hole for hole in holes if all(
+                hole < f.minimum or hole > f.maximum or hole == f.excludes
+                or hole & f.zero or hole & f.one != f.one for f in (a,b))), None)
+            return Facts(width,a.zero&b.zero,a.one&b.one,min(a.minimum,b.minimum),max(a.maximum,b.maximum),excludes)
         facts=[visit(a,depth+1,scope) for a in args]
         if len(facts)==1:
             a=facts[0]
-            if name in ('call:word_not','unary:!'):return Facts(width,a.one,a.zero,mask-a.maximum,mask-a.minimum)
-            if name=='call:word_widen_u32_to_u64':return Facts(64,a.zero|(((1<<32)-1)<<32),a.one,a.minimum,a.maximum)
+            if name in ('call:word_not','unary:!'):return Facts(width,a.one,a.zero,mask-a.maximum,mask-a.minimum,None if a.excludes is None else mask^a.excludes)
+            if name=='call:word_widen_u32_to_u64':return Facts(64,a.zero|(((1<<32)-1)<<32),a.one,a.minimum,a.maximum,a.excludes)
             if name=='call:word_narrow_u64_to_u32':
-                return Facts(32,a.zero&mask,a.one&mask,a.minimum if a.maximum<=mask else 0,a.maximum if a.maximum<=mask else mask)
+                return Facts(32,a.zero&mask,a.one&mask,a.minimum if a.maximum<=mask else 0,a.maximum if a.maximum<=mask else mask,a.excludes if a.maximum<=mask else None)
             return Facts(width)
         if len(facts)!=2:return Facts(width)
         a,b=facts
@@ -248,7 +295,13 @@ def analyse(source, max_nodes=4096, *, _scope=(), _memo=None):
             return constant(1,int(name in ('binary:==','binary:<=','binary:>=')))
         if name in ('call:word_and','binary:&&'):return Facts(width,a.zero|b.zero,a.one&b.one,0,min(a.maximum,b.maximum))
         if name in ('call:word_or','binary:||'):return Facts(width,a.zero&b.zero,a.one|b.one,max(a.minimum,b.minimum),mask)
-        if name=='call:word_xor':return Facts(width,(a.zero&b.zero)|(a.one&b.one),(a.zero&b.one)|(a.one&b.zero))
+        # Addition/subtraction and XOR with a constant are bijections modulo
+        # 2^width. Their excluded-point transport remains valid across overflow.
+        def excluded_image(operation):
+            if b.constant is not None and a.excludes is not None:return operation(a.excludes,b.constant)&mask
+            if a.constant is not None and b.excludes is not None:return operation(a.constant,b.excludes)&mask
+            return None
+        if name=='call:word_xor':return Facts(width,(a.zero&b.zero)|(a.one&b.one),(a.zero&b.one)|(a.one&b.zero),excludes=excluded_image(lambda x,y:x^y))
         if name in ('call:wrapping_shl','call:wrapping_shr'):
             # Ink masks oversized counts. Enumerate the at most 64 feasible
             # residues, including values LLVM would otherwise call poison.
@@ -267,11 +320,11 @@ def analyse(source, max_nodes=4096, *, _scope=(), _memo=None):
         if name=='binary:+':
             zeros,ones=((((a.zero<<1)|1)&mask,(a.one<<1)&mask) if same else add_bits(a,b))
             lo,hi=a.minimum+b.minimum,a.maximum+b.maximum
-            return Facts(width,zeros,ones,lo if hi<=mask else 0,hi if hi<=mask else mask)
+            return Facts(width,zeros,ones,lo if hi<=mask else 0,hi if hi<=mask else mask,excluded_image(lambda x,y:x+y))
         if name=='binary:-':
             zeros,ones=add_bits(a,Facts(width,b.one,b.zero),1)
             nowrap=a.minimum>=b.maximum
-            return Facts(width,zeros,ones,a.minimum-b.maximum if nowrap else 0,a.maximum-b.minimum if nowrap else mask)
+            return Facts(width,zeros,ones,a.minimum-b.maximum if nowrap else 0,a.maximum-b.minimum if nowrap else mask,excluded_image(lambda x,y:x-y))
         if name=='binary:*':
             za,zb=trailing_ones(a.zero,width),trailing_ones(b.zero,width)
             ka,kb=trailing_ones(a.zero|a.one,width),trailing_ones(b.zero|b.one,width)
@@ -290,6 +343,7 @@ def analyse(source, max_nodes=4096, *, _scope=(), _memo=None):
             if name in ('binary:==','binary:!='):
                 if a.constant is not None and b.constant is not None:answer=a.constant==b.constant
                 elif a.maximum<b.minimum or b.maximum<a.minimum or (a.zero&b.one)|(a.one&b.zero):answer=False
+                elif (a.constant is not None and a.constant==b.excludes) or (b.constant is not None and b.constant==a.excludes):answer=False
                 if answer is not None and name=='binary:!=':answer=not answer
             else:
                 if name in ('binary:>','binary:>='):a,b=b,a

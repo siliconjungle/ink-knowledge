@@ -31,10 +31,10 @@ class WordIdentities(unittest.TestCase):
         root=Path(__file__).resolve().parents[2]
         compiler=Path(os.environ.get('INK_COMPILER',root/'target/debug/ink')).resolve()
         rows=json.loads(gzip.decompress((root/'knowledge/producers/data/word-identities.json.gz').read_bytes()))
-        self.assertEqual(len(rows),54)
+        self.assertEqual(len(rows),58)
         with tempfile.TemporaryDirectory() as tmp:
             d=Path(tmp); source=d/'source.ink'; core=d/'core.json'; subject=d/'subject.json'
-            source.write_text('module independently_named;fn assemble(payload:u32,mask:u32)->u32{return (payload&mask)|(payload&word_not(mask));} fn bound(input:u64,mask:u64)->Bool{return (input&mask)<=mask;}')
+            source.write_text('module independently_named;fn assemble(payload:u32,mask:u32)->u32{return (payload&mask)|(payload&word_not(mask));} fn bound(input:u64,mask:u64)->Bool{return (input&mask)<=mask;} fn packet(sample:u32,limit:u32)->u32{return choose(sample<limit && limit<=256,word_and(sample,255),sample);}')
             def run(*args):
                 return subprocess.run([str(compiler),*map(str,args)],capture_output=True,text=True,timeout=60)
             for command in [('emit-core',source,'-o',core),('emit-semantic',core,'--core','-o',subject)]:
@@ -48,6 +48,7 @@ class WordIdentities(unittest.TestCase):
             found=dict(specialize(json.loads(subject.read_bytes()),json.loads(core.read_bytes())))
             self.assertIn('word-identity/u32/complementary_partition',found)
             self.assertIn('word-identity/u64/mask_upper_bound',found)
+            self.assertTrue(any(name.startswith('word-identity/conditional-facts/') for name in found))
             original=next(r['law'] for r in rows if r['name']=='u32/increment_with_room')
             bad=copy.deepcopy(original);bad['conditions']=[];bad['proof']['BitVector']['hypotheses']=[]
             self.assertNotEqual(check([semantic_entry(bad)],'missing-condition').returncode,0)
