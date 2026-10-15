@@ -35,19 +35,23 @@ def update_frozen_data(path, rows):
     return len(data)
 
 
-def checked_law(compiler, core, goal, directory, seconds=10):
+def checked_law(compiler, core, goal, directory, seconds=10, *, semantics="opaque-v1", encoding="literal-v1"):
     request, cnf = directory / 'goal.json', directory / 'cnf.json'
     request.write_bytes(canonical(goal))
     result = subprocess.run([str(compiler), 'semantic-bitvector-obligation', str(core),
-                             str(request), '--core', '-o', str(cnf)],
+                             str(request), '--core', '--semantics', semantics, '--encoding', encoding, '-o', str(cnf)],
                             capture_output=True, text=True, timeout=60)
     if result.returncode:
         raise ValueError(result.stderr[-4000:])
     problem = json.loads(cnf.read_bytes())
+    if problem.get('encoding','literal-v1') != encoding:
+        raise ValueError('Compiler did not export the requested bit circuit encoding')
     proof = certificate(problem, seconds=seconds, conflicts=100000, total_seconds=seconds)
+    witness = {'hypotheses': list(range(len(goal['conditions']))), 'certificate': proof}
+    if semantics != 'opaque-v1':
+        witness['semantics'] = semantics
     candidate = law(goal['params'], goal['from'], goal['to'],
-                    {'BitVector': {'hypotheses': list(range(len(goal['conditions']))),
-                                   'certificate': proof}}, conditions=goal['conditions'])
+                    {'BitVector': witness}, conditions=goal['conditions'])
     obj = semantic_entry(candidate)
     st = Store.publish(directory / 'candidate', [obj])
     view = directory / 'view.json'
@@ -67,6 +71,8 @@ def main():
     p.add_argument('--data', type=Path, required=True)
     p.add_argument('--library', action='store_true', help='Write an indexed, immutable proof library')
     p.add_argument('--seconds', type=int, default=10)
+    p.add_argument('--semantics', choices=('opaque-v1','fixed-words-v2'), default='opaque-v1')
+    p.add_argument('--encoding', choices=('literal-v1','shared-v2'), default='literal-v1')
     p.add_argument('--case', action='append')
     p.add_argument('--family', choices=('word', 'v8'), default='word',
                    help='Offline proposal family; all use the same independent checker')
@@ -96,7 +102,7 @@ def main():
             case = d / str(i); case.mkdir()
             start = time.monotonic()
             try:
-                candidate, receipt = checked_law(compiler, core, row['goal'], case, a.seconds)
+                candidate, receipt = checked_law(compiler, core, row['goal'], case, a.seconds, semantics=a.semantics, encoding=a.encoding)
                 rows.append(dict(name=row['name'], law=candidate, evidence=receipt))
                 print(json.dumps(dict(name=row['name'], status='checked',
                                       seconds=time.monotonic()-start)), flush=True)

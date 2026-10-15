@@ -28,6 +28,162 @@
     {
       "path": "README.md",
       "reason": "Database architecture and reproduction documentation"
+    },
+    {
+      "path": "research/action-laws",
+      "reason": "Required committed first-order hardening input; only lock and its content-addressed objects materialized"
+    },
+    {
+      "path": "research/bitvector",
+      "reason": "Required committed first-order hardening input; only lock and its content-addressed objects materialized"
+    },
+    {
+      "path": "research/boolean",
+      "reason": "Required committed first-order hardening input; only lock and its content-addressed objects materialized"
+    },
+    {
+      "path": "research/collections",
+      "reason": "Required committed first-order hardening input; only lock and its content-addressed objects materialized"
+    },
+    {
+      "path": "research/composed",
+      "reason": "Required committed first-order hardening input; only lock and its content-addressed objects materialized"
+    },
+    {
+      "path": "research/conditional",
+      "reason": "Required committed first-order hardening input; only lock and its content-addressed objects materialized"
+    },
+    {
+      "path": "research/definition-candidates/ledger",
+      "reason": "Required committed first-order hardening input; only lock and its content-addressed objects materialized"
+    },
+    {
+      "path": "research/definition-candidates/map",
+      "reason": "Required committed first-order hardening input; only lock and its content-addressed objects materialized"
+    },
+    {
+      "path": "research/definition-candidates/row",
+      "reason": "Required committed first-order hardening input; only lock and its content-addressed objects materialized"
+    },
+    {
+      "path": "research/delta-maintenance",
+      "reason": "Required committed first-order hardening input; only lock and its content-addressed objects materialized"
+    },
+    {
+      "path": "research/effect-composition",
+      "reason": "Required committed first-order hardening input; only lock and its content-addressed objects materialized"
+    },
+    {
+      "path": "research/exact-integers",
+      "reason": "Required committed first-order hardening input; only lock and its content-addressed objects materialized"
+    },
+    {
+      "path": "research/filtered",
+      "reason": "Required committed first-order hardening input; only lock and its content-addressed objects materialized"
+    },
+    {
+      "path": "research/general-laws",
+      "reason": "Required committed first-order hardening input; only lock and its content-addressed objects materialized"
+    },
+    {
+      "path": "research/incremental-views",
+      "reason": "Required committed first-order hardening input; only lock and its content-addressed objects materialized"
+    },
+    {
+      "path": "research/inductive",
+      "reason": "Required committed first-order hardening input; only lock and its content-addressed objects materialized"
+    },
+    {
+      "path": "research/machine-candidates/counter-alternative",
+      "reason": "Required committed first-order hardening input; only lock and its content-addressed objects materialized"
+    },
+    {
+      "path": "research/machine-candidates/counter-original",
+      "reason": "Required committed first-order hardening input; only lock and its content-addressed objects materialized"
+    },
+    {
+      "path": "research/machine-candidates/ledger-alternative",
+      "reason": "Required committed first-order hardening input; only lock and its content-addressed objects materialized"
+    },
+    {
+      "path": "research/machine-candidates/ledger-original",
+      "reason": "Required committed first-order hardening input; only lock and its content-addressed objects materialized"
+    },
+    {
+      "path": "research/machine-candidates/row-alternative",
+      "reason": "Required committed first-order hardening input; only lock and its content-addressed objects materialized"
+    },
+    {
+      "path": "research/machine-candidates/row-original",
+      "reason": "Required committed first-order hardening input; only lock and its content-addressed objects materialized"
+    },
+    {
+      "path": "research/reversible-maintenance",
+      "reason": "Required committed first-order hardening input; only lock and its content-addressed objects materialized"
+    },
+    {
+      "path": "research/rewrite-search",
+      "reason": "Required committed first-order hardening input; only lock and its content-addressed objects materialized"
+    },
+    {
+      "path": "research/scalar-logic",
+      "reason": "Required committed first-order hardening input; only lock and its content-addressed objects materialized"
+    },
+    {
+      "path": "research/source-column-layout",
+      "reason": "Required committed first-order hardening input; only lock and its content-addressed objects materialized"
+    },
+    {
+      "path": "research/source-column-ledger",
+      "reason": "Required committed first-order hardening input; only lock and its content-addressed objects materialized"
+    },
+    {
+      "path": "research/source-row-ledger/reversible",
+      "reason": "Required committed first-order hardening input; only lock and its content-addressed objects materialized"
+    },
+    {
+      "path": "research/source-row-ledger/snapshot",
+      "reason": "Required committed first-order hardening input; only lock and its content-addressed objects materialized"
+    },
+    {
+      "path": "research/source-row-undo/reversible",
+      "reason": "Required committed first-order hardening input; only lock and its content-addressed objects materialized"
+    },
+    {
+      "path": "research/source-row-undo/snapshot",
+      "reason": "Required committed first-order hardening input; only lock and its content-addressed objects materialized"
+    },
+    {
+      "path": "research/source-search-layout",
+      "reason": "Required committed first-order hardening input; only lock and its content-addressed objects materialized"
+    },
+    {
+      "path": "research/source-search-ledger",
+      "reason": "Required committed first-order hardening input; only lock and its content-addressed objects materialized"
+    },
+    {
+      "path": "research/source-sorted-layout",
+      "reason": "Required committed first-order hardening input; only lock and its content-addressed objects materialized"
+    },
+    {
+      "path": "research/source-sorted-ledger",
+      "reason": "Required committed first-order hardening input; only lock and its content-addressed objects materialized"
+    },
+    {
+      "path": "research/table-maintenance",
+      "reason": "Required committed first-order hardening input; only lock and its content-addressed objects materialized"
+    },
+    {
+      "path": "research/table-undo-snapshot",
+      "reason": "Required committed first-order hardening input; only lock and its content-addressed objects materialized"
+    },
+    {
+      "path": "research/table-undo",
+      "reason": "Required committed first-order hardening input; only lock and its content-addressed objects materialized"
+    },
+    {
+      "path": "research/transaction-boundary",
+      "reason": "Required committed first-order hardening input; only lock and its content-addressed objects materialized"
     }
   ],
   "safe_to_remove": []

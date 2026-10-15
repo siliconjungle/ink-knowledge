@@ -134,7 +134,10 @@ def certificate(problem, seconds=60, conflicts=100_000, total_seconds=None):
     order=sorted(needed);remap={old:original+i for i,old in enumerate(order)}
     steps=[dict(clause=steps[i]['clause'],hints=[h if h<original else remap[h-original] for h in steps[i]['hints']])for i in order]
     check_deadline()
-    return dict(problem_sha256=problem['sha256'], steps=steps)
+    result = dict(problem_sha256=problem['sha256'], steps=steps)
+    if 'encoding' in problem:
+        result['encoding'] = problem['encoding']
+    return result
 
 
 def main():

@@ -75,6 +75,15 @@ def templates():
                 add('shift_' + label + '_' + bit_label, bitwise(shift(x, k), shift(y, k)), shift(bitwise(x, y), k))
         add('right_left_mask', SHL(SHR(x, k), k), AND(x, SHL(full, k)))
         add('left_right_mask', SHR(SHL(x, k), k), AND(x, SHR(full, k)))
+        # Complementary OR shifts rotate even for zero effective count. XOR
+        # needs an explicit nonzero-count premise; at zero it yields zero.
+        opposite = op(value('U32'), 'binary:-', word('U32', width), k)
+        for label, first, second in [('left', SHL, SHR), ('right', SHR, SHL)]:
+            target = op(sort, 'call:rotate_'+label, x, k)
+            add('rotate_'+label+'_or', OR(first(x,k), second(x,opposite)), target)
+            nonzero = op(boolean,'binary:!=',effective(k),word('U32',0))
+            add('rotate_'+label+'_xor', XOR(first(x,k), second(x,opposite)), target,
+                [eq(nonzero, truth)])
         # Path-local control facts are encoded in the *whole* source equality.
         # They cannot survive a merge, nor become assumptions outside a branch.
         add('nested_true_branch', CHOOSE(c, CHOOSE(c, x, y), z), CHOOSE(c, x, z))
@@ -85,6 +94,28 @@ def templates():
             op(boolean, 'call:choose', c, EQ(x, z), EQ(y, z)))
         add('select_add', ADD(CHOOSE(c, x, y), CHOOSE(c, z, m)), CHOOSE(c, ADD(x, z), ADD(y, m)))
         add('select_and', AND(CHOOSE(c, x, y), CHOOSE(c, z, m)), CHOOSE(c, AND(x, z), AND(y, m)))
+    # Representation round trips and low-word homomorphisms. These use
+    # existing total conversions, not V8's tagged-value or overflow assumptions.
+    u32, u64 = value('U32'), value('U64')
+    x, y, small = var(u64, 'x'), var(u64, 'y'), var(u32, 'small')
+    narrow = lambda t: op(u32, 'call:word_narrow_u64_to_u32', t)
+    widen = lambda t: op(u64, 'call:word_widen_u32_to_u64', t)
+    conversions = [('narrow_widen', narrow(widen(small)), small, {'small':u32}),
+                   ('widen_narrow_mask', widen(narrow(x)),
+                    op(u64, 'call:word_and', x, word('U64', (1 << 32)-1)), {'x':u64})]
+    for label, name in [('and','call:word_and'), ('or','call:word_or'),
+                        ('xor','call:word_xor'), ('add','binary:+'),
+                        ('sub','binary:-'), ('mul','binary:*')]:
+        conversions.append(('narrow_'+label, narrow(op(u64,name,x,y)),
+                            op(u32,name,narrow(x),narrow(y)), {'x':u64,'y':u64}))
+    small_x, small_y = var(u32,'small_x'), var(u32,'small_y')
+    for label, relation in [('eq','=='),('ne','!='),('lt','<'),('le','<='),('gt','>'),('ge','>=')]:
+        conversions.append(('widen_'+label,
+            op(boolean,'binary:'+relation,widen(small_x),widen(small_y)),
+            op(boolean,'binary:'+relation,small_x,small_y), {'small_x':u32,'small_y':u32}))
+    for name, left, right, params in conversions:
+        rows.append(dict(name='conversion/'+name,
+                         goal=dict(params=params,conditions=[],**{'from':left,'to':right})))
     return rows
 
 

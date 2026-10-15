@@ -15,6 +15,8 @@
     "producers.product_fusion",
     "producers.ordered_affine_tiles",
     "producers.indexed_lookup",
-    "producers.v8_word_laws"
+    "producers.v8_word_laws",
+    "producers.literal_loop_laws",
+    "producers.common_subexpressions"
   ]
 }

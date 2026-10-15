@@ -538,3 +538,18 @@ def contract_witnesses(context):
 def source_algorithms(context):
     from ink_knowledge.source_algorithms import propose
     yield from propose(context)
+
+
+def parameter_cache(context):
+    """Exact guarded argument tuples; profitability still needs lifecycle data."""
+    from producers.parameter_cache import candidates
+    from producers.representations import generate
+    with tempfile.TemporaryDirectory(prefix='ink-parameter-cache-')as temporary:
+        for index,(query,arguments)in enumerate(candidates(context['model'])):
+            label='parameter-cache:'+query+':'+json.dumps(arguments,separators=(',',':'))
+            try:
+                os.environ['INK_COMPILER']=context['compiler']
+                result=generate(context['model'],Path(temporary)/str(index),cache_query=query,preserve_cache=True,cache_arguments=arguments)
+                yield row('representation',result['requests'][1],label)
+            except (ValueError,KeyError,TypeError,NotImplementedError,subprocess.CalledProcessError,subprocess.TimeoutExpired)as error:
+                yield decline(label,error)

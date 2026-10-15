@@ -648,3 +648,30 @@ arguments and premise terms retain their binder scopes. The composed proof must
 replay; unsupported ambient contract or known-argument facts can still decline.
 The cutoffs propose alternatives; measurement must establish profitability. A
 guard's existence does not promise a win on small inputs.
+
+The installed `producers.common_subexpressions` producer proposes explicit lexical
+sharing for exact repeated pure scalar terms. It keeps callback scopes separate
+and preserves captured de Bruijn references when inserting a binder. These are
+whole-function source-bound `Normalize` laws using existing application/lambda
+syntax. Proposal size and count bounds grant no correctness or profitability
+authority; original and shared alternatives remain available to generic search.
+
+Source word certificates can opt into `--semantics fixed-words-v2 --encoding
+shared-v2` during offline `author_word_identities` acquisition. Fixed rotate
+meanings are reconstructed by the versioned source circuit; matching shift/rotate
+identities remain untrusted database proposals. Legacy source semantics and
+literal encoding stay the defaults. The certificate producer retains its chosen
+gate encoding, and every resulting law replays in the independent core. Scalar
+sharing also keeps lazy choice/Boolean regions separate.
+
+Guarded parameter-cache authoring extends `producers.representations` with
+`--cache-query NAME --cache-arguments '[7,true]' --preserve-cache`. One exact tuple
+of one to four U64/Bool arguments gets a maintained reply; an exact scalar guard
+falls back to the original query on every other tuple. Ordinary universal source
+representation, rollback, snapshot and migration proofs still replay; explicit
+Boolean splits and bit-vector witnesses justify specialization. The
+`guarded-parameter-cache` recipe seeds at most four bounded boundary/source-literal
+proposals, with no hotness premise or automatic profitability exception. Repair,
+compact-protocol and replacement composition currently decline. Parameterless
+proposal bytes remain unchanged. See `tests/test_parameter_cache.py` for admission,
+rehashing controls, exact scalar bounds and legacy packet identity.
