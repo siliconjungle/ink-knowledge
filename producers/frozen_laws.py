@@ -82,9 +82,12 @@ def update(directory, rows):
 
 def specialize(subject, directory, prefix):
     from ink_planner.semantic_search import positions, match
+    from ink_knowledge.pattern_index import TermIndex
     sites = [t for body in subject.get('functions',{}).values() for _, t in positions(body)]
     if not sites:
         return []
+    terms = TermIndex(sites)
     selected = [row for row in index(directory)
-                if any(match(row['from'],t,row['params'],{}) for t in sites)]
+                if any(match(row['from'],t,row['params'],{})
+                       for t in terms.candidates(row['from'], row['params']))]
     return [(prefix+row['name'],load(directory,row)) for row in selected]

@@ -147,8 +147,11 @@ def main():
     parser.add_argument('--case', action='append', help='generate only named examples')
     parser.add_argument('--solver-seconds', type=float, default=60)
     parser.add_argument('--conflicts', type=int, default=100_000)
+    parser.add_argument('--compact-seconds', type=float, default=0,
+                        help='opt-in root-unit factoring/inlining budget; ordinary replay still required')
     args = parser.parse_args(); directory = args.directory.resolve()
     if not 0 < args.solver_seconds <= 600 or not 0 < args.conflicts <= 1_000_000: parser.error('invalid proof-search budget')
+    if not 0 <= args.compact_seconds <= 600: parser.error('invalid proof-compaction budget')
     (directory / 'objects').mkdir(parents=True, exist_ok=True)
     scratch = KNOWLEDGE_ROOT / 'build/bitvector-producer'; scratch.mkdir(parents=True, exist_ok=True)
     compiler = args.compiler.resolve(); names = {}; proposals = []; sources = []; measurements = []
@@ -186,12 +189,19 @@ def main():
         subprocess.run([compiler,'bitvector-obligation',path,'-o',cnf],check=True,capture_output=True)
         problem = json.loads(cnf.read_text()); start = time.perf_counter()
         proof = certificate(problem,args.solver_seconds,args.conflicts); elapsed = time.perf_counter()-start
+        compaction = None
+        if args.compact_seconds:
+            from producers.rup_compaction import compact_certificate
+            proof, compaction = compact_certificate(problem, proof, args.compact_seconds)
         derivation = {'BitVector':dict(**{'from':left,'to':right},hypotheses=list(range(len(conditions))),certificate=proof)}
         identity = store(name,'Theorem',dict(**goal,proof=derivation))
         if not conditions: proposals.append(dict(function=name,**{'from':source(left),'to':source(right)},datatype=datatype,from_definitions=[],to_definitions=[],proof={'Use':dict(theorem=identity,arguments=[var(n) for n,_ in params],premises=[])}))
         result = 'Bool' if name in ('unsigned_reflexive','unsigned_maximum') else 'u64'
         if not conditions: sources.append(f'fn {name}('+', '.join(n+': '+('u64' if t=='U64' else t) for n,t in params)+f') -> {result} {{ return {render(source(left))}; }}')
         measurements.append(dict(name=name,conditions=len(conditions),variables=problem['variables'],clauses=len(problem['clauses']),steps=len(proof['steps']),hints=sum(len(s['hints']) for s in proof['steps']),producer_seconds=elapsed,problem_sha256=problem['sha256']))
+        if compaction is not None:
+            measurements[-1]['compaction'] = compaction
+            measurements[-1]['producer_seconds'] = time.perf_counter() - start
         print(f'{name}: {len(proof["steps"])} checked-step proposals, {elapsed:.3f}s producer time',flush=True)
     (directory/'lock.json').write_text(json.dumps(dict(schema=1,semantics=SEMANTICS,objects=list(names.values())),indent=2)+'\n')
     (directory/'names.json').write_text(json.dumps(names,indent=2)+'\n')

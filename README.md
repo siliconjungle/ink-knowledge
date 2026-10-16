@@ -900,6 +900,25 @@ retain unused/repeated strict operands and lazy exceptional defaults. See
 source application, default discovery and adversarial proof replay. Correctness
 admission does not establish a profitable implementation choice.
 
+Frozen-library discovery builds disposable operator/constructor buckets per
+immutable subject and applies exact sort filtering before the existing matcher.
+Root formal parameters retain all sites of their sort; literal values, repeated
+parameters and lexical capture checks still reach the exact matcher. Traversal
+order and duplicate sites are preserved, and a changed subject rebuilds the index.
+Only matched metadata triggers proof decompression; content/index consistency and
+ordinary kernel replay remain mandatory. No index, cache key or head label grants
+an equality, condition or profitability fact.
+
+`producers.rup_compaction.compact_certificate` optionally factors root-propagated
+unit consequences, inlines single-use unit lemmas using strict sequential hint
+propagation, and trims the proof dependency graph to the final contradiction.
+It keeps the smallest of the original, factored and inlined certificates by
+canonical byte size, preserving the exact CNF hash/encoding. The standalone
+bitvector author accepts `--compact-seconds` (default zero); this bounds a separate
+authoring phase. Default discovery, stored proofs and kernel budgets are unchanged.
+Every result must pass ordinary `knowledge-check`: smaller bytes establish no
+theorem, source-work elimination, checker work bound or profitable runtime choice.
+Timeouts return no candidate; the caller may retain its original certificate.
 
 Frozen fold prefix proofs now quantify over the remaining suffix. Leaf helpers
 prove an ordinary universal prefix equation, parents compose checked child
