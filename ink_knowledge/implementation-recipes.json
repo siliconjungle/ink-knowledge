@@ -2043,6 +2043,30 @@
         "universal-branch-equality",
         "measured-whole-call-profitability"
       ]
+    },
+    {
+      "id": "fold-state-projection",
+      "module": "producers.fold_state_projection",
+      "function": "propose",
+      "stage": "extension",
+      "requires": [
+        "core"
+      ],
+      "inputs": [
+        "core",
+        "source",
+        "knowledge_snapshot"
+      ],
+      "parameters": {
+        "limit": 16
+      },
+      "obligations": [
+        "conservative-typed-extension",
+        "universal-fold-step-simulation",
+        "exact-source-definition-context",
+        "checked-shared-body-equality",
+        "measured-profitability-before-automatic-selection"
+      ]
     }
   ],
   "schema": 1,

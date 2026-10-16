@@ -10,7 +10,7 @@ from itertools import product
 from ink_knowledge import identity
 from ink_knowledge.store import entry
 from producers.action_replacement import MATH, alpha_normal, call, cons, convert, trans, var
-from producers.point_delta import free_variables, lift, normal, sub
+from producers.point_delta import binding_names, free_variables, lift, normal, sub, variables
 
 
 def compose(proofs):
@@ -27,7 +27,10 @@ class FoldChunks:
     MAX_HELPERS = 128
     MAX_DEPTH = 16
 
-    def __init__(self, objects, helpers):
+    def __init__(self, objects, helpers, *, owned_chunk_width=4):
+        if owned_chunk_width not in (1, 2, 4, 8):
+            raise ValueError('owned chunk width must be 1, 2, 4 or 8')
+        self.owned_chunk_width = owned_chunk_width
         self.objects = dict(objects)
         self.helpers = set(helpers)
         self.lemmas = set()
@@ -37,6 +40,9 @@ class FoldChunks:
         self.data_cache = {}
         self.folds = {}
         self.closed = set()
+        self.unfoldings = {}
+        self.acyclic_bodies = {}
+        self.gates = set()
         for key, obj in self.objects.items():
             f = obj['payload'].get('declaration', {}).get('Function')
             if not f:
@@ -178,6 +184,112 @@ class FoldChunks:
         key = identity(obj); self.objects[key] = obj
         return key
 
+    def unfold(self, function, arguments):
+        """Expose an acyclic body through ordinary structural cases if needed.
+
+        Source owner helpers can carry a structural gate without a SelfCall.
+        A universal case lemma opens that gate; metadata never bypasses it.
+        Actual recursive bodies need their own induction and remain unsupported.
+        """
+        f = self.objects[function]['payload']['declaration']['Function']
+        values = [var(n) for n, _ in f['params']]
+        left, right = call(function, arguments), sub(f['body'],dict(zip([n for n, _ in f['params']],arguments)))
+        if f['recursive'] is None:
+            return convert(left,right)
+        if function not in self.unfoldings:
+            if not self.acyclic(function):
+                raise ValueError('structural helper unfolding needs an acyclic body')
+            name, sort = f['params'][f['recursive']]
+            datatype = sort['Data']
+            constructors = self.objects[datatype]['payload']['declaration']['Datatype']['constructors']
+            occupied = variables(f['body']) | binding_names(f['body']) | {n for n, _ in f['params']}
+            cases = []
+            for index, constructor in enumerate(constructors):
+                bindings = []
+                for field, _ in enumerate(constructor['fields']):
+                    fresh = 'helper_unfold_'+str(index)+'_'+str(field)
+                    while fresh in occupied: fresh += '_'
+                    occupied.add(fresh); bindings.append(fresh)
+                replacement = {name:cons(datatype,index,[var(n) for n in bindings])}
+                cases.append(dict(bindings=bindings,proof=convert(
+                    sub(call(function,values),replacement),sub(f['body'],replacement))))
+            self.unfoldings[function] = self.theorem(f['params'],call(function,values),f['body'],
+                {'Cases':dict(variable=name,**{'from':call(function,values),'to':f['body']},cases=cases)})
+        return {'Use':dict(theorem=self.unfoldings[function],arguments=arguments,premises=[])}
+
+    def acyclic(self, function):
+        if function not in self.acyclic_bodies:
+            f=self.objects[function]['payload'].get('declaration',{}).get('Function')
+            if not f:return False
+            pending=[f['body']];found=False
+            while pending:
+                self.tick();value=pending.pop()
+                if isinstance(value,dict):
+                    if 'SelfCall' in value:found=True;break
+                    pending.extend(value.values())
+                elif isinstance(value,list):pending.extend(value)
+            self.acyclic_bodies[function]=not found
+        return self.acyclic_bodies[function]
+
+    def close_helper(self, fold, suffix, captures, helper, arguments, expression):
+        invocation = call(helper,arguments)
+        context = lambda value:call(fold,[suffix,*captures,value])
+        f = self.objects[helper]['payload']['declaration']['Function']
+        if f['recursive'] is None:
+            return convert(context(expression),context(invocation))
+        body = sub(f['body'],dict(zip([n for n, _ in f['params']],arguments)))
+        occupied = variables([suffix,*captures,body,expression]) | binding_names([suffix,*captures,body,expression])
+        hole = 'chunk_helper_value'
+        while hole in occupied: hole += '_'
+        return compose([convert(context(expression),context(body)),
+            lift({'Sym':self.unfold(helper,arguments)},context(var(hole)),hole)])
+
+    def fixed_step(self, fold, head):
+        """Check a stage once with a symbolic accumulator, then instantiate it.
+
+        Re-normalizing an already expanded owner inside every later stage
+        duplicates its primal. This lemma preserves the entire accumulator and
+        its original operation order, without evaluating future runtime data.
+        """
+        key = ('fixed-step',fold,json.dumps(head,sort_keys=True,separators=(',',':')))
+        if key not in self.cache:
+            f, head_name, tail_name, step = self.folds[fold]
+            params = [['fixed_tail',f['params'][0][1]]] + [
+                ['fixed_dynamic_'+str(i),t] for i,(_,t) in enumerate(f['params'][1:])]
+            values = [var(n) for n,_ in params]
+            bindings = dict(zip([n for n,_ in f['params'][1:]],values[1:]))
+            bindings.update({head_name:head,tail_name:values[0]})
+            raw = sub(step,bindings)
+            simplified = normal(raw,self.objects,opaque=self.helpers|self.closed,
+                                blocked=self.folds,heads=self.closed)
+            lemma = self.theorem(params,raw,simplified,convert(raw,simplified))
+            self.cache[key] = lemma,params,simplified
+        return self.cache[key]
+
+    def factor_conversions(self, proof, env):
+        """Give unconditional conversions their own universally typed scope.
+
+        Convert uses no ambient premise. Do not descend into case/induction or
+        boolean branches, where new binders or hypotheses would need transport.
+        The enclosing action keeps every original premise and observation.
+        """
+        if 'Convert' in proof:
+            equation = proof['Convert']
+            names = sorted(free_variables(equation['from']) | free_variables(equation['to']))
+            params = [[name,env[name]] for name in names]
+            if any(sort is None for _,sort in params):
+                raise ValueError('factored conversion needs typed free variables')
+            lemma = self.theorem(params,equation['from'],equation['to'],proof)
+            return {'Use':dict(theorem=lemma,arguments=[var(name) for name in names],premises=[])}
+        if 'Trans' in proof:
+            return {'Trans':[self.factor_conversions(p,env) for p in proof['Trans']]}
+        if 'Sym' in proof:
+            return {'Sym':self.factor_conversions(proof['Sym'],env)}
+        if 'Substitute' in proof:
+            node=proof['Substitute']
+            return {'Substitute':dict(node,equality=self.factor_conversions(node['equality'],env))}
+        return proof
+
     def consume(self, fold, rows, helper, layout=None):
         """A reusable suffix-parametric prefix law plus a closed row witness.
 
@@ -202,7 +314,7 @@ class FoldChunks:
         try:
             f, head_name, tail_name, step = self.folds[fold]
             g = self.objects[helper]['payload']['declaration']['Function']
-            if (helper not in self.helpers or g['recursive'] is not None
+            if (helper not in self.helpers
                     or len(g['params']) != len(helper_values) or not g['params']
                     or len(values) != len(f['params'])-1
                     or g['params'][-1][1] != f['result'] or g['result'] != f['result']):
@@ -212,7 +324,7 @@ class FoldChunks:
             prefix_params = [['chunk_suffix', list_type]] + params
             invocation = call(helper, helper_values)
             normalized = normal(sub(g['body'], dict(zip([n for n, _ in g['params']], helper_values))),
-                self.objects, opaque=self.helpers | self.closed, blocked=self.folds)
+                self.objects, opaque=self.helpers | self.closed, blocked=self.folds, heads=self.closed)
             right_call = normalized.get('Call', {}); right_helper = right_call.get('function')
             left_call = (right_call.get('arguments') or [{}])[-1].get('Call', {})
             left_helper = left_call.get('function')
@@ -236,7 +348,7 @@ class FoldChunks:
                         convert(left, call(fold, [nested, *values])),
                         {'Use': dict(theorem=first_law, arguments=[call(second,[suffix]),*scope], premises=[])},
                         {'Use': dict(theorem=second_law, arguments=[suffix,*scope[:-1],middle], premises=[])},
-                        convert(call(fold,[suffix,*values[:-1],expanded]),right),
+                        self.close_helper(fold,suffix,values[:-1],helper,helper_values,expanded),
                     ]))
                     self.cache[template_key] = builder, law
                 builder, law = self.cache[template_key]
@@ -251,11 +363,15 @@ class FoldChunks:
                 if self.references(normalized) & self.helpers:
                     raise ValueError('fold chunk has unsupported helper composition')
                 current, accumulator, heads, matched = rows, values[-1], [], None
-                for count in range(self.MAX_CHUNK+1):
+                # Owner helpers use smaller source leaves. Do not expand twice
+                # as many symbolic steps merely to look past an already exact
+                # leaf match; identity leaves still consume their full bound.
+                limit = min(self.owned_chunk_width,self.MAX_CHUNK) if g['recursive'] is not None else self.MAX_CHUNK
+                for count in range(limit+1):
                     self.tick()
                     if count and alpha_normal(accumulator) == alpha_normal(normalized):
                         matched = current, list(heads)
-                    if count == self.MAX_CHUNK:
+                    if count == limit:
                         break
                     node = self.expose(current)['Construct']
                     if node['constructor'] == 0 and not node['arguments']:
@@ -266,7 +382,7 @@ class FoldChunks:
                     bindings = dict(zip([n for n,_ in f['params'][1:]], [*values[:-1],accumulator]))
                     bindings.update({head_name:head,tail_name:current})
                     accumulator = normal(sub(step,bindings),self.objects,
-                        opaque=self.helpers|self.closed,blocked=self.folds)
+                        opaque=self.helpers|self.closed,blocked=self.folds,heads=self.closed)
                 if matched is None:
                     raise ValueError('fold chunk has no matching bounded computation')
                 remaining, heads = matched
@@ -286,11 +402,19 @@ class FoldChunks:
                         bindings = dict(zip([n for n,_ in f['params'][1:]], [*values[:-1],accumulator]))
                         bindings.update({head_name:head,tail_name:tail})
                         raw = sub(step,bindings)
-                        simplified = normal(raw,self.objects,opaque=self.helpers|self.closed,blocked=self.folds)
-                        proofs.append(convert(call(fold,[tail,*values[:-1],raw]),call(fold,[tail,*values[:-1],simplified])))
+                        if g['recursive'] is not None:
+                            lemma,stage_params,stage = self.fixed_step(fold,head)
+                            arguments = [tail,*values[:-1],accumulator]
+                            simplified = sub(stage,dict(zip([n for n,_ in stage_params],arguments)))
+                            hole = 'fixed_step_value'
+                            proofs.append(lift({'Use':dict(theorem=lemma,arguments=arguments,premises=[])},
+                                call(fold,[tail,*values[:-1],var(hole)]),hole))
+                        else:
+                            simplified = normal(raw,self.objects,opaque=self.helpers|self.closed,blocked=self.folds,heads=self.closed)
+                            proofs.append(convert(call(fold,[tail,*values[:-1],raw]),call(fold,[tail,*values[:-1],simplified])))
                         current, accumulator = tail, simplified
                     right = call(fold,[suffix,*values[:-1],invocation])
-                    proofs.append(convert(call(fold,[suffix,*values[:-1],accumulator]),right))
+                    proofs.append(self.close_helper(fold,suffix,values[:-1],helper,helper_values,accumulator))
                     law = self.theorem(prefix_params,left,right,compose(proofs))
                     self.cache[template_key] = builder, law
                 builder, law = self.cache[template_key]
@@ -404,7 +528,7 @@ class FoldChunks:
                     raise ValueError('closed fold witness search budget')
                 arguments = [*captures,original[-1]]
                 target = call(helper,arguments)
-                evaluated = normal(target,self.objects,opaque=self.closed,blocked=self.folds)
+                evaluated = normal(target,self.objects,opaque=self.closed,blocked=self.folds,heads=self.closed)
                 if evaluated != result:
                     continue
                 try:

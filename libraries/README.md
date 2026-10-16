@@ -97,6 +97,16 @@ is reusable across element/state types; an instance must establish its own step
 relation. These are ordinary canonical laws and do not establish an arena or
 chunked-sequence codec relation merely by naming that representation.
 
+`fold-projection-laws.ink` and `proofs/fold-projection` provide the generic
+ordered-fold projection theorem. `producers.fold_state_projection` now constructs
+smaller source record-fold helpers and imports this law with a universally checked
+simulation against the actual source step. It rewrites the shared pure body, so
+stateful callers retain their ordinary transaction boundaries and live model
+parameters. Syntax discovery, field liveness and training traces confer no
+authority. Other-field dependence and unsupported scopes decline; independently
+rehashed false conclusions and well-typed false simulations reject. Comparable
+lifecycle evidence remains mandatory for automatic selection.
+
 `owned-values.ink` exercises generic Buffer-backed refined-element copying.
 `local-relations.ink` supplies checked frame, simulation and conditional relation
 laws for ordered folds. `buffer-views.ink` uses scoped read-only clipped ranges;

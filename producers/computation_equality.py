@@ -30,8 +30,8 @@ class ComputationEquality:
         if depth > 64:
             raise ValueError('computation equality normalization depth')
         term = normal(term, self.chunks.objects,
-                      opaque=self.chunks.helpers | self.chunks.closed,
-                      blocked=self.chunks.folds)
+                      opaque=self.chunks.helpers | self.chunks.closed | self.chunks.gates,
+                      blocked=self.chunks.folds,heads=self.chunks.closed)
         # The small normalizer deliberately leaves unknown Match branches
         # untouched. Enter their syntax here, retaining every local binder.
         def visit(value, nesting):
@@ -169,8 +169,12 @@ class ComputationEquality:
         if 'Call' in left and 'Call' in right:
             x,y = left['Call'],right['Call']
             if x['function'] in self.chunks.folds and y['function'] in self.chunks.helpers:
-                lemma,args = self.chunks.bridge_application(x,y)
-                return finish({'Use':dict(theorem=lemma,arguments=args,premises=[])})
+                helper = self.chunks.objects[y['function']]['payload']['declaration']['Function']
+                original = self.chunks.folds[x['function']][0]
+                if (helper['params'] and helper['result'] == original['result']
+                        and helper['params'][-1][1] == original['result']):
+                    lemma,args = self.chunks.bridge_application(x,y)
+                    return finish({'Use':dict(theorem=lemma,arguments=args,premises=[])})
             if x['function'] == y['function'] and len(x['arguments'])==len(y['arguments']):
                 return finish({'Call':dict(function=x['function'],arguments=[self.prove(v,w,env,hypotheses,depth+1)
                     for v,w in zip(x['arguments'],y['arguments'])])})
@@ -207,6 +211,21 @@ class ComputationEquality:
                 middle={'Match':dict(scrutinee=y['scrutinee'],branches=x['branches'])}
                 return finish(compose([lift(equality,context,hole),
                     self.prove(middle,right,env,hypotheses,depth+1)]))
+        # Pure wrappers may return a projection/freeze of an owned accumulator,
+        # rather than that accumulator itself. Expose one checked definition
+        # before splitting its result into unrelated constructor fields. Keep
+        # its chunk callees opaque so their universal fold bridges remain small.
+        for side, term in [('right', right), ('left', left)]:
+            invocation = term.get('Call')
+            if invocation and (invocation['function'] in self.chunks.helpers
+                    or (self.chunks.objects[invocation['function']]['payload'].get('declaration',{}).get('Function',{}).get('recursive') is not None
+                        and self.chunks.acyclic(invocation['function']))):
+                helper = self.chunks.objects[invocation['function']]['payload']['declaration']['Function']
+                body = sub(helper['body'], dict(zip([n for n, _ in helper['params']], invocation['arguments'])))
+                opened = self.chunks.unfold(invocation['function'],invocation['arguments'])
+                if side == 'right':
+                    return finish(compose([self.prove(left,body,env,hypotheses,depth+1), {'Sym':opened}]))
+                return finish(compose([opened, self.prove(body,right,env,hypotheses,depth+1)]))
         node = left.get('Match',right.get('Match'))
         if node:
             scrutinee=node['scrutinee'];sort=self.sort(scrutinee,env)
