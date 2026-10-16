@@ -91,3 +91,8 @@ names and preserve iteration/IEEE operation order. Literal operation choices can
 disappear while weights remain mutable. The proposer does not calculate floating
 arithmetic or invent equality facts; the complete checked action proof decides
 admission. Source/continuation/canonical-value bounds still limit larger graphs.
+The proposer first transports exact frozen rows through source case forms without
+fully expanding live arithmetic. Ordinary checking must accept that compact
+proof; otherwise it retries the existing normalization tactic. Both failures
+leave a prior selection file untouched. This reduces repeated proof payloads,
+not the equality obligations or the frozen-row restore contract.

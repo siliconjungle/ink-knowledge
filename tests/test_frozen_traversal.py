@@ -1,19 +1,45 @@
 """Frozen traversal proposals replay ordinary complete transition proofs."""
 import copy
+from contextlib import redirect_stdout
+import io
 import json
 import os
 from pathlib import Path
 import subprocess
 import tempfile
 import unittest
+from unittest.mock import patch
 
 from producers.frozen_specialization import Partial, specialize
+from producers import frozen_specialization
 
 ROOT = Path(__file__).resolve().parents[2]
 INK = Path(os.environ.get('INK_COMPILER', ROOT/'target/debug/ink'))
 
 
 class FrozenTraversal(unittest.TestCase):
+    def test_compact_rejection_replays_checked_fallback_and_failure_keeps_prior_output(self):
+        with tempfile.TemporaryDirectory() as temp:
+            temp = Path(temp)
+            source, core, output = temp/'source.ink', temp/'source.core.json', temp/'selection.json'
+            source.write_text('module fallback; state Frozen:Table<u64,u64>=Table.empty(); query serve(x:u64)->u64 reads(Frozen){return Frozen.get(0).unwrap_or(0)+x;}')
+            subprocess.run([INK, 'emit-core', source, '-o', core], check=True, capture_output=True)
+            program = json.loads(core.read_bytes())
+            program['semantics'] = 'ink-executable-core-v14'
+            program['program']['frozen'] = {'Frozen': [[0, 42]]}
+            core.write_text(json.dumps(program))
+            argv = ['frozen_specialization', str(core), '--ink', str(INK.resolve()), '-o', str(output)]
+            wrong = {'Refl': {'Var': 'missing'}}
+            with patch('sys.argv', argv), patch.object(frozen_specialization, 'compact_equality', return_value=wrong), redirect_stdout(io.StringIO()) as stdout:
+                frozen_specialization.main()
+            self.assertEqual(json.loads(stdout.getvalue())['proof_strategy'], 'normalized')
+            subprocess.run([INK, 'check-selection', core, output], check=True, capture_output=True)
+            saved = output.read_bytes()
+            with patch('sys.argv', argv), patch.object(frozen_specialization, 'compact_equality', return_value=wrong), patch.object(frozen_specialization, 'equality', return_value=wrong):
+                with self.assertRaises(subprocess.CalledProcessError):
+                    frozen_specialization.main()
+            self.assertEqual(output.read_bytes(), saved)
+
     def test_fold_slots_are_linear_hygienic_and_keep_even_unused_initializers(self):
         p = dict(functions=[], states=[], enums={}, records={})
         for name in ['foldl', 'foldr']:
