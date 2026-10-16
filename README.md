@@ -775,3 +775,13 @@ measured data is separate from varying widths; count/height and complete cursor
 observations have distinct execution paths. F64, shape/capacity validation,
 explicit rejection of complex break kinds and the upstream license are retained.
 This is not font measurement, full Pretext fidelity or upstream speed parity.
+
+`libraries/prepared_complex_text.ink` adds complex prepared geometry under the
+same explicit measurement boundary. Numerical profiles govern hyphen retreat,
+tab stops, hanging spaces, padded openings and hard breaks; optional rich-inline
+facts remain ordinary input data. Source validation bounds complete shapes,
+finite measurements, work and cursor progress. The distribution retains an
+upstream-only geometry/continuation oracle, cross-target state histories and
+diagnostic performance controls. This source library grants no rewrite authority
+and changes no canonical proof snapshot. Segmentation, shaping, measurement,
+incremental preparation and the requested speed parity remain separate work.
