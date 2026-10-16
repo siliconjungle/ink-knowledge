@@ -1024,3 +1024,16 @@ is claimed. The separately measured zero-first proof prototype trades away the
 GPU power gain to remove most of that fallback regression; it is not an installed
 root in this batch. Exact source/proof/plan contexts and both controls are in the
 distribution's `bench/v8-learning/variable-power` evidence.
+
+Published source bindings now also live in a versioned, disposable per-entry
+SQLite summary. Rebuild and refresh derive it while canonical entries are already
+open; a legacy index migrates once, and historical snapshots join their exact
+membership to the same immutable entry identities. Missing or incomplete
+summaries retain the legacy scan/sidecar fallback. Lookup avoids opening unrelated
+package bodies. The consumer rechecks the canonical entry kind and source binding,
+and every offered implementation still needs normal source/plan/proof admission.
+Forged binding/kind hints and authenticated false packages are covered by tests.
+On the retained 180-package control, three fresh processes reduce median lookup
+from 4.87 seconds and180 body reads to23 milliseconds and zero unused body reads.
+The one-time migration costs about eight seconds, reported separately; this does
+not establish faster compiled applications or robust whole-planner coverage.

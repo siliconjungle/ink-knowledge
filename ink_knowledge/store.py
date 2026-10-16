@@ -360,6 +360,8 @@ class Store:
                 db.executescript(template_schema)
                 from .family_evidence import SCHEMA as attribution_schema, insert as insert_attribution
                 db.executescript(attribution_schema)
+                from .published_bindings import ensure_schema as binding_schema, insert as insert_binding
+                binding_schema(db)
 
                 db.execute('INSERT INTO snapshots(id,root) VALUES(?,?)',(self.snapshot_id,self.snapshot['root']))
                 objects=self.members();witness_cache={}
@@ -371,6 +373,7 @@ class Store:
                     from .pattern_index import insert as insert_pattern
                     insert_pattern(db,i,obj)
                     insert_template(db,i,obj)
+                    insert_binding(db,i,obj)
                     index_member(db,self.snapshot_id,i,self.members()[i],witness_cache)
                     db.execute('INSERT INTO types VALUES(?,?,?,?)',(i,'result','',encode(iface['result'])))
                     db.executemany('INSERT INTO types VALUES(?,?,?,?)',[(i,'parameter',n,encode(t)) for n,t in iface['parameters'].items()])
@@ -403,7 +406,7 @@ class Store:
                     columns={r[1]for r in db.execute('PRAGMA table_info(members)')}
                     from .index_cache import INDEXES
                     indexes={r[0]for r in db.execute("SELECT name FROM sqlite_master WHERE type='index'")}
-                    if {'snapshots','entries','members','witnesses','pattern_roots','pattern_targets','template_heads','template_tokens','observations','observation_entries','observation_attribution'}<=tables and 'witness_id'in columns and set(INDEXES)<=indexes:
+                    if {'published_bindings_v1','snapshots','entries','members','witnesses','pattern_roots','pattern_targets','template_heads','template_tokens','observations','observation_entries','observation_attribution'}<=tables and 'witness_id'in columns and set(INDEXES)<=indexes and 'published_binding_lookup_v1'in indexes:
                         found=db.execute('SELECT root FROM snapshots WHERE id=?',(self.snapshot_id,)).fetchone()
                         if found and found[0]==self.snapshot['root']:
                             from .index_cache import touch
@@ -445,6 +448,8 @@ class Store:
             if Path(tmp).exists():Path(tmp).unlink()
         return added
     def _refresh_rows(self,db):
+        from .published_bindings import ensure_schema as binding_schema, insert as insert_binding, refresh_missing as refresh_bindings
+        binding_schema(db)
         from .family_evidence import insert as insert_attribution
         db.execute('INSERT OR IGNORE INTO snapshots(id,root) VALUES(?,?)',(self.snapshot_id,self.snapshot['root']))
         members=self.members();encode=lambda x:canonical(x).decode();witness_cache={}
@@ -459,6 +464,7 @@ class Store:
                 insert_pattern(db,i,obj)
                 from .template_index import insert as insert_template
                 insert_template(db,i,obj)
+                insert_binding(db,i,obj)
                 db.execute('INSERT INTO types VALUES(?,?,?,?)',(i,'result','',encode(iface['result'])))
                 db.executemany('INSERT INTO types VALUES(?,?,?,?)',[(i,'parameter',n,encode(t)) for n,t in iface['parameters'].items()])
                 db.executemany('INSERT INTO applicability VALUES(?,?,?)',[(i,n,encode(c)) for n,c in enumerate(iface['conditions'])])
@@ -466,6 +472,7 @@ class Store:
                 db.executemany('INSERT INTO effects VALUES(?,?)',[(i,x) for x in iface['effects']])
                 db.executemany('INSERT INTO dependencies VALUES(?,?)',[(i,d) for d in obj['dependencies']])
             index_member(db,self.snapshot_id,i,members[i],witness_cache)
+        refresh_bindings(self,db)
         prune_index(db,self.snapshot_id)
         db.execute('DELETE FROM names')
         for name,i in self.names.items():

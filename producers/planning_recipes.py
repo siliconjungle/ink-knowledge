@@ -31,6 +31,7 @@ def published(context):
         for ident,binding in entries:
             if binding!=target and not (kind=='maintenance' and binding is None):continue
             obj=store.object(ident)
+            if obj['kind']!=kind:continue  # Disposable binding rows are discovery hints.
             if kind=='representation':
                 if obj['payload'].get('source_objects')!=source_objects:continue
                 request=dict(schema=1,semantics=obj['semantics'],input_core_sha256=context['source'],
