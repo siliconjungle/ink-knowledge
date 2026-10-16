@@ -96,6 +96,74 @@ for(const w of [0,1,0xffffffff,0x80000001]){
             run = subprocess.run(['node',script,folder/'baseline.mjs',folder/'selected.mjs',folder/'expanded.mjs'],capture_output=True,text=True)
             self.assertEqual(run.returncode,0,run.stderr)
 
+    def test_suffix_parametric_laws_scale_and_reject_a_rehashed_false_tail_claim(self):
+        from ink_knowledge import Store, identity
+        with tempfile.TemporaryDirectory() as directory:
+            folder=Path(directory);core,source=self.fixture(folder,512)
+            source['program']['frozen']['Code'][0][1]=list(range(8))*64
+            core.write_text(json.dumps(source));plan=folder/'plan.json'
+            run=subprocess.run(['python3',PRODUCER,core,'--ink',INK,'-o',plan],capture_output=True,text=True)
+            self.assertEqual(run.returncode,0,run.stderr)
+            self.assertEqual(json.loads(run.stdout)['helpers'],7)
+            objects=json.loads(plan.read_bytes())['steps'][1]['package']['knowledge']['objects']
+            universal=[o for o in objects.values() if o['kind']=='theorem'
+                and o['payload']['declaration']['Theorem']['params']
+                and o['payload']['declaration']['Theorem']['params'][0][0]=='chunk_suffix']
+            self.assertEqual(len(universal),7)
+            # Check one ordinary universal lemma independently of the action
+            # plan, then publish a well-typed false conclusion under a new ID.
+            law=next(o for o in universal if 'Construct' in objects[
+                o['payload']['declaration']['Theorem']['from']['Call']['arguments'][0]['Call']['function']
+            ]['payload']['declaration']['Function']['body'])
+            view=folder/'view.json'
+            store=Store.publish(folder/'valid',list(objects.values()))
+            view.write_text(json.dumps(store.bundle([identity(law)])))
+            valid=subprocess.run([INK,'knowledge-check',core,view],capture_output=True,text=True)
+            self.assertEqual(valid.returncode,0,valid.stderr)
+            bad=copy.deepcopy(law);theorem=bad['payload']['declaration']['Theorem']
+            theorem['to']=theorem['to']['Call']['arguments'][-1]
+            forged=Store.publish(folder/'forged',[*objects.values(),bad])
+            view.write_text(json.dumps(forged.bundle([identity(bad)])))
+            rejected=subprocess.run([INK,'knowledge-check',core,view],capture_output=True,text=True)
+            self.assertNotEqual(rejected.returncode,0)
+            self.assertNotIn('identity mismatch',rejected.stderr)
+            self.assertNotIn('interface mismatch',rejected.stderr)
+            self.assertTrue('proof' in rejected.stderr or 'resource limit' in rejected.stderr,rejected.stderr)
+            for name,command in [('baseline',[INK,'build',core,'--core']),
+                                 ('selected',[INK,'compile',core,'--core','--plan',plan])]:
+                subprocess.run([*command,'--target','javascript','-o',folder/(name+'.mjs')],check=True,capture_output=True)
+            script=folder/'execute.mjs'
+            script.write_text("""import assert from 'node:assert/strict';
+import {pathToFileURL} from 'node:url';
+const [a,b]=await Promise.all(process.argv.slice(2).map(async p=>(await import(pathToFileURL(p))).createState()));
+for(const w of [0,1,0xffffffff,0x80000001]){
+ assert.deepEqual(a.invoke('retune',[w]),b.invoke('retune',[w]));
+ for(const x of [0,1,0xffffffff,0x12345678]){
+  let expected=x;for(let i=0;i<512;i++)expected=(Math.imul(expected,w)+i%8)>>>0;
+  const left=a.invoke('serve',[x]);assert.deepEqual(left,b.invoke('serve',[x]));assert.equal(left.result,expected);
+  assert.deepEqual(await a.checkpoint(),await b.checkpoint());
+ }
+}
+""")
+            executed=subprocess.run(['node',script,folder/'baseline.mjs',folder/'selected.mjs'],capture_output=True,text=True)
+            self.assertEqual(executed.returncode,0,executed.stderr)
+
+    def test_identity_steps_consume_full_chunks_and_the_short_final_chunk(self):
+        with tempfile.TemporaryDirectory() as directory:
+            folder=Path(directory)
+            src=folder/'identity.ink';src.write_text("""module identity_prefix;
+state Code:Table<u64,List<u32>>=Table.empty();
+fn evaluate(code:List<u32>,input:u32)->u32{return foldl(code,input,fn(op)=>fn(value)=>value);}
+query serve(input:u32)->u32 reads(Code){return evaluate(Code.get(0).unwrap_or([]),input);}
+""")
+            core=folder/'core.json'
+            subprocess.run([INK,'emit-core',src,'-o',core],check=True,capture_output=True)
+            source=json.loads(core.read_bytes());source['program']['frozen']={'Code':[[0,list(range(67))]]}
+            source['semantics']='ink-executable-core-v14';core.write_text(json.dumps(source))
+            plan=folder/'plan.json'
+            result=subprocess.run(['python3',PRODUCER,core,'--ink',INK,'-o',plan],capture_output=True,text=True)
+            self.assertEqual(result.returncode,0,result.stderr)
+
     def test_unknown_and_short_traversals_do_not_acquire_helpers(self):
         with tempfile.TemporaryDirectory() as directory:
             _, source = self.fixture(Path(directory), 8)

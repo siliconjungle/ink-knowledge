@@ -9,7 +9,7 @@ import json
 from ink_knowledge import identity
 from ink_knowledge.store import entry
 from producers.action_replacement import MATH, alpha_normal, call, cons, convert, trans, var
-from producers.point_delta import free_variables, normal, sub
+from producers.point_delta import free_variables, lift, normal, sub
 
 
 def compose(proofs):
@@ -151,10 +151,22 @@ class FoldChunks:
         self.cache[('cons', fold)] = key
         return key
 
+    def definition(self, params, result, body):
+        declaration = {'Function': dict(params=params, recursive=None, result=result, body=body)}
+        obj = entry('definition', MATH, {'declaration': declaration}, self.references(declaration),
+                    parameters=dict(params), result=result)
+        key = identity(obj); self.objects[key] = obj
+        return key
+
     def consume(self, fold, rows, helper):
-        """Prove a helper consumes a prefix, retaining its exact remaining fold."""
+        """A reusable suffix-parametric prefix law plus a closed row witness.
+
+        Prefix equations quantify over the unconsumed tail as well as all live
+        arguments. The small closed witness binds this particular source list
+        to that prefix. No proof depends on a cached producer verdict.
+        """
         self.tick()
-        key = (fold, json.dumps(rows, sort_keys=True, separators=(',', ':')), helper)
+        key = ('consume', fold, json.dumps(rows, sort_keys=True, separators=(',', ':')), helper)
         if key in self.cache:
             return self.cache[key]
         if key in self.active or len(self.active) >= self.MAX_DEPTH:
@@ -167,73 +179,111 @@ class FoldChunks:
                     or [t for _, t in g['params']] != [t for _, t in f['params'][1:]]
                     or g['result'] != f['result']):
                 raise ValueError('fold chunk helper signature')
+            list_type = f['params'][0][1]; datatype = list_type['Data']
             params = [['chunk_dynamic_'+str(i), t] for i, (_, t) in enumerate(f['params'][1:])]
-            values = [var(n) for n, _ in params]
+            values = [var(n) for n, _ in params]; suffix = var('chunk_suffix')
+            prefix_params = [['chunk_suffix', list_type]] + params
             invocation = call(helper, values)
-            left = call(fold, [rows, *values])
             normalized = normal(sub(g['body'], dict(zip([n for n, _ in g['params']], values))),
                 self.objects, opaque=self.helpers | self.closed, blocked=self.folds)
-            right_call = normalized.get('Call', {})
-            right_helper = right_call.get('function')
+            right_call = normalized.get('Call', {}); right_helper = right_call.get('function')
             left_call = (right_call.get('arguments') or [{}])[-1].get('Call', {})
             left_helper = left_call.get('function')
             if right_helper in self.helpers and left_helper in self.helpers:
-                if (right_call['arguments'][:-1] != values[:-1] or left_call['arguments'] != values):
+                if right_call['arguments'][:-1] != values[:-1] or left_call['arguments'] != values:
                     raise ValueError('fold chunk composition changes a capture')
-                middle_rows, left_lemma = self.consume(fold, rows, left_helper)
-                remaining_rows, right_lemma = self.consume(fold, middle_rows, right_helper)
-                middle = call(left_helper, values)
-                expanded = call(right_helper, [*values[:-1], middle])
-                proofs = [
-                    {'Use': dict(theorem=left_lemma, arguments=values, premises=[])},
-                    {'Use': dict(theorem=right_lemma, arguments=[*values[:-1], middle], premises=[])},
-                    convert(call(fold, [remaining_rows, *values[:-1], expanded]),
-                            call(fold, [remaining_rows, *values[:-1], invocation])),
-                ]
+                middle_rows, first, first_law, first_rows = self.consume(fold, rows, left_helper)
+                remaining, second, second_law, second_rows = self.consume(fold, middle_rows, right_helper)
+                template_key = ('prefix-pair', fold, helper, first, second)
+                if template_key not in self.cache:
+                    nested = call(first, [call(second, [suffix])])
+                    builder = self.definition([['chunk_suffix', list_type]], list_type, nested)
+                    middle = call(left_helper, values)
+                    expanded = call(right_helper, [*values[:-1], middle])
+                    left = call(fold, [call(builder, [suffix]), *values])
+                    right = call(fold, [suffix, *values[:-1], invocation])
+                    law = self.theorem(prefix_params, left, right, compose([
+                        convert(left, call(fold, [nested, *values])),
+                        {'Use': dict(theorem=first_law, arguments=[call(second,[suffix]),*values], premises=[])},
+                        {'Use': dict(theorem=second_law, arguments=[suffix,*values[:-1],middle], premises=[])},
+                        convert(call(fold,[suffix,*values[:-1],expanded]),right),
+                    ]))
+                    self.cache[template_key] = builder, law
+                builder, law = self.cache[template_key]
+                nested = call(first, [call(second,[remaining])])
+                witness = self.theorem([], rows, call(builder,[remaining]), compose([
+                    {'Use': dict(theorem=first_rows, arguments=[], premises=[])},
+                    lift({'Use': dict(theorem=second_rows, arguments=[], premises=[])},
+                         call(first,[var('chunk_rows_hole')]), 'chunk_rows_hole'),
+                    convert(nested, call(builder,[remaining])),
+                ]))
             else:
                 if self.references(normalized) & self.helpers:
                     raise ValueError('fold chunk has unsupported helper composition')
-                current_rows, accumulator, proofs = rows, values[-1], []
-                cons_lemma = self.cons_equation(fold)
-                for count in range(self.MAX_CHUNK + 1):
+                current, accumulator, heads, matched = rows, values[-1], [], None
+                for count in range(self.MAX_CHUNK+1):
                     self.tick()
                     if count and alpha_normal(accumulator) == alpha_normal(normalized):
-                        remaining_rows = current_rows
-                        proofs.append(convert(call(fold, [current_rows, *values[:-1], accumulator]),
-                                              call(fold, [current_rows, *values[:-1], invocation])))
+                        matched = current, list(heads)
+                    if count == self.MAX_CHUNK:
                         break
-                    exposed = self.expose(current_rows); node = exposed['Construct']
-                    if count == self.MAX_CHUNK or node['constructor'] != 1 or len(node['arguments']) != 2:
+                    node = self.expose(current)['Construct']
+                    if node['constructor'] == 0 and not node['arguments']:
+                        break
+                    if node['constructor'] != 1 or len(node['arguments']) != 2:
                         raise ValueError('fold chunk has no matching bounded computation')
-                    head, tail = node['arguments']
-                    old = call(fold, [current_rows, *values[:-1], accumulator])
-                    exposed_call = call(fold, [exposed, *values[:-1], accumulator])
-                    proofs.append(convert(old, exposed_call))
-                    proofs.append({'Use': dict(theorem=cons_lemma,
-                        arguments=[head, tail, *values[:-1], accumulator], premises=[])})
-                    bindings = dict(zip([n for n, _ in f['params'][1:]], [*values[:-1], accumulator]))
-                    bindings.update({head_name: head, tail_name: tail})
-                    raw = sub(step, bindings)
-                    simplified = normal(raw, self.objects, opaque=self.helpers | self.closed, blocked=self.folds)
-                    proofs.append(convert(call(fold, [tail, *values[:-1], raw]),
-                                          call(fold, [tail, *values[:-1], simplified])))
-                    current_rows, accumulator = tail, simplified
-            right = call(fold, [remaining_rows, *values[:-1], invocation])
-            lemma = self.theorem(params, left, right, compose(proofs))
-            self.cache[key] = (remaining_rows, lemma)
-            return remaining_rows, lemma
+                    head, current = node['arguments']; heads.append(head)
+                    bindings = dict(zip([n for n,_ in f['params'][1:]], [*values[:-1],accumulator]))
+                    bindings.update({head_name:head,tail_name:current})
+                    accumulator = normal(sub(step,bindings),self.objects,
+                        opaque=self.helpers|self.closed,blocked=self.folds)
+                if matched is None:
+                    raise ValueError('fold chunk has no matching bounded computation')
+                remaining, heads = matched
+                template_key = ('prefix-leaf',fold,helper,json.dumps(heads,sort_keys=True,separators=(',',':')))
+                if template_key not in self.cache:
+                    prefix = suffix
+                    for head in reversed(heads): prefix = cons(datatype,1,[head,prefix])
+                    builder = self.definition([['chunk_suffix',list_type]],list_type,prefix)
+                    left = call(fold,[call(builder,[suffix]),*values])
+                    proofs = [convert(left,call(fold,[prefix,*values]))]
+                    current, accumulator = prefix, values[-1]
+                    cons_law = self.cons_equation(fold)
+                    for head in heads:
+                        tail = current['Construct']['arguments'][1]
+                        proofs.append({'Use':dict(theorem=cons_law,
+                            arguments=[head,tail,*values[:-1],accumulator],premises=[])})
+                        bindings = dict(zip([n for n,_ in f['params'][1:]], [*values[:-1],accumulator]))
+                        bindings.update({head_name:head,tail_name:tail})
+                        raw = sub(step,bindings)
+                        simplified = normal(raw,self.objects,opaque=self.helpers|self.closed,blocked=self.folds)
+                        proofs.append(convert(call(fold,[tail,*values[:-1],raw]),call(fold,[tail,*values[:-1],simplified])))
+                        current, accumulator = tail, simplified
+                    right = call(fold,[suffix,*values[:-1],invocation])
+                    proofs.append(convert(call(fold,[suffix,*values[:-1],accumulator]),right))
+                    law = self.theorem(prefix_params,left,right,compose(proofs))
+                    self.cache[template_key] = builder, law
+                builder, law = self.cache[template_key]
+                witness = self.theorem([],rows,call(builder,[remaining]),convert(rows,call(builder,[remaining])))
+            result = remaining, builder, law, witness
+            self.cache[key] = result
+            return result
         finally:
             self.active.remove(key)
 
     def bridge(self, fold, rows, helper):
-        remaining, prefix = self.consume(fold, rows, helper)
+        remaining, builder, prefix, witness = self.consume(fold, rows, helper)
         exposed = self.expose(remaining)['Construct']
         if exposed['constructor'] != 0 or exposed['arguments']:
             raise ValueError('fold chunk composition does not consume every row')
         f = self.folds[fold][0]
         params = [['chunk_dynamic_'+str(i), t] for i, (_, t) in enumerate(f['params'][1:])]
-        values = [var(n) for n, _ in params]
-        left, right = call(fold, [rows, *values]), call(helper, values)
-        proof = compose([{'Use':dict(theorem=prefix, arguments=values, premises=[])},
-            convert(call(fold, [remaining, *values[:-1], right]), right)])
-        return self.theorem(params, left, right, proof)
+        values = [var(n) for n,_ in params]
+        left, right = call(fold,[rows,*values]),call(helper,values)
+        proof = compose([
+            lift({'Use':dict(theorem=witness,arguments=[],premises=[])},
+                 call(fold,[var('chunk_rows_hole'),*values]),'chunk_rows_hole'),
+            {'Use':dict(theorem=prefix,arguments=[remaining,*values],premises=[])},
+            convert(call(fold,[remaining,*values[:-1],right]),right),
+        ])
+        return self.theorem(params,left,right,proof)
