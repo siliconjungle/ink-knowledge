@@ -1007,9 +1007,10 @@ closure is smaller. The library now has 341 root patterns, with every previous 3
 root proof identity unchanged. This does not cover signed or U64 variable
 remainder, nor arbitrary-divisor reciprocal multiplication.
 
-Ephemeral proposal views use two-entry Merkle leaf buckets to reduce membership
-metadata repeated across dependency closures. They retain the same authenticated
-objects, transitive dependencies and ordinary kernel replay. A real35-object
+Ephemeral proposal views keep ordinary 64-entry Merkle leaves cheap. A requested
+packet near existing transport limits lazily tries compact two-entry leaves and
+uses them only when smaller. They retain the same authenticated objects,
+transitive dependencies and ordinary kernel replay. A real35-object
 source selection falls from16,031,589 bytes (rejected) to15,970,479 bytes (accepted)
 without changing the16MB source/catalogue cap,128MB view cap or proof budgets.
 This establishes a transport capability; the rejected input is not a successful
@@ -1034,6 +1035,21 @@ package bodies. The consumer rechecks the canonical entry kind and source bindin
 and every offered implementation still needs normal source/plan/proof admission.
 Forged binding/kind hints and authenticated false packages are covered by tests.
 On the retained 180-package control, three fresh processes reduce median lookup
-from 4.87 seconds and180 body reads to23 milliseconds and zero unused body reads.
+from 4.87 seconds and 180 body reads to 23 milliseconds and zero unused body reads.
 The one-time migration costs about eight seconds, reported separately; this does
 not establish faster compiled applications or robust whole-planner coverage.
+
+Kind-filtered discovery has a covering `(kind,id)` SQLite index, so ordered
+pagination can filter entries before joining pinned snapshot membership. Modern
+index upgrades run in the existing atomic refresh transaction without copying
+the database. Malformed optional source-binding metadata remains unbound instead
+of preventing unrelated entries from indexing. These are disposable hints;
+canonical package authentication and ordinary proof/source checking remain.
+
+Eager compact transport was rejected after complete-program profiling exposed
+its filesystem cost across repeated discovery refreshes. Ordinary requests now
+retain the prior membership topology; only near-limit packets build the compact
+alternative. Canonical object bytes establish both content identity and exact
+size once, with the original view-wrapper nesting limit preserved. Cache sizing
+combines those lengths with fully canonical outer metadata. The large guarded
+proof packet remains byte-identical and admitted under the unchanged limits.

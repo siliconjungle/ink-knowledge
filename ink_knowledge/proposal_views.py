@@ -1,6 +1,7 @@
 """Materialise only requested proof closures, never unused discovery catalogues."""
 from pathlib import Path
-from .store import Store,identity,MAX_VIEW_ENTRIES,MAX_VIEW_BYTES,canonical,_publication_lock
+import hashlib
+from .store import Store,identity,MAX_VIEW_ENTRIES,MAX_VIEW_BYTES,MAX_ENTRY_BYTES,canonical,_publication_lock
 class ProposalViews:
     def __init__(self,source,objects,directory):
         self.source,self.objects,self.directory=source,objects,Path(directory)
@@ -18,11 +19,12 @@ class ProposalViews:
             if ident in identities:continue
             obj=self.source.object(ident);identities.add(ident);pending.extend(obj['dependencies'])
         with _publication_lock(self.directory):
-            # A view repeats the complete leaf bucket for each member. Small
-            # leaves trade a few Merkle siblings for bounded repeated metadata,
-            # preserving existing per-entry, source and catalogue byte limits.
-            self.transport=Store._publish_ids(self.directory,identities,{},2)
+            # Keep ordinary discovery cheap. Compact membership is built lazily
+            # only when a requested packet approaches existing transport limits.
+            self.transport=Store._publish_ids(self.directory,identities,{},64)
         self.members=self.transport.members()
+        self.identities=identities
+        self.compact=None
     def update(self,extra):
         """Extend proposal transport; every new closure still needs kernel admission."""
         changed=False
@@ -45,8 +47,14 @@ class ProposalViews:
             active.add(ident)
             obj=self.objects.get(ident)
             if obj is None:obj=self.source.object(ident)
-            if identity(obj)!=ident:raise ValueError('proposal object content mismatch')
-            size+=len(canonical(obj))
+            # Objects sit two levels below a view root. Preserve that canonical
+            # depth budget while hashing and sizing the exact inner bytes once.
+            encoded=canonical([[obj]])
+            body=memoryview(encoded)[2:-2]
+            if hashlib.sha256(body).hexdigest()!=ident:raise ValueError('proposal object content mismatch')
+            size+=len(body)
+            body.release()
+            del encoded
             if size>MAX_VIEW_BYTES:raise ValueError('proposal dependency byte budget')
             for dep in obj['dependencies']:visit(dep,depth+1)
             active.remove(ident);objects[ident]=obj
@@ -54,6 +62,19 @@ class ProposalViews:
         view=dict(schema=1,snapshot=self.transport.snapshot,roots=list(roots),objects=dict(sorted(objects.items())),membership={ident:self.members[ident]for ident in sorted(objects)})
         # Bounded hint cache. Eviction changes acquisition cost, not admission.
         if len(self.views)>=64:self.views.clear();self.bytes=0
-        n=len(canonical(view))
+        def view_bytes(packet):
+            # Replacing each object by null preserves every outer key, comma
+            # and wrapper. Its already authenticated encoding supplies the rest.
+            metadata=dict(packet,objects=dict.fromkeys(objects))
+            return size+len(canonical(metadata))-4*len(objects)
+        n=view_bytes(view)
+        if n>=MAX_ENTRY_BYTES*15//16:
+            if self.compact is None:
+                with _publication_lock(self.directory/'compact'):
+                    self.compact=Store._publish_ids(self.directory/'compact',self.identities,{},2)
+            members=self.compact.members()
+            alternative=dict(view,snapshot=self.compact.snapshot,membership={i:members[i]for i in sorted(objects)})
+            compact_bytes=view_bytes(alternative)
+            if compact_bytes<n:view,n=alternative,compact_bytes
         if self.bytes+n<=MAX_VIEW_BYTES:self.views[roots]=view;self.bytes+=n
         return view
