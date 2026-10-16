@@ -918,7 +918,7 @@ its selected code, but its updated proof packaging has different plan bytes.
 
 ## Explicit device rewrite calibration
 
-Twelve immutable observations now record the source-checked U64 quotient-by-eight
+The first twelve immutable observations record the source-checked U64 quotient-by-eight
 fold comparison on an explicitly requested WebGPU device: two unchanged equality
 plans, three fresh processes each for training and disjoint normalized holdout.
 The held-out median of process medians is 2.710 ms for the original GPU program
@@ -936,3 +936,15 @@ module load, first call and build controls are retained separately in distributi
 installed. Canonical plan IDs remain separate from the automatic adapter's
 measurement IDs. The proof snapshot and all existing observation bytes remain
 unchanged. These measurements are cost data, never equality/range premises.
+
+
+A further twelve observations bind the same source and equality plans to the
+current distribution compiler image, after its GPU/runtime updates. Its held-out
+median of process medians is 6.2775 ms before the rewrite and 0.7075 ms after it;
+the median paired ratio is 8.9576. All three training and all three holdout
+processes pass exact independent results and provided-device counter checks.
+The earlier measurements retain their original compiler/adapter identity. These
+cohorts are not a causal comparison between compiler versions. First-call costs
+vary and all observations remain warm explicit GPU-vs-GPU measurements with
+unknown complete-browser peak memory; CPU placement and automatic policy remain
+unproven and unchanged.
