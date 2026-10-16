@@ -85,3 +85,9 @@ the checked frozen domain; scores and explicit configuration supply no theorem.
 The distribution's frozen numeric example checks retained live data, raw NaN bits,
 signed zero, rollback and complete compiled snapshots. This is bounded proposal
 tooling, not universal graph unrolling or automatic profitable specialization.
+
+Closed-list `foldl`/`foldr` proposals now bind each accumulator once under fresh
+names and preserve iteration/IEEE operation order. Literal operation choices can
+disappear while weights remain mutable. The proposer does not calculate floating
+arithmetic or invent equality facts; the complete checked action proof decides
+admission. Source/continuation/canonical-value bounds still limit larger graphs.
