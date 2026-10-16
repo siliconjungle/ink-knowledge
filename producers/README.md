@@ -18,6 +18,15 @@ induction. Configuration bytes, fingerprints and source-shape matching confer no
 authority. F32 guards preserve stored bits, unsupported types fail closed, and
 the output is published atomically only after complete replay. These proposals
 are explicit and carry no profitability evidence.
+`--prefix-plan PREVIOUS.json` first replays another plan and specializes its
+selected core, retaining every earlier step in the final replay. This composes
+observation projection with guarded specialization without freezing learning
+state. Missing prefix proofs reject before replacing any existing output.
+When specialization introduces bindings/control into a legacy image,
+`checked_core_image.py` asks ordinary `check-core` admission to select its actual
+feature version from a bounded set of supported transport versions. Unknown
+versions and all type/effect errors fail closed; a version guess supplies no
+equality authority. The complete plan still requires source-bound proofs.
 
 `representations.py --cache-query NAME --preserve-cache` proposes source-bound
 cache retention after aborted changes/host failure and unrelated committed

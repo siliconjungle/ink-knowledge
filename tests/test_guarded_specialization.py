@@ -12,6 +12,7 @@ from producers.guarded_specialization import (
     author_guarded_substitution, author_list_identity, configuration_literal, guardable,
     guarded_substitution, propose_source,
 )
+from producers.checked_core_image import write_checked_image
 
 ROOT = Path(__file__).resolve().parents[2]
 COMPILER = Path(os.environ.get('INK_COMPILER', ROOT/'target/debug/ink')).resolve()
@@ -176,6 +177,55 @@ console.log(JSON.stringify({cases}));''')
                          '--ink', COMPILER, '-o', packet, success=False)
         self.assertEqual(packet.read_bytes(), b'previous checked proposal')
         self.assertFalse(list(self.d.glob('.ink-guarded-*')))
+
+    def test_checked_prefix_composes_and_missing_prefix_proof_is_atomic(self):
+        core = self.source('''module prefix_guard;
+fn plus(x:u32,y:u32)->u32{return x+y;}
+pub fn run(mode:u32,input:u32)->u32{return plus(2,mode)+input;}
+''')
+        prefix = self.d/'prefix.json'
+        self.run_command('python3', ROOT/'knowledge/producers/function_specialization.py', core,
+            '--functions', 'run', '--ink', COMPILER, '-o', prefix)
+        before = json.loads(prefix.read_bytes())
+        self.assertEqual([s['kind'] for s in before['steps']], ['functions'])
+        self.assertEqual(json.loads(core.read_bytes())['semantics'], 'ink-executable-core-v1')
+        self.assertNotEqual(before['steps'][-1]['package']['selected']['semantics'],
+                            json.loads(core.read_bytes())['semantics'])
+        config, packet = self.d/'value.json', self.d/'composed.json'
+        config.write_text('3')
+        command = ['python3', ROOT/'knowledge/producers/guarded_specialization.py', core,
+            '--prefix-plan', prefix, '--function', 'run', '--parameter', 'mode',
+            '--value', config, '--ink', COMPILER, '-o', packet]
+        self.run_command(*command)
+        combined = json.loads(packet.read_bytes())
+        self.assertEqual(combined['steps'][:len(before['steps'])], before['steps'])
+        self.assertEqual(combined['input_core_sha256'], before['input_core_sha256'])
+        self.run_command(COMPILER, 'check-plan', core, packet, '--core')
+        self.run_command(COMPILER, 'build', core, '--core', '--target', 'javascript',
+            '-o', self.d/'baseline.mjs')
+        self.run_command(COMPILER, 'compile', core, '--core', '--plan', packet,
+            '--target', 'javascript', '-o', self.d/'selected.mjs')
+        script = self.d/'check.mjs'
+        script.write_text('''import assert from 'node:assert/strict';
+import * as a from './baseline.mjs';import * as b from './selected.mjs';
+for(const mode of [0,3,4,4294967295])for(const input of [0,1,4294967295])
+ assert.deepEqual(b.call('run',[mode,input]),a.call('run',[mode,input]));
+''')
+        self.run_command('node', script)
+        before['steps'][-1]['package']['proofs'] = {}
+        prefix.write_bytes(canonical(before))
+        packet.write_bytes(b'previous checked proposal')
+        self.run_command(*command, success=False)
+        self.assertEqual(packet.read_bytes(), b'previous checked proposal')
+        self.assertFalse(list(self.d.glob('.ink-guarded-*')))
+
+    def test_feature_version_rebinding_does_not_accept_ill_typed_code(self):
+        core = self.source('module bad_image; pub fn run(x:u32)->u32{return x+1;}')
+        invalid = json.loads(core.read_bytes())
+        invalid['program']['functions'][0]['body'] = {'String': 'not a word'}
+        with self.assertRaises(subprocess.CalledProcessError) as failure:
+            write_checked_image(invalid, self.d/'invalid.json', COMPILER)
+        self.assertNotIn(b'incorrect executable semantics version', failure.exception.stderr)
 
     def test_unused_configuration_declines_before_inserting_a_guard(self):
         core = self.source('module unused; pub fn run(x:f32)->u32{return 7;}')
