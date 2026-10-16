@@ -856,5 +856,8 @@ ordered composition, preserving dynamic inputs and exact numeric operations.
 The explicit producer checks the entire two-step plan before atomically publishing
 it. Generated proof views remain local to that plan, with no default catalogue or
 automatic profitability change. Wrapping-word tests and complete 32/128-operation
-F32 histories exercise the mechanism. General graph/tape and trained-artifact
-integration remain work beyond this explicit composed-plan path.
+F32 histories exercise the mechanism. `producers.frozen_build` chooses this
+bounded authoring strategy when it produces helpers and the direct producer
+otherwise. Normal trained-artifact publication replays and binds either format;
+failed construction/checking never silently changes strategy. General graph/tape
+specialization and automatic profitability remain further work.
