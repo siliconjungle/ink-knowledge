@@ -847,3 +847,14 @@ unchanged helper arguments. Discovery/resource limits and measured profitability
 remain separate. See `tests/test_inline_laws.py` and `tests/test_strict_inlining.py`
 for independent execution-order traces, large unused input work, fresh binder
 scopes and a changed definition rejected even after rebinding the source hash.
+
+`producers.frozen_composition` now proposes conservative typed helper extensions
+followed by complete action equality proofs. Small closed `foldl` computations
+become leaf helpers; a balanced tree composes them without a linear continuation
+stack. `producers.fold_chunks` authors ordinary cons/prefix equations and their
+ordered composition, preserving dynamic inputs and exact numeric operations.
+The explicit producer checks the entire two-step plan before atomically publishing
+it. Generated proof views remain local to that plan, with no default catalogue or
+automatic profitability change. Wrapping-word tests and complete 32/128-operation
+F32 histories exercise the mechanism. General graph/tape and trained-artifact
+integration remain work beyond this explicit composed-plan path.
