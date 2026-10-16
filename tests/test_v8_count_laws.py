@@ -100,7 +100,9 @@ class CountLaws(unittest.TestCase):
         goal = {key: claim[key] for key in ['params', 'conditions', 'from', 'to']}
         request = self.save('false-goal.json', goal)
         self.run_ink('semantic-bitvector-obligation', self.directory / 'core.json', request, '--core',
-                     '--semantics', 'fixed-counts-v5', '--encoding', 'shared-v2', '-o', self.directory / 'false-cnf.json')
+                     '--semantics', 'fixed-counts-v5', '--encoding',
+                     claim['proof']['BitVector']['certificate'].get('encoding', 'literal-v1'),
+                     '-o', self.directory / 'false-cnf.json')
         problem = json.loads((self.directory / 'false-cnf.json').read_bytes())
         claim['proof']['BitVector']['certificate']['problem_sha256'] = problem['sha256']
         entry = semantic_entry(claim)
