@@ -186,5 +186,26 @@
       "reason": "Required committed first-order hardening input; only lock and its content-addressed objects materialized"
     }
   ],
-  "safe_to_remove": []
+  "safe_to_remove": [
+    {
+      "path": "research/build/bitvector-producer/add_commute.cnf.json",
+      "reason": "Owned completed two-case compaction CLI validation; selected inputs/logs and checked proof bundle retained in distribution bench/v8-learning/rup-compaction."
+    },
+    {
+      "path": "research/build/bitvector-producer/add_commute.goal.json",
+      "reason": "Owned completed two-case compaction CLI validation; selected inputs/logs and checked proof bundle retained in distribution bench/v8-learning/rup-compaction."
+    },
+    {
+      "path": "research/build/bitvector-producer/add_zero.cnf.json",
+      "reason": "Owned completed two-case compaction CLI validation; selected inputs/logs and checked proof bundle retained in distribution bench/v8-learning/rup-compaction."
+    },
+    {
+      "path": "research/build/bitvector-producer/add_zero.goal.json",
+      "reason": "Owned completed two-case compaction CLI validation; selected inputs/logs and checked proof bundle retained in distribution bench/v8-learning/rup-compaction."
+    },
+    {
+      "path": "research/build/bitvector-producer/checked.rs",
+      "reason": "Owned completed two-case compaction CLI validation; selected inputs/logs and checked proof bundle retained in distribution bench/v8-learning/rup-compaction."
+    }
+  ]
 }
