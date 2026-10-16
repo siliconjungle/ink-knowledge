@@ -48,10 +48,16 @@ class ChunkPartial(Partial):
             return ty in ('U32', 'U64', 'I32', 'F32', 'Int', 'Bool', 'Unit', 'String')
         if isinstance(ty, dict) and 'Named' in ty:
             name = ty['Named']
-            return name in self.program['enums'] or (name not in active and name in self.program['records']
+            return name in self.program['enums'] or name in self.program['ids'] or (name not in active and name in self.program['records']
                 and all(self.plain(t, (*active, name)) for _, t in self.program['records'][name]))
-        if isinstance(ty, dict) and any(k in ty for k in ('List', 'Option', 'Result', 'Vector')):
-            return all(self.plain(t, active) for t in (ty.get('Result') or [ty.get('List', ty.get('Option', ty.get('Vector', [None])[0]))]))
+        if isinstance(ty, dict):
+            for container in ['List', 'Option']:
+                if container in ty:
+                    return self.plain(ty[container], active)
+            if 'Result' in ty:
+                return all(self.plain(t, active) for t in ty['Result'])
+            if 'Vector' in ty:
+                return self.plain(ty['Vector'][0], active)
         return False
 
     def known_type(self, value):
@@ -87,8 +93,6 @@ class ChunkPartial(Partial):
             return super().fold(name, args, active, depth)
         values = rows['Call'][1]
         count = (len(values) + FoldChunks.MAX_CHUNK - 1) // FoldChunks.MAX_CHUNK
-        if len(self.helpers) + count > FoldChunks.MAX_HELPERS:
-            raise ValueError('frozen composition helper budget')
         if len(self.helpers) + 2*count-1 > FoldChunks.MAX_HELPERS:
             raise ValueError('frozen composition helper budget')
         names = [self.fresh() for _ in range(count)]

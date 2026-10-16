@@ -836,3 +836,14 @@ tactic. Tests cover complete exceptional F32 lists through 512 values, a changed
 NaN payload after rebuilding the candidate closure, authenticated invalid
 theorems and transactional discovery fallback. These generated proof views ship
 with selected models; the default canonical catalogue remains unchanged.
+
+`producers.frozen_composition` now proposes conservative typed helper extensions
+followed by complete action equality proofs. Small closed `foldl` computations
+become leaf helpers; a balanced tree composes them without a linear continuation
+stack. `producers.fold_chunks` authors ordinary cons/prefix equations and their
+ordered composition, preserving dynamic inputs and exact numeric operations.
+The explicit producer checks the entire two-step plan before atomically publishing
+it. Generated proof views remain local to that plan, with no default catalogue or
+automatic profitability change. Wrapping-word tests and complete 32/128-operation
+F32 histories exercise the mechanism. General graph/tape and trained-artifact
+integration remain work beyond this explicit composed-plan path.
