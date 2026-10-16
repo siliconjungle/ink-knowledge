@@ -163,6 +163,9 @@ class ComputationEquality:
                             *([convert(right,z)] if right != z else [])])
         if left == right:
             return finish(convert(left,right))
+        if ('Call' in left and left['Call']['function'] in self.chunks.folds
+                and not free_variables(left) and not free_variables(right)):
+            return finish(self.chunks.closed_application(left['Call'],right))
         if 'Call' in left and 'Call' in right:
             x,y = left['Call'],right['Call']
             if x['function'] in self.chunks.folds and y['function'] in self.chunks.helpers:

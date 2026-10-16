@@ -13,7 +13,7 @@ INK = Path(os.environ.get('INK_COMPILER', ROOT/'target/debug/ink'))
 
 
 class FrozenSpecialization(unittest.TestCase):
-    def test_f32_literals_preserve_bits_without_host_equality_folding(self):
+    def test_f32_literals_preserve_bits_and_scalar_equality_uses_ieee_rules(self):
         p = dict(functions=[], states=[], enums={}, records={})
         partial = Partial(p)
         for bits in [0, 0x80000000, 1, 0x80000001, 0x007fffff, 0x00800000,
@@ -24,10 +24,13 @@ class FrozenSpecialization(unittest.TestCase):
                              if bits & 0x7f800000 == 0x7f800000 else {'Float': bits})
             self.assertTrue(partial.value(value))
             self.assertFalse(partial.value(value, equality=True))
-            for other in [value, literal('F32', -0.0, p), literal('F32', 0.0, p)]:
+            for other_bits in [bits,0x80000000,0]:
+                other=literal('F32',{'F32Bits':other_bits},p)
+                nan=lambda word:word & 0x7f800000==0x7f800000 and word & 0x7fffff!=0
+                equal=not(nan(bits) or nan(other_bits)) and (bits==other_bits or bits & 0x7fffffff==other_bits & 0x7fffffff==0)
                 for op in ['==', '!=']:
                     expression = {'Binary': [op, value, other]}
-                    self.assertEqual(partial.expr(expression), expression)
+                    self.assertEqual(partial.expr(expression), {'Bool':equal if op=='==' else not equal})
                     record = {'Record': ['R', [['x', value]]]}
                     wrapped = {'Binary': [op, record, record]}
                     self.assertEqual(partial.expr(wrapped), wrapped)
@@ -40,10 +43,29 @@ class FrozenSpecialization(unittest.TestCase):
         with self.assertRaises(ValueError):
             literal('F64', {'F64Bits': '0'}, p)
 
-    def test_non_integer_operators_remain_ordinary_core_terms(self):
+    def test_dynamic_floating_and_unknown_operators_remain_ordinary_core_terms(self):
         for op in ['f32:+', 'f32:*', 'f32:==', 'f32:!=', 'f32:neg', 'f32:sqrt', 'unknown']:
-            expression = {'Binary': dict(op=op, left={'U64': 0x80000000}, right={'U64': 0})}
+            expression = {'Binary': dict(op=op, left={'Var':'dynamic'}, right={'U64': 0})}
             self.assertEqual(normal(expression, {}), expression)
+        expression={'Binary':dict(op='unknown',left={'U64':0},right={'U64':0})}
+        self.assertEqual(normal(expression,{}),expression)
+
+    def test_closed_maps_and_numeric_casts_keep_bounds_and_lazy_callbacks(self):
+        partial=Partial(dict(functions=[],states=[],enums={},records={}))
+        rows={'Call':['list',[{'Float':0x3f800000},{'Float':0x40000000}]]}
+        callback={'Lambda':['x',{'Binary':['*',{'Var':'x'},{'Float':0x40000000}]}]}
+        expression={'Method':[rows,'map',[callback]]}
+        self.assertEqual(partial.expr(expression),{'Call':['list',[{'Float':0x40000000},{'Float':0x40800000}]]})
+        unknown={'Lambda':['x',{'Call':['unknown',[{'Var':'x'}]]}]}
+        self.assertEqual(partial.expr({'Method':[{'Call':['list',[]]},'map',[unknown]]}),{'Call':['list',[]]})
+        residual={'Method':[rows,'map',[unknown]]}
+        self.assertEqual(partial.expr(residual),residual)
+        captured={'Method':[rows,'map',[{'Lambda':['x',{'Binary':['+',{'Var':'x'},{'Var':'live'}]}]}]]}
+        self.assertEqual(partial.expr(captured),captured)
+        for name,bad in [('f32_from_u32',1<<32),('f32_from_bits',1<<32),('f32_from_u64',1<<64),('f32_from_i32',1<<31)]:
+            self.assertIsNone(partial.constant_call(name,[{'Num':bad}]))
+        self.assertEqual(partial.constant_call('f32_from_i32',[{'Neg':{'Num':1<<31}}]),{'Float':0xcf000000})
+        self.assertIsNone(partial.constant_call('f32_from_i32',[{'Neg':{'Num':(1<<31)+1}}]))
 
     def test_frozen_float_records_specialize_structure_and_replay_complete_actions(self):
         source = '''module float_structure;
@@ -91,9 +113,10 @@ change set(value:f32)->Unit writes(Live) emits(Changed) {Live.put(0,value);emit 
                 self.assertNotIn('"Model"', body)
                 self.assertNotIn('"evaluate"', body)
                 self.assertNotIn('"kind"', body)
-                # IEEE comparisons must survive authoring even when closed.
+                # Only scalar IEEE comparison collapses; the complete action
+                # proof still has to replay its NaN and signed-zero behavior.
                 equal = next(a for a in candidate['program']['actions'] if a['name'] == 'self_equal')
-                self.assertIn('"Binary"', json.dumps(equal['body']))
+                self.assertNotIn('"Binary"', json.dumps(equal['body']))
                 packet = temp/'selection.json'
                 subprocess.run(['python3', ROOT/'knowledge/producers/frozen_specialization.py',
                                 core, '--ink', INK, '-o', packet], check=True, capture_output=True)

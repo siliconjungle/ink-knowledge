@@ -19,23 +19,8 @@ from ink_knowledge import Store, identity
 from ink_knowledge.store import entry
 from producers.action_replacement import alpha_normal, call, cons, convert, var
 from producers.fold_chunks import FoldChunks, compose
-from producers.frozen_specialization import Partial, substitute
-from producers.point_delta import lift, normal, replace, sub
-
-
-def source_free(value, bound=frozenset()):
-    if isinstance(value, list):
-        return set().union(*(source_free(x, bound) for x in value)) if value else set()
-    if not isinstance(value, dict):
-        return set()
-    if 'Var' in value:
-        return {value['Var']} - bound
-    if 'Lambda' in value:
-        name, body = value['Lambda']; return source_free(body, bound | {name})
-    if 'Let' in value:
-        name, _, initial, body = value['Let']
-        return source_free(initial, bound) | source_free(body, bound | {name})
-    return set().union(*(source_free(x, bound) for x in value.values()))
+from producers.frozen_specialization import Partial, substitute, source_free
+from producers.point_delta import free_variables, lift, normal, replace, sub
 
 
 class ChunkPartial(Partial):
@@ -44,6 +29,15 @@ class ChunkPartial(Partial):
         self.share_helpers = share_helpers
         self.helpers = []
         self.helper_index = {}
+        self.helper_names = set()
+
+    def should_inline(self, name, args, original):
+        if name in self.helper_names:
+            return all(self.value(x) for x in args)
+        # Bound this proposal to newly known call arguments. Expanding an
+        # already literal initializer merely duplicates unchanged library code
+        # in every caller, increasing source/proof cost without new facts.
+        return any(self.value(a) and not self.value(b) for a,b in zip(args,original))
 
     def intern(self, function):
         """Share generated code, never results or evaluations.
@@ -55,6 +49,7 @@ class ChunkPartial(Partial):
         """
         if not self.share_helpers:
             self.helpers.append(function)
+            self.helper_names.add(function['name']);self.functions[function['name']]=function
             return function['name']
         serial = 0
         def binder():
@@ -83,6 +78,7 @@ class ChunkPartial(Partial):
         if key not in self.helper_index:
             self.helper_index[key] = function['name']
             self.helpers.append(function)
+            self.helper_names.add(function['name']);self.functions[function['name']]=function
         return self.helper_index[key]
 
     def inline_call(self, function, args, active, depth):
@@ -196,7 +192,11 @@ class ChunkPartial(Partial):
                 level.append(self.intern(dict(name=name, params=capture_params+[[argument,result]],
                                               result=result, body=expression)))
             names = level
-        return {'Call': [names[0], [*[{'Var': n} for n in captures], initial]]}
+        arguments = [*[{'Var': n} for n in captures],initial]
+        invocation = {'Call':[names[0],arguments]}
+        # Only a completely closed invocation can collapse. Dynamic primals
+        # retain their balanced helper graph and original arithmetic order.
+        return self.expr(invocation,{},active,depth+1) if all(self.value(a) for a in arguments) else invocation
 
 
 def propose_source(source, *, share_helpers=True):
@@ -208,14 +208,14 @@ def propose_source(source, *, share_helpers=True):
     return selected, partial.helpers
 
 
-def produce(before, after, selected, directory):
+def produce(before, after, selected, directory, witnesses=None):
     if (before['semantics'] != 'ink-action-transition-v1' or after['semantics'] != before['semantics']
             or not before.get('frozen_domain') or before['frozen_domain'] != after.get('frozen_domain')
             or before['state'] != after['state'] or before['events'] != after['events']):
         raise ValueError('frozen composition projection/domain mismatch')
-    objects = {**before['objects'], **after['objects']}
+    objects = {**(witnesses or {}).get('objects',{}), **before['objects'], **after['objects']}
     helpers = set()
-    for key, obj in after['objects'].items():
+    for key, obj in objects.items():
         function = obj['payload'].get('declaration', {}).get('Function')
         if (key not in before['objects'] and function and function['params']
                 and function['params'][0][0] == 'pure_arg_0'):
@@ -262,12 +262,18 @@ def produce(before, after, selected, directory):
                     and a['Call']['function'] in chunks.folds and z['Call']['function'] in helpers):
                 lemma, arguments = chunks.bridge_application(a['Call'],z['Call'])
                 return z, [{'Use': dict(theorem=lemma, arguments=arguments, premises=[])}]
+            if (isinstance(a,dict) and 'Call' in a and a['Call']['function'] in chunks.folds
+                    and not free_variables(a) and not free_variables(z)):
+                return z,[chunks.closed_application(a['Call'],z)]
             raise ValueError('frozen composition has unmatched source structure')
         # Locate whole term opportunities, then lift once through the complete
         # transition context, avoiding congruence over JSON container fragments.
         def pairs(a, z):
             if a == z:
                 return []
+            if (isinstance(a,dict) and 'Call' in a and a['Call']['function'] in chunks.folds
+                    and not free_variables(a) and not free_variables(z)):
+                return [(a,z)]
             if isinstance(a, dict) and isinstance(z, dict) and 'Call' in a and 'Call' in z:
                 if a['Call']['function'] in chunks.folds and z['Call']['function'] in helpers:
                     return [(a, z)]
@@ -339,7 +345,23 @@ def main():
         state = folder/'state.json'; run('check-plan', args.source, packet, '--core', '--state-out', state)
         extended = folder/'extended.json'; extended.write_text(json.dumps(json.loads(state.read_bytes())['core']))
         candidate = folder/'selected.json'; candidate.write_text(json.dumps(selected))
-        rewrite = produce(model(extended, 'before'), model(candidate, 'after'), selected, folder/'proofs')
+        # A completely evaluated helper is absent from the selected actions'
+        # reachable projection. Project it through an auxiliary pure query so
+        # its ordinary mathematical definition can witness the closed fold.
+        # These queries are never added to either executable or selected source.
+        witness_source = copy.deepcopy(selected)
+        occupied = {a['name'] for a in witness_source['program']['actions']}
+        occupied.update(f['name'] for f in witness_source['program']['functions'])
+        for index, helper in enumerate(helpers):
+            name = 'frozen_proof_witness_'+str(index)
+            while name in occupied: name += '_'
+            occupied.add(name)
+            witness_source['program']['actions'].append(dict(name=name,kind='Query',
+                params=helper['params'],result=helper['result'],reads=[],writes=[],emits=[],
+                body=[{'Return':{'Call':[helper['name'],[{'Var':n} for n,_ in helper['params']]]}}]))
+        witness_path = folder/'witnesses.json';witness_path.write_text(json.dumps(witness_source))
+        rewrite = produce(model(extended, 'before'), model(candidate, 'after'), selected, folder/'proofs',
+                          model(witness_path,'witness-model'))
         plan['steps'].append(dict(kind='rewrite', package=rewrite))
         encoded = json.dumps(plan, separators=(',', ':'))+'\n'
         if len(encoded.encode()) > 16_000_000:

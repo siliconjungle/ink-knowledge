@@ -5,6 +5,7 @@ chunk equations. No opcode, numeric identity, producer name or hash is authority
 The complete source-bound selection must replay every equation in the kernel.
 """
 import json
+from itertools import product
 
 from ink_knowledge import identity
 from ink_knowledge.store import entry
@@ -354,3 +355,69 @@ class FoldChunks:
         g=self.objects[helper]['payload']['declaration']['Function']
         layout,arguments=self.application_layout(fold,invocation['arguments'][1:],g['params'],target['arguments'])
         return self.bridge(fold,invocation['arguments'][0],helper,layout),arguments
+
+    def closed_application(self, invocation, result):
+        """Find a bounded helper witness for a completely closed fold.
+
+        Equal evaluated outputs merely nominate a witness. The universal
+        prefix law and the final closed conversion must both check normally.
+        Keep the accumulator separate even when it equals a captured value.
+        """
+        fingerprint = json.dumps([invocation,result],sort_keys=True,separators=(',',':'))
+        key = ('closed-application',fingerprint)
+        if key in self.cache:
+            return self.cache[key]
+        fold = invocation['function']; f = self.folds[fold][0]
+        original = invocation['arguments'][1:]
+        if free_variables(result) or any(free_variables(a) for a in invocation['arguments']):
+            raise ValueError('closed fold needs closed arguments and result')
+        # Small traversals need no helper witness. Keep their existing ordinary
+        # conversion path even in a plan that also contains larger traversals.
+        rows = invocation['arguments'][0]
+        for _ in range(self.MAX_CHUNK+1):
+            try:
+                node = self.expose(rows)['Construct']
+            except ValueError as error:
+                if 'budget' in str(error): raise
+                break
+            if node['constructor'] == 0 and not node['arguments']:
+                return convert(call(fold,invocation['arguments']),result)
+            if node['constructor'] != 1 or len(node['arguments']) != 2:
+                raise ValueError('closed fold list shape')
+            rows = node['arguments'][1]
+        attempts = 0
+        for helper in sorted(self.helpers):
+            g = self.objects[helper]['payload']['declaration']['Function']
+            if (not g['params'] or g['result'] != f['result']
+                    or g['params'][-1][1] != f['result']):
+                continue
+            choices = []
+            for _, ty in g['params'][:-1]:
+                candidates = []
+                for argument, (_, source_ty) in zip(original[:-1],f['params'][1:-1]):
+                    if ty == source_ty and argument not in candidates:
+                        candidates.append(argument)
+                choices.append(candidates)
+            for captures in product(*choices):
+                self.tick(); attempts += 1
+                if attempts > self.MAX_HELPERS:
+                    raise ValueError('closed fold witness search budget')
+                arguments = [*captures,original[-1]]
+                target = call(helper,arguments)
+                evaluated = normal(target,self.objects,opaque=self.closed,blocked=self.folds)
+                if evaluated != result:
+                    continue
+                try:
+                    lemma, actual = self.bridge_application(invocation,target['Call'])
+                except ValueError as error:
+                    if 'budget' in str(error):
+                        raise
+                    continue
+                proof = compose([{'Use':dict(theorem=lemma,arguments=actual,premises=[])},
+                                 convert(target,result)])
+                self.cache[key] = proof
+                return proof
+        # Closed source projections can reduce through definitions other than
+        # literal list builders. The unchanged kernel may establish a bounded
+        # conversion directly; failure still prevents publication.
+        return convert(call(fold,invocation['arguments']),result)
