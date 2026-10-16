@@ -17,8 +17,8 @@ import tempfile
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from ink_knowledge import Store
-from producers.action_replacement import call, cons, var
-from producers.point_delta import equality, normal, sub
+from producers.action_replacement import alpha_normal, call, cons, convert, trans, var
+from producers.point_delta import equality, lift, normal, replace, sub
 
 
 def substitute(e, bindings):
@@ -312,7 +312,31 @@ def specialize(source):
     return selected
 
 
-def produce(before, after, selected, directory):
+def compact_equality(a, z, state, frozen, objects):
+    """Transport fixed rows without copying fully expanded arithmetic primals."""
+    if alpha_normal(a['case']['normal']) == alpha_normal(z['case']['normal']):
+        return convert(a['case']['call'], z['case']['call'])
+    def rewrite(term):
+        steps = []
+        for index, equation in enumerate(frozen):
+            left = sub(equation['from'], {'initial': state})
+            right = sub(equation['to'], {'initial': state})
+            exposed = normal(left, objects)
+            context = replace(term, exposed, var('frozen_compact_hole'))
+            if context == term:
+                continue
+            premise = trans({'Sym': convert(left, exposed)}, {'Hypothesis': index})
+            steps.append(lift(premise, context, 'frozen_compact_hole'))
+            term = replace(term, exposed, right)
+        return term, steps
+    left, forward = rewrite(a['case']['normal'])
+    right, backward = rewrite(z['case']['normal'])
+    return trans(convert(a['case']['call'], a['case']['normal']), *forward,
+                 convert(left, right), *[{'Sym': step} for step in reversed(backward)],
+                 convert(z['case']['normal'], z['case']['call']))
+
+
+def produce(before, after, selected, directory, *, compact=False):
     if before['semantics'] != 'ink-action-transition-v1' or after['semantics'] != before['semantics']:
         raise ValueError('incompatible action projections')
     if not before.get('frozen_domain') or before['frozen_domain'] != after.get('frozen_domain'):
@@ -330,9 +354,12 @@ def produce(before, after, selected, directory):
             continue
         bindings = a['case']['bindings']
         state = cons(before['state'], 0, [var(n) for n in bindings])
-        facts = [(sub(eq['from'], {'initial': state}), sub(eq['to'], {'initial': state}), i)
-                 for i, eq in enumerate(before['frozen_domain'])]
-        case = equality(a['case']['call'], z['case']['call'], objects, facts=facts)
+        if compact:
+            case = compact_equality(a, z, state, before['frozen_domain'], objects)
+        else:
+            facts = [(sub(eq['from'], {'initial': state}), sub(eq['to'], {'initial': state}), i)
+                     for i, eq in enumerate(before['frozen_domain'])]
+            case = equality(a['case']['call'], z['case']['call'], objects, facts=facts)
         # Case elimination substitutes the same state constructor in the goal
         # and all premises. It grants no recursive induction hypothesis.
         proofs[name] = {'Cases': dict(variable='initial', **{'from': old, 'to': new},
@@ -364,13 +391,19 @@ def main():
             return json.loads(output.read_bytes())
         before = model(a.source, temp/'before.json')
         after = model(candidate, temp/'after.json')
-        packet = produce(before, after, selected, temp/'database')
         proposal = temp/'selection.json'
-        proposal.write_text(json.dumps(packet, separators=(',', ':'))+'\n')
+        for strategy in ('compact', 'normalized'):
+            packet = produce(before, after, selected, temp/'database', compact=strategy == 'compact')
+            proposal.write_text(json.dumps(packet, separators=(',', ':'))+'\n')
+            checked = subprocess.run([str(a.ink.resolve()), 'check-selection', str(a.source), str(proposal)], capture_output=True)
+            if checked.returncode == 0:
+                break
+            if strategy == 'normalized':
+                checked.check_returncode()
         # A failed producer/check leaves no new selection at the requested path.
-        subprocess.run([str(a.ink.resolve()), 'check-selection', str(a.source), str(proposal)], check=True, capture_output=True)
         a.output.write_bytes(proposal.read_bytes())
     print(json.dumps(dict(status='checked-proposal', actions=len(packet['action_replacement']['proofs']),
+                          proof_strategy=strategy,
                           profitability='unmeasured; explicit selection only')))
 
 
