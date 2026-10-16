@@ -793,3 +793,13 @@ contexts and does not export them as source proof facts. Both complete equality
 replay and comparable lifecycle evidence remain required. See the distribution's
 `bench/v8-learning/branch-cardinality` for default-discovery callback controls,
 native acquisition and a rejection-only holdout.
+
+Frozen structural specialization now retains transparent fixed-data definitions
+in its checked evidence closure, including roots no surviving action reads.
+The distribution derives their exact meaning from immutable source rows; the
+producer supplies no additional premise. Tests specialize complete finite
+64/128/232/512-element parameter results, preserve live updates and exact
+checkpoints, and reject a changed value. This relies on the distribution's
+shared frozen-literal projection and exhaustive-case proof checking. Long action
+continuations and general graph/tape specialization still need further work;
+this adds no automatic profitability or approximation authority.
