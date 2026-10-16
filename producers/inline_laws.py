@@ -11,22 +11,15 @@ def specialize(subject,core):
         if body is None or size(body)>2048:continue
         params={n:value(t)for n,t in f['params']}
         source=op(value(f['result']),'call:'+f['name'],*(var(params[n],n)for n,_ in f['params']))
-        try:proposal=bind(law(params,source,body),core,subject,[f['name']])
+        # A call evaluates every argument once, in declaration order, before
+        # its body. Preserve that complete interface even for unused formals,
+        # lazy bodies and repeated non-scalar values. Existing lambda/apply
+        # syntax reifies to typed lexical lets; no carrier whitelist or target
+        # shortcut supplies equality or profitable-selection authority.
+        target=shared_arguments(body,list(params.items()))
+        try:proposal=bind(law(params,source,target),core,subject,[f['name']])
         except(ValueError,KeyError):continue
         rows.append(('unfold_'+f['name'],proposal))
-        # Repeated scalars are cheap to bind and can hide expensive actual
-        # arguments (e.g. nested indexed reads). Binding owned collections here
-        # can add copies and exceed structural budgets; ordinary unfolding
-        # remains available. This only proposes a law, never profitability.
-        def uses(t,name):
-            return int(t['node']=={'Free':name})+sum(uses(c,name)for c in children(t))
-        shared_params=[(n,params[n])for n,t in f['params']
-                       if isinstance(t,str) and t in ('U32','I32','F32','Bool') and uses(body,n)>1]
-        if shared_params:
-            target=shared_arguments(body,shared_params)
-            try:shared=bind(law(params,source,target),core,subject,[f['name']])
-            except(ValueError,KeyError):continue
-            rows.append(('unfold_shared_'+f['name'],shared))
     return rows
 
 def shared_arguments(body, parameters):

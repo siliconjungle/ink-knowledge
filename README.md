@@ -836,3 +836,14 @@ tactic. Tests cover complete exceptional F32 lists through 512 values, a changed
 NaN payload after rebuilding the candidate closure, authenticated invalid
 theorems and transactional discovery fallback. These generated proof views ship
 with selected models; the default canonical catalogue remains unchanged.
+
+Source-call unfolding binds the complete formal parameter list once, in source
+order, before entering the body. The ordinary lambda/application representation
+keeps unused arguments strict and shares repeated U64, scalar and composite
+arguments without a carrier whitelist. Lazy caller branches retain their own
+boundaries. Ordinary source-bound Normalize proofs and selection checking remain
+mandatory; the general checker compares lexical beta steps before expanding
+unchanged helper arguments. Discovery/resource limits and measured profitability
+remain separate. See `tests/test_inline_laws.py` and `tests/test_strict_inlining.py`
+for independent execution-order traces, large unused input work, fresh binder
+scopes and a changed definition rejected even after rebinding the source hash.
