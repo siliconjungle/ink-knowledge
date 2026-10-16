@@ -871,3 +871,15 @@ replays normally. The repeated 32/128-operation examples need 3/5 definitions
 instead of 7/31; unique word chunks retain separate definitions. The standalone
 producer accepts `--helper-layout shared|expanded`, with shared as the default;
 both are explicit, proof-checked layout proposals, not profitability authority.
+
+`producers.v8_integer_laws` proposes checked U32/U64/I32 division and remainder,
+signed bit operations and power-of-two strength reductions. Only indexed frozen
+proofs enter default discovery; unadmitted authoring attempts remain excluded.
+The explicit `fixed-scalars-v4` proof mode reconstructs fixed wrapping/signed
+operations and checked division/default meanings. Ordinary RUP replay and generic
+bounded word extensionality establish equalities, including every covered bit;
+solver outcomes and V8 provenance grant no authority. Typed lexical bindings
+retain unused/repeated strict operands and lazy exceptional defaults. See
+`tests/test_v8_integer_laws.py` for the independent formula/trace oracle,
+source application, default discovery and adversarial proof replay. Correctness
+admission does not establish a profitable implementation choice.
