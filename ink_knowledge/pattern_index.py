@@ -14,6 +14,26 @@ def shape(term,params=()):
         return next(iter(node))
     return str(node)
 
+
+class TermIndex:
+    """Disposable head buckets with exact sort filtering and stable term order.
+
+    A root formal can match any term of its sort. Other roots can only match
+    the same constructor/operator. Callers must still run their exact matcher
+    and ordinary proof admission; bucket membership supplies no facts. Rebuild
+    when the subject changes; no mutable subject state is cached across calls.
+    """
+    def __init__(self, terms):
+        self.terms = tuple(terms)
+        self.roots = {}
+        for term in self.terms:
+            self.roots.setdefault(shape(term), []).append(term)
+
+    def candidates(self, pattern, params=()):
+        head = shape(pattern, params)
+        terms = self.terms if head == '*' else self.roots.get(head, ())
+        return (term for term in terms if term['sort'] == pattern['sort'])
+
 def heads(term):
     result=set()
     def visit(t):

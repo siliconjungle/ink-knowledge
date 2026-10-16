@@ -51,3 +51,26 @@ class IndexedProofLibraries(unittest.TestCase):
                 frozen_laws.update(d,[row])
             with self.assertRaisesRegex(ValueError,'index/proof mismatch'):
                 frozen_laws.read(d)
+
+    def test_installed_catalogues_return_exact_exhaustive_rows_before_loading(self):
+        from ink_planner.semantic_search import positions, match
+        from producers.semantic_laws import op, word
+        root=Path(__file__).resolve().parents[1]
+        # Renamed positive sites and unrelated arithmetic, with nested sites and
+        # duplicate values, exercise all installed metadata without opening RUP.
+        for directory in sorted((root/'producers/data').glob('*/index.json')):
+            rows=frozen_laws.index(directory.parent)
+            def renamed(t):
+                if isinstance(t,dict):
+                    return {k:('renamed_'+v if k=='Free'else renamed(v))for k,v in t.items()}
+                if isinstance(t,list):return [renamed(v)for v in t]
+                return t
+            bodies={str(i):renamed(row['from'])for i,row in enumerate(rows[::17])}
+            bodies['unrelated']=op(value('U64'),'binary:+',word('U64',11),word('U64',13))
+            subject=dict(functions=bodies)
+            sites=[t for body in bodies.values()for _,t in positions(body)]
+            expected=[('prefix/'+row['name'],row['sha256'])for row in rows
+                      if any(match(row['from'],t,row['params'],{})for t in sites)]
+            with patch.object(frozen_laws,'load',side_effect=lambda _,row:row['sha256'])as loader:
+                self.assertEqual(frozen_laws.specialize(subject,directory.parent,'prefix/'),expected)
+                self.assertEqual(loader.call_count,len(expected))

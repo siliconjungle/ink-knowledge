@@ -883,3 +883,12 @@ retain unused/repeated strict operands and lazy exceptional defaults. See
 `tests/test_v8_integer_laws.py` for the independent formula/trace oracle,
 source application, default discovery and adversarial proof replay. Correctness
 admission does not establish a profitable implementation choice.
+
+Frozen-library discovery builds disposable operator/constructor buckets per
+immutable subject and applies exact sort filtering before the existing matcher.
+Root formal parameters retain all sites of their sort; literal values, repeated
+parameters and lexical capture checks still reach the exact matcher. Traversal
+order and duplicate sites are preserved, and a changed subject rebuilds the index.
+Only matched metadata triggers proof decompression; content/index consistency and
+ordinary kernel replay remain mandatory. No index, cache key or head label grants
+an equality, condition or profitability fact.
