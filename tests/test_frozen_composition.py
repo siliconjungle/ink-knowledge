@@ -29,6 +29,89 @@ adaptive query serve(input:u32)->u32 reads(Code,Weight){
 
 
 class FrozenComposition(unittest.TestCase):
+    def test_residual_workload_folds_and_result_helpers_keep_runtime_state(self):
+        source = '''module residual_computation;
+record Item { x:u32, y:u32, }
+state Code:Table<u64,List<u32>>=Table.empty();
+state Weight:Table<u64,u32>=Table.empty();
+state Count:Table<u64,u32>=Table.empty();
+event advanced:u32;
+fn evaluate(code:List<u32>,w:u32,b:u32,input:u32)->u32 {
+ return foldl(code,input,fn(op)=>fn(value)=>choose(op==0,value*w,value+b));
+}
+fn total(items:List<Item>,code:List<u32>,w:u32)->u32 {
+ return foldl(items,0,fn(item)=>fn(sum)=>sum+evaluate(code,w,3,item.x)+evaluate(code,2,w,item.y));
+}
+fn accepted(mode:u32,value:u32)->Result<u32,String> {
+ if mode==0 {return Ok(value);}return Err("mode");
+}
+change advance(fail:Bool)->Result<u32,String> reads(Count) writes(Count) emits(advanced) {
+ let count=Count.get(0).unwrap_or(0)+1;Count.put(0,count);emit advanced(count);
+ if fail {return Err("argument");}return Ok(count);
+}
+change guarded(fail:Bool)->Result<u32,String> reads(Count) writes(Count) emits(advanced) {
+ return accepted(0,advance(fail)?) ;
+}
+change retune(w:u32)->Unit writes(Weight){Weight.put(0,w);return ();}
+query loss(items:List<Item>)->u32 reads(Code,Weight) {
+ return total(items,Code.get(0).unwrap_or([]),Weight.get(0).unwrap_or(1));
+}
+'''
+        with tempfile.TemporaryDirectory() as directory:
+            folder=Path(directory);src=folder/'source.ink';src.write_text(source)
+            core=folder/'core.json'
+            emitted=subprocess.run([INK,'emit-core',src,'-o',core],capture_output=True,text=True)
+            self.assertEqual(emitted.returncode,0,emitted.stderr)
+            data=json.loads(core.read_bytes());data['semantics']='ink-executable-core-v14'
+            data['program']['frozen']={'Code':[[0,[0,1]*16]]};core.write_text(json.dumps(data))
+            plan=folder/'plan.json'
+            proposed=subprocess.run(['python3',PRODUCER,core,'--ink',INK,'-o',plan],capture_output=True,text=True)
+            self.assertEqual(proposed.returncode,0,proposed.stderr)
+            from ink_knowledge import Store, identity
+            from ink_knowledge.store import operations
+            objects=json.loads(plan.read_bytes())['steps'][1]['package']['knowledge']['objects']
+            laws=[o for o in objects.values() if o['kind']=='theorem'
+                and 'GeneralizedInduction' in o['payload']['declaration']['Theorem']['proof']
+                and o['payload']['declaration']['Theorem']['params'][0][0].startswith('equivalent_rows_')]
+            self.assertTrue(laws,'residual workload traversal needs a universal fold equation')
+            law=laws[0]
+            for name,mutate in [
+                ('wrong_accumulator',lambda t:t['to']['Call']['arguments'].__setitem__(-1,{'U64':1})),
+                ('wrong_scope',lambda t:t['proof']['GeneralizedInduction']['cases'][1].__setitem__('proof',{'Hypothesis':999})),
+            ]:
+                bad=copy.deepcopy(law);mutate(bad['payload']['declaration']['Theorem'])
+                bad['interface']['operations']=operations(bad['payload'])
+                forged=Store.publish(folder/name,[*objects.values(),bad]);view=folder/(name+'.json')
+                view.write_text(json.dumps(forged.bundle([identity(bad)])))
+                rejected=subprocess.run([INK,'knowledge-check',core,view],capture_output=True,text=True)
+                self.assertNotEqual(rejected.returncode,0)
+                self.assertNotIn('identity mismatch',rejected.stderr)
+                self.assertNotIn('interface mismatch',rejected.stderr)
+            for name,command in [('baseline',[INK,'build',core,'--core']),
+                                 ('selected',[INK,'compile',core,'--core','--plan',plan])]:
+                compiled=subprocess.run([*command,'--target','javascript','-o',folder/(name+'.mjs')],capture_output=True,text=True)
+                self.assertEqual(compiled.returncode,0,compiled.stderr)
+            script=folder/'execute.mjs'
+            script.write_text('''import assert from 'node:assert/strict';
+import {pathToFileURL} from 'node:url';
+const [a,b]=await Promise.all(process.argv.slice(2).map(async p=>(await import(pathToFileURL(p))).createState()));
+function evalCode(w,b,x){for(let i=0;i<16;i++)x=(Math.imul(x,w)+b)>>>0;return x;}
+for(const w of [0,1,0x80000001,0xffffffff]){
+ assert.deepEqual(a.invoke('retune',[w]),b.invoke('retune',[w]));
+ for(const rows of [[],[{x:3,y:7}],[{x:0xffffffff,y:1},{x:42,y:0x80000000}]]){
+  let expected=0;for(const r of rows)expected=(expected+evalCode(w,3,r.x)+evalCode(2,w,r.y))>>>0;
+  const result=a.invoke('loss',[rows]);assert.deepEqual(result,b.invoke('loss',[rows]));assert.equal(result.result,expected);
+ }
+}
+for(const fail of [false,true,false]){
+ const before=await a.checkpoint();assert.deepEqual(a.invoke('guarded',[fail]),b.invoke('guarded',[fail]));
+ assert.deepEqual(await a.checkpoint(),await b.checkpoint());
+ if(fail)assert.deepEqual(await a.checkpoint(),before);
+}
+''')
+            executed=subprocess.run(['node',script,folder/'baseline.mjs',folder/'selected.mjs'],capture_output=True,text=True)
+            self.assertEqual(executed.returncode,0,executed.stderr)
+
     def fixture(self, folder, count=32):
         source = folder/'source.ink'; source.write_text(SOURCE)
         core = folder/'core.json'

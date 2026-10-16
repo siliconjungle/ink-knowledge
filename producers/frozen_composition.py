@@ -85,6 +85,35 @@ class ChunkPartial(Partial):
             self.helpers.append(function)
         return self.helper_index[key]
 
+    def inline_call(self, function, args, active, depth):
+        names = [self.fresh() for _ in args]
+        for name, (_, ty) in zip(names, function['params']):
+            self.types[name] = ty
+        body = substitute(function['body'], {p[0]: {'Var': name} for p, name in zip(function['params'], names)})
+        closed = {name: value for name, value in zip(names, args) if self.value(value)}
+        body = self.expr(body, closed, active, depth+1)
+        dynamic = [(name, ty, value) for name, (_, ty), value in zip(names, function['params'], args) if name not in closed]
+        def traversal(value):
+            if isinstance(value, list):
+                return any(traversal(v) for v in value)
+            if not isinstance(value, dict):
+                return False
+            return (value.get('Call', [None])[0] in ('foldl', 'foldr', 'repeat', 'repeat_until')
+                    or any(traversal(v) for v in value.values()))
+        if traversal(body):
+            # A residual pure traversal stays behind a typed function boundary.
+            # Dynamic arguments retain their original order, including unused
+            # arguments. The conservative extension and complete action proof
+            # still establish legality; this is no cached equality verdict.
+            if len(self.helpers) >= FoldChunks.MAX_HELPERS:
+                raise ValueError('frozen composition helper budget')
+            helper = self.intern(dict(name=self.fresh(),params=[[n,t] for n,t,_ in dynamic],
+                                      result=function['result'],body=body))
+            return {'Call': [helper,[value for _,_,value in dynamic]]}
+        for name, ty, value in reversed(dynamic):
+            body = {'Let': [name,ty,value,body]}
+        return self.preserve_result(body, function['result'])
+
     def plain(self, ty, active=()):
         if isinstance(ty, str):
             return ty in ('U32', 'U64', 'I32', 'F32', 'Int', 'Bool', 'Unit', 'String')
@@ -192,6 +221,13 @@ def produce(before, after, selected, directory):
                 and function['params'][0][0] == 'pure_arg_0'):
             helpers.add(key)
     chunks = FoldChunks(objects, helpers)
+    recursive = {key for key,obj in objects.items() if obj['payload'].get('declaration',{}).get('Function',{}).get('recursive') is not None}
+    while True:
+        rejected = {key for key in helpers if chunks.references(normal(objects[key]['payload']['declaration']['Function']['body'],objects,
+            opaque=helpers|chunks.closed,blocked=recursive)) & (recursive|(chunks.helpers-helpers))}
+        if not rejected:break
+        helpers-=rejected
+    chunks.helpers=helpers
     fixed = [chunks.share(e['to']) for e in before['frozen_domain']]
     opaque = helpers | chunks.closed
     proofs = {}
@@ -224,11 +260,8 @@ def produce(before, after, selected, directory):
             chunks.tick()
             if (isinstance(a, dict) and isinstance(z, dict) and 'Call' in a and 'Call' in z
                     and a['Call']['function'] in chunks.folds and z['Call']['function'] in helpers):
-                invocation = a['Call']; target = z['Call']; dynamic = invocation['arguments'][1:]
-                if dynamic != target['arguments']:
-                    raise ValueError('frozen composition dynamic argument correspondence')
-                lemma = chunks.bridge(invocation['function'], invocation['arguments'][0], target['function'])
-                return z, [{'Use': dict(theorem=lemma, arguments=dynamic, premises=[])}]
+                lemma, arguments = chunks.bridge_application(a['Call'],z['Call'])
+                return z, [{'Use': dict(theorem=lemma, arguments=arguments, premises=[])}]
             raise ValueError('frozen composition has unmatched source structure')
         # Locate whole term opportunities, then lift once through the complete
         # transition context, avoiding congruence over JSON container fragments.
@@ -244,12 +277,23 @@ def produce(before, after, selected, directory):
                 return [pair for x, y in zip(a, z) for pair in pairs(x, y)]
             raise ValueError('frozen composition has unmatched source structure')
         current = left; steps = [forward]
-        for a, z in pairs(left, right):
-            _, proofs_at_site = align(a, z)
-            hole = 'composition_hole'
-            context = replace(current, a, var(hole))
-            steps.append(lift(compose(proofs_at_site), context, hole)); current = replace(current, a, z)
-        steps += [convert(current, right), {'Sym': backward}]
+        try:
+            opportunities = pairs(left, right)
+        except ValueError as error:
+            if str(error) != 'frozen composition has unmatched source structure':
+                raise
+            from producers.computation_equality import ComputationEquality
+            fields = chunks.objects[before['state']]['payload']['declaration']['Datatype']['constructors'][0]['fields']
+            env = {n:t for n,t in old['params'] if n!='initial'}
+            env.update(zip(old['case']['bindings'],fields))
+            steps += [ComputationEquality(chunks).prove(left,right,env,len(before['frozen_domain'])), {'Sym': backward}]
+        else:
+            for a, z in opportunities:
+                _, proofs_at_site = align(a, z)
+                hole = 'composition_hole'
+                context = replace(current, a, var(hole))
+                steps.append(lift(compose(proofs_at_site), context, hole)); current = replace(current, a, z)
+            steps += [convert(current, right), {'Sym': backward}]
         proofs[name] = {'Cases': dict(variable='initial', **{'from': old_call, 'to': new_call},
             cases=[dict(bindings=old['case']['bindings'], proof=compose(steps))])}
     roots = {a['function'] for m in [before, after] for a in m['actions'].values()} | chunks.lemmas
