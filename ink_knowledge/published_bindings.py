@@ -20,6 +20,16 @@ def source_key(source_objects):
     return hashlib.sha256(json.dumps(sorted(source_objects), separators=(',', ':')).encode()).hexdigest()
 
 
+def binding_value(kind, payload):
+    """Malformed optional search metadata must not suppress other entries."""
+    if kind == 'representation':
+        roots = payload.get('source_objects') or []
+        return source_key(roots) if isinstance(roots,list) and all(isinstance(x,str) for x in roots) else None
+    package = payload.get('package')
+    result = package.get('input_core_sha256') if isinstance(package,dict) else None
+    return result if isinstance(result,str) else None
+
+
 def build(store):
     entries = {kind: [] for kind in KINDS}
     for kind in KINDS:
@@ -28,11 +38,7 @@ def build(store):
             page = store.query(kind=kind, after=after, limit=256)
             for ident in page:
                 payload = store.object(ident)['payload']
-                if kind == 'representation':
-                    binding = source_key(payload.get('source_objects') or [])
-                else:
-                    package = payload.get('package')
-                    binding = package.get('input_core_sha256') if isinstance(package, dict) else None
+                binding = binding_value(kind,payload)
                 entries[kind].append([ident, binding])
             if len(page) < 256:
                 break
@@ -84,11 +90,7 @@ def insert(db, ident, obj):
     if kind not in KINDS:
         return
     payload = obj['payload']
-    if kind == 'representation':
-        binding = source_key(payload.get('source_objects') or [])
-    else:
-        package = payload.get('package')
-        binding = package.get('input_core_sha256') if isinstance(package, dict) else None
+    binding = binding_value(kind,payload)
     db.execute('INSERT OR REPLACE INTO published_bindings_v1 VALUES(?,?,?)',
                (ident,kind,binding))
 

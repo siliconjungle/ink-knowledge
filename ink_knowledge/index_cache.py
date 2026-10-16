@@ -3,9 +3,16 @@ from .store import canonical,identity
 import time
 MAX_SNAPSHOTS=16
 TABLES=('entries','dependencies','types','operations','effects','applicability','names','observations')
-INDEXES=('membership_entry_lookup','dependency_parent_lookup')
-INDEX_SCHEMA='''CREATE INDEX IF NOT EXISTS membership_entry_lookup ON members(entry_id,snapshot_id);
+INDEXES=('membership_entry_lookup','dependency_parent_lookup','entry_kind_lookup')
+INDEX_SCHEMA='''CREATE INDEX IF NOT EXISTS entry_kind_lookup ON entries(kind,id);
+CREATE INDEX IF NOT EXISTS membership_entry_lookup ON members(entry_id,snapshot_id);
 CREATE INDEX IF NOT EXISTS dependency_parent_lookup ON dependencies(dependency_id,entry_id);'''
+
+def ensure_indexes(db):
+    """Upgrade derived indexes atomically without copying a modern database."""
+    for statement in INDEX_SCHEMA.split(';'):
+        if statement.strip():db.execute(statement)
+
 
 def touch(path,snapshot):
     """Best-effort recency hint; no canonical bytes or membership are changed."""

@@ -20,6 +20,7 @@ CREATE TABLE entries (
     conditions TEXT NOT NULL CHECK (json_valid(conditions))
 ) STRICT;
 CREATE INDEX entry_lookup ON entries (semantics, kind, result);
+CREATE INDEX entry_kind_lookup ON entries (kind, id);
 
 CREATE TABLE witnesses (
     id TEXT PRIMARY KEY,

@@ -84,4 +84,33 @@ class IndexedPublishedBindings(unittest.TestCase):
             candidate=entry('implementation','ink-implementation-candidate-v1',dict(package=package));store=Store.publish(d/'knowledge',[candidate]);store.rebuild();rows=list(published(dict(knowledge_root=str(store.root),source=source_hash,model=dict(objects=[]))));self.assertEqual(len(rows),1)
             path=d/'selection.json';path.write_bytes(canonical(rows[0]['step']['package']));r=subprocess.run([compiler,'check-selection',d/'core.json',path],capture_output=True,text=True,timeout=120);self.assertNotEqual(r.returncode,0);self.assertNotIn('membership',r.stderr.lower())
 
+
+class DefensiveBindingMetadata(unittest.TestCase):
+    def test_malformed_optional_bindings_do_not_block_unrelated_entries(self):
+        from ink_knowledge.published_bindings import build
+        with tempfile.TemporaryDirectory() as d:
+            objects=[implementation('a'*64,1),
+                     entry('implementation','unknown-protocol-v1',dict(package=dict(input_core_sha256={'untrusted':'object'}))),
+                     entry('representation','unknown-protocol-v1',dict(source_objects=17)),
+                     entry('representation','unknown-protocol-v1',dict(source_objects=['a',17]))]
+            store=Store.publish(d,objects);store.rebuild();cached=bindings(store)
+            self.assertEqual(cached,build(store)['entries'])
+            self.assertEqual([key for _,key in cached['representation']],[None,None])
+            rows=list(published(dict(knowledge_root=d,source='a'*64,model=dict(objects=[]))))
+            self.assertEqual(len([r for r in rows if r['status']=='proposal']),1)
+
+    def test_missing_kind_index_migrates_in_place_with_query_and_pin_parity(self):
+        import sqlite3
+        from unittest.mock import patch
+        from ink_knowledge import identity
+        with tempfile.TemporaryDirectory() as d:
+            root=Path(d);a=implementation('a'*64,1);b=implementation('b'*64,2);store=Store.publish(root,[a,b]);store.rebuild();before=store.query(kind='implementation');pin=store.snapshot_id
+            with sqlite3.connect(root/'index.sqlite') as db:db.execute('DROP INDEX entry_kind_lookup')
+            with patch('ink_knowledge.index_cache.copy',side_effect=AssertionError('whole database copy')):self.assertTrue(store.ensure_index())
+            self.assertEqual(store.query(kind='implementation'),before);self.assertEqual(store.snapshot_id,pin)
+            self.assertEqual(store.query(kind='implementation',after=before[0]),before[1:]);self.assertEqual(store.query(kind='implementation',limit=1),before[:1]);self.assertEqual(store.query(kind='representation'),[])
+            with sqlite3.connect(root/'index.sqlite') as db:
+                plan=db.execute('EXPLAIN QUERY PLAN SELECT id FROM entries WHERE kind=? ORDER BY id',('implementation',)).fetchall()
+                self.assertTrue(any('entry_kind_lookup'in row[-1]for row in plan),plan)
+
 if __name__=='__main__':unittest.main()

@@ -429,7 +429,7 @@ class Store:
             columns={r[1]for r in db.execute('PRAGMA table_info(members)')}
             from .index_cache import INDEXES
             indexes={r[0]for r in db.execute("SELECT name FROM sqlite_master WHERE type='index'")}
-            modern={'snapshots','entries','members','witnesses','pattern_roots','pattern_targets','template_heads','template_tokens','observations','observation_entries','observation_attribution'}<=tables and 'witness_id'in columns and set(INDEXES)<=indexes
+            modern={'snapshots','entries','members','witnesses','pattern_roots','pattern_targets','template_heads','template_tokens','observations','observation_entries','observation_attribution'}<=tables and 'witness_id'in columns
             if modern:
                 db.execute('PRAGMA foreign_keys=ON')
                 with db:return self._refresh_rows(db)
@@ -448,6 +448,8 @@ class Store:
             if Path(tmp).exists():Path(tmp).unlink()
         return added
     def _refresh_rows(self,db):
+        from .index_cache import ensure_indexes
+        ensure_indexes(db)
         from .published_bindings import ensure_schema as binding_schema, insert as insert_binding, refresh_missing as refresh_bindings
         binding_schema(db)
         from .family_evidence import insert as insert_attribution
