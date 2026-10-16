@@ -96,6 +96,7 @@ class Partial:
         self.enums = {n+'.'+v for n, vs in program['enums'].items() for v in vs}
         self.work = 0
         self.serial = 0
+        self.generated = set()
         self.source_text = json.dumps(program)
 
     def fresh(self):
@@ -103,6 +104,7 @@ class Partial:
             name = '__frozen_proposal_'+str(self.serial)
             self.serial += 1
             if name not in self.source_text:
+                self.generated.add(name)
                 return name
 
     def tick(self, depth):
@@ -132,6 +134,51 @@ class Partial:
                 return not equality and type(args[0]['Num']) is int and 0 <= args[0]['Num'] <= 0xffffffff
             return n in ('Some', 'Ok', 'Err', 'list') and all(self.value(a, equality=equality) for a in args)
         return False
+
+    def fold(self, name, args, active, depth):
+        """Expand a closed traversal, keeping the accumulator in fresh slots.
+
+        This is a proposal, not a new evaluator or equality rule. In particular
+        no floating arithmetic is evaluated here. The ordinary transition proof
+        must establish every step, including its original operation order.
+        """
+        if len(args) != 3:
+            return None
+        rows, initial, step = args
+        if (not isinstance(rows, dict) or rows.get('Call', [None])[0] != 'list'
+                or not self.value(rows) or not isinstance(step, dict) or 'Lambda' not in step):
+            return None
+        element, inner = step['Lambda']
+        if not isinstance(inner, dict) or 'Lambda' not in inner:
+            return None
+        accumulator, body = inner['Lambda']
+        # The initializer executes once even for an empty list or an unused
+        # accumulator. Each intermediate executes once, including when the
+        # next step mentions its accumulator more than once or not at all.
+        previous = self.fresh()
+        bindings = [(previous, initial)]
+        values = rows['Call'][1]
+        for value in values if name == 'foldl' else reversed(values):
+            self.tick(depth)
+            following = self.fresh()
+            expression = substitute(body, {element: value, accumulator: {'Var': previous}})
+            bindings.append((following, self.expr(expression, {}, active, depth + 1)))
+            previous = following
+        result = {'Var': previous}
+        for local, value in reversed(bindings):
+            result = {'Let': [local, None, value, result]}
+        return result
+
+    def leading_bindings(self, expression, statements):
+        # Only our globally fresh binders can move into the surrounding block.
+        # User lexical scopes, operand positions and lazy branches stay intact.
+        while isinstance(expression, dict) and 'Let' in expression:
+            name, ty, value, body = expression['Let']
+            if name not in self.generated:
+                break
+            statements.append({'Let': [name, ty, value]})
+            expression = body
+        return expression
 
     def expr(self, e, env=None, active=(), depth=0):
         self.tick(depth)
@@ -169,6 +216,10 @@ class Partial:
                     return rec(args[1 if condition['Bool'] else 2])
                 return {'Call': [n, [condition, rec(args[1]), rec(args[2])]]}
             args = [rec(x) for x in args]
+            if n in ('foldl', 'foldr'):
+                folded = self.fold(n, args, active, depth)
+                if folded is not None:
+                    return folded
             # Bind every argument once in source order, under names fresh for
             # the complete source. Closed parameters can then expose branches
             # inside helpers without capturing or duplicating dynamic inputs.
@@ -232,20 +283,24 @@ class Partial:
                 if self.value(value):
                     env[n] = value
                 else:
+                    value = self.leading_bindings(value, result)
                     result.append({'Let': [n, ty, value]})
             elif 'If' in statement:
                 condition, yes, no = statement['If']
                 condition = self.expr(condition, env)
+                condition = self.leading_bindings(condition, result)
                 if 'Bool' in condition:
                     result.extend(self.statements(yes if condition['Bool'] else no, env))
                 else:
                     result.append({'If': [condition, self.statements(yes, env), self.statements(no, env)]})
             elif 'Emit' in statement:
                 event, value = statement['Emit']
-                result.append({'Emit': [event, self.expr(value, env)]})
+                value = self.leading_bindings(self.expr(value, env), result)
+                result.append({'Emit': [event, value]})
             else:
                 key = next(iter(statement))
-                result.append({key: self.expr(statement[key], env)})
+                value = self.leading_bindings(self.expr(statement[key], env), result)
+                result.append({key: value})
         return result
 
 
