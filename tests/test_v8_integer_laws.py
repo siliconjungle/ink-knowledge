@@ -146,6 +146,45 @@ class IntegerLaws(unittest.TestCase):
     self.assertEqual(json.loads(call('strict_wide_self',[0],100000,selected).stdout),73)
     self.assertEqual(json.loads(call('wide_self',[values,fallback],100000,selected).stdout),[fallback if x==0 else 1 for x in values])
 
+ def test_wide_remainders_preserve_strict_work_lazy_defaults_and_full_width(self):
+  from ink_planner.semantic_search import positions,match
+  from producers.v8_integer_laws import specialize
+  names=['u64_rem_or_self','u64_rem_or_zero_numerator']
+  rows={r['name']:r['law']for r in read(DATA)if r['name']in names}
+  with tempfile.TemporaryDirectory()as tmp:
+   d=Path(tmp);run(compiler(),'emit-core',SOURCE,'-o',d/'core.json')
+   run(compiler(),'emit-semantic',d/'core.json','--core','-o',d/'semantic.json');subject=json.loads((d/'semantic.json').read_bytes())
+   functions={'strict_wide_rem_self':names[0],'wide_rem_self':names[0],
+              'strict_wide_zero_numerator':names[1],'wide_zero_numerator':names[1]}
+   objects={n:semantic_entry(law)for n,law in rows.items()};store=Store.publish(d/'knowledge',objects.values());applications=[]
+   for function,name in functions.items():
+    law=rows[name]
+    self.assertIn('v8-integer/'+name,dict(specialize({'functions':{'arbitrary':subject['functions'][function]}},{})))
+    for path,target in positions(subject['functions'][function]):
+     arguments={}
+     if match(law['from'],target,law['params'],arguments):
+      applications.append(dict(function=function,path=list(path),law=identity(objects[name]),arguments=arguments,premises=[]));break
+    else:self.fail('missing remainder application '+function)
+   selection=dict(schema=1,semantics='ink-evidence-v1',input_core_sha256=subject['input_core_sha256'],knowledge=store.bundle([identity(obj)for obj in objects.values()]),applications=applications)
+   (d/'selection.json').write_bytes(canonical(selection));run(compiler(),'check-selection',d/'core.json',d/'selection.json')
+   def call(function,args,budget=100000,selected=False):
+    (d/'args.json').write_bytes(canonical(args))
+    return run(compiler(),'run',d/'core.json',function,d/'args.json','--core','--evaluation-budget',budget,*(['--selection',d/'selection.json']if selected else []),ok=False)
+   values=[0,1,(1<<64)-1,1<<63,(1<<53)+1]
+   for bits in [8,16,24,32,40,48,56]:values.extend([(1<<bits)-1,1<<bits,(1<<bits)+1])
+   fallback=(1<<63)+17
+   for selected in [False,True]:
+    self.assertNotEqual(call('strict_wide_rem_self',[9],1500,selected).returncode,0)
+    self.assertEqual(json.loads(call('strict_wide_rem_self',[9],2500,selected).stdout),0)
+    self.assertNotEqual(call('strict_wide_rem_self',[0],2500,selected).returncode,0)
+    self.assertEqual(json.loads(call('strict_wide_rem_self',[0],100000,selected).stdout),73)
+    self.assertNotEqual(call('strict_wide_zero_numerator',[9],500,selected).returncode,0)
+    self.assertEqual(json.loads(call('strict_wide_zero_numerator',[9],1500,selected).stdout),0)
+    self.assertNotEqual(call('strict_wide_zero_numerator',[0],1500,selected).returncode,0)
+    self.assertEqual(json.loads(call('strict_wide_zero_numerator',[0],100000,selected).stdout),73)
+    for function in ['wide_rem_self','wide_zero_numerator']:
+     self.assertEqual(json.loads(call(function,[values,fallback],100000,selected).stdout),[fallback if x==0 else 0 for x in values])
+
  def test_source_applications_keep_unused_and_repeated_work_and_lazy_fallback(self):
   with tempfile.TemporaryDirectory()as tmp:
    d=Path(tmp);selection=packet(d);self.assertEqual(len(selection['applications']),len(FUNCTIONS))
