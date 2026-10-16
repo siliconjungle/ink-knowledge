@@ -156,7 +156,10 @@ def _normal(t,objects,depth,opaque,blocked,eager,cache):
         return match(scrutinee,branches)
     if 'Binary' in t:
         x=t['Binary'];a,z=recur(x['left']),recur(x['right'])
-        if 'U64' in a and 'U64' in z:
+        # Other fixed scalar operations, including F32 operations over bit
+        # carriers, remain ordinary terms. Convert replays their core meaning;
+        # this untrusted tactic must not interpret them as integer arithmetic.
+        if 'U64' in a and 'U64' in z and x['op'] in ['==','!=','<','<=','>','>=','+','-','*','&']:
             av,zv=a['U64'],z['U64'];op=x['op'];return {'Bool':{'==':av==zv,'!=':av!=zv,'<':av<zv,'<=':av<=zv,'>':av>zv,'>=':av>=zv}[op]} if op in ['==','!=','<','<=','>','>='] else {'U64':{'+':av+zv,'-':av-zv,'*':av*zv,'&':av&zv}[op]%(1<<64)}
         if 'Bool'in a and 'Bool'in z:
             av,zv=a['Bool'],z['Bool'];op=x['op']

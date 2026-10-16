@@ -8,8 +8,10 @@ producer's evaluation never authorize a replacement or establish profitability.
 import argparse
 import copy
 import json
+import math
 from pathlib import Path
 import subprocess
+import struct
 import sys
 import tempfile
 
@@ -45,6 +47,26 @@ def literal(ty, value, program, depth=0):
         return {'Num': value}
     if ty == 'Bool' and type(value) is bool:
         return {'Bool': value}
+    if ty == 'F32':
+        if isinstance(value, dict) and set(value) == {'F32Bits'}:
+            bits = value['F32Bits']
+            if type(bits) is not int or not 0 <= bits <= 0xffffffff:
+                raise ValueError('frozen F32 bits outside range')
+        elif type(value) in (int, float):
+            try:
+                if not math.isfinite(value):
+                    raise ValueError('non-finite frozen F32 requires exact bits')
+                bits = int.from_bytes(struct.pack('>f', value), 'big')
+            except (OverflowError, struct.error) as error:
+                raise ValueError('frozen F32 outside finite range') from error
+            if bits & 0x7f800000 == 0x7f800000:
+                raise ValueError('frozen F32 outside finite range')
+        else:
+            raise ValueError('invalid frozen F32 value')
+        # Float literals are finite in executable core. The ordinary bitcast
+        # constructs exceptional values without canonicalizing their payloads.
+        return ({'Call': ['f32_from_bits', [{'Num': bits}]]}
+                if bits & 0x7f800000 == 0x7f800000 else {'Float': bits})
     if ty == 'Unit':
         return 'Unit'
     if isinstance(ty, dict):
@@ -88,23 +110,27 @@ class Partial:
         if self.work > 100000 or depth > 64:
             raise ValueError('frozen specialization work budget')
 
-    def value(self, e):
+    def value(self, e, *, equality=False):
         if e == 'Unit':
             return True
         if not isinstance(e, dict):
             return False
         if any(k in e for k in ('Num', 'Bool')):
             return True
+        if 'Float' in e:
+            return not equality
         if 'Var' in e:
             return e['Var'] in self.enums or e['Var'] == 'None'
         if 'Field' in e:
             base, field = e['Field']
             return isinstance(base, dict) and base.get('Var', '')+'.'+field in self.enums
         if 'Record' in e:
-            return all(self.value(x) for _, x in e['Record'][1])
+            return all(self.value(x, equality=equality) for _, x in e['Record'][1])
         if 'Call' in e:
             n, args = e['Call']
-            return n in ('Some', 'Ok', 'Err', 'list') and all(self.value(a) for a in args)
+            if n == 'f32_from_bits' and len(args) == 1 and isinstance(args[0], dict) and set(args[0]) == {'Num'}:
+                return not equality and type(args[0]['Num']) is int and 0 <= args[0]['Num'] <= 0xffffffff
+            return n in ('Some', 'Ok', 'Err', 'list') and all(self.value(a, equality=equality) for a in args)
         return False
 
     def expr(self, e, env=None, active=(), depth=0):
@@ -185,7 +211,9 @@ class Partial:
             if op in ('&&', '||') and 'Bool' in a:
                 return rec(z) if a['Bool'] == (op == '&&') else a
             z = rec(z)
-            if op in ('==', '!=') and self.value(a) and self.value(z):
+            # Source IEEE equality is not Python syntax/raw-bit equality.
+            # Keep float comparisons (including nested values) in the source.
+            if op in ('==', '!=') and self.value(a, equality=True) and self.value(z, equality=True):
                 return {'Bool': (a == z) == (op == '==')}
             return {'Binary': [op, a, z]}
         if 'Neg' in e or 'Try' in e:

@@ -75,3 +75,13 @@ ordinary hinted-RUP checker. `frozen_laws.py` maintains an atomic pattern index
 and separate content-addressed proof files; discovery opens matched proofs only.
 The index is an untrusted discovery aid. Conditions, source binding and every
 proof still require independent checking; no V8 feedback grants authority.
+
+`frozen_specialization.py` materializes frozen F32 coefficients as exact finite
+literals or exceptional-value bitcasts, including nested records and lists.
+Value classification is separate from equality folding: floating comparisons
+remain source operations, while `point_delta.normal` preserves non-integer
+operators for ordinary kernel conversion. Whole-action proofs must replay under
+the checked frozen domain; scores and explicit configuration supply no theorem.
+The distribution's frozen numeric example checks retained live data, raw NaN bits,
+signed zero, rollback and complete compiled snapshots. This is bounded proposal
+tooling, not universal graph unrolling or automatic profitable specialization.

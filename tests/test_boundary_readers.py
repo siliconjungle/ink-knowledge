@@ -15,7 +15,12 @@ class BoundaryReaders(unittest.TestCase):
   self.assertEqual(spec['schema'],3);self.assertEqual(set(receipt['boundaries']),{'trusted','portable','compact'})
   self.assertEqual({row['boundary']for rows in spec['phases'].values()for row in rows},{'trusted','portable','compact'})
   self.assertLessEqual(receipt['calls'],384)
-  for mode in ['trusted','portable','compact']:self.assertEqual({len(row['args'][0])for row in spec['phases']['call:copy:'+mode]},{0,8,128,2048})
+  # Selection evidence now separates sizes rather than combining them in a
+  # single boundary phase. Keep complete coverage and homogeneous strata.
+  for mode in ['trusted','portable','compact']:
+   phases=[rows for phase,rows in spec['phases'].items()if receipt['size_strata'][phase]['original_phase']=='call:copy:'+mode]
+   self.assertEqual({len(row['args'][0])for rows in phases for row in rows},{0,8,128,2048})
+   self.assertTrue(all(len({len(row['args'][0])for row in rows})==1 for rows in phases))
  def test_registry_proposals_compose_without_domain_recognisers(self):
   compiler=compiler_path()
   with tempfile.TemporaryDirectory()as temporary:
