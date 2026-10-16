@@ -794,6 +794,18 @@ replay and comparable lifecycle evidence remain required. See the distribution's
 `bench/v8-learning/branch-cardinality` for default-discovery callback controls,
 native acquisition and a rejection-only holdout.
 
+Range-guided word conversion proposals now reuse the existing unsigned analysis:
+`widen(narrow(x))` may return `x` only when its branch-local complete range fits
+U32; the inverse U32 round trip is always lossless. Bounds on a wrapping sum
+apply to that sum, without being inverted into bounds on its input. The existing
+whole-function conditional-fact acquisition still exports ordinary checked
+bitvector equations. Three frozen whole-branch conversion laws are available
+through normal V8 word-library discovery, including relational and wrapped-sum
+forms. Physical representation equality grants no range or check-elision fact.
+See `tests/test_range_conversions.py` for independent boundary values, renamed
+normal discovery and cross-branch forgery rejection. Profitability is measured
+separately; these proposals do not select a runtime implementation by themselves.
+
 Frozen structural specialization now retains transparent fixed-data definitions
 in its checked evidence closure, including roots no surviving action reads.
 The distribution derives their exact meaning from immutable source rows; the
