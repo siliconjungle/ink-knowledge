@@ -826,3 +826,13 @@ arithmetic stays opaque and F64 semantic proofs reject. These are reusable
 source laws, not a floating fast-math mode or automatic profitability decision.
 See `tests/test_v8_float_laws.py` for payload/boundary oracles, mode substitution,
 a rehashed false IEEE claim, callback scope and retained failing work.
+
+`producers.closed_data_bridges` now factors exact closed-data equalities into
+ordinary source-bound theorems. A later transparent chunk reuses prior lemmas;
+complete action proofs retain data sharing even when literal syntax differs.
+Candidate fingerprints and membership grant no proof authority. Discovery work,
+depth or size exhaustion discards partial objects and retains the prior checked
+tactic. Tests cover complete exceptional F32 lists through 512 values, a changed
+NaN payload after rebuilding the candidate closure, authenticated invalid
+theorems and transactional discovery fallback. These generated proof views ship
+with selected models; the default canonical catalogue remains unchanged.

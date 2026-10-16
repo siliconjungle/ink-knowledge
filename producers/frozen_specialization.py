@@ -19,6 +19,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from ink_knowledge import Store
 from producers.action_replacement import alpha_normal, call, cons, convert, trans, var
 from producers.point_delta import equality, lift, normal, replace, sub
+from producers.closed_data_bridges import ClosedDataBridges
 
 
 def substitute(e, bindings):
@@ -312,7 +313,7 @@ def specialize(source):
     return selected
 
 
-def compact_equality(a, z, state, frozen, objects):
+def compact_equality(a, z, state, frozen, objects, bridges=None):
     """Transport fixed rows without copying fully expanded arithmetic primals."""
     if alpha_normal(a['case']['normal']) == alpha_normal(z['case']['normal']):
         return convert(a['case']['call'], z['case']['call'])
@@ -329,11 +330,25 @@ def compact_equality(a, z, state, frozen, objects):
             steps.append(lift(premise, context, 'frozen_compact_hole'))
             term = replace(term, exposed, right)
         return term, steps
-    left, forward = rewrite(a['case']['normal'])
-    right, backward = rewrite(z['case']['normal'])
-    return trans(convert(a['case']['call'], a['case']['normal']), *forward,
+    def exposed(action):
+        term = action['case']['normal']
+        if bridges and bridges.aliases and term == action['case']['call']:
+            # A bounded core hint may retain its call to preserve large data.
+            # Expose that call while keeping every closed data alias opaque.
+            term = normal(term, objects, opaque=bridges.opaque)
+        return term
+    left_hint, right_hint = exposed(a), exposed(z)
+    left, forward = rewrite(left_hint)
+    right, backward = rewrite(right_hint)
+    if bridges and bridges.aliases:
+        avoid = {n for action in (a,z) for n,_ in action['case']['params']}
+        left, steps = bridges.rewrite(left, avoid)
+        forward.extend(steps)
+        right, steps = bridges.rewrite(right, avoid)
+        backward.extend(steps)
+    return trans(convert(a['case']['call'], left_hint), *forward,
                  convert(left, right), *[{'Sym': step} for step in reversed(backward)],
-                 convert(z['case']['normal'], z['case']['call']))
+                 convert(right_hint, z['case']['call']))
 
 
 def produce(before, after, selected, directory, *, compact=False):
@@ -344,6 +359,17 @@ def produce(before, after, selected, directory, *, compact=False):
     if before['state'] != after['state'] or before['events'] != after['events']:
         raise ValueError('transition representation changed')
     objects = {**before['objects'], **after['objects']}
+    bridges = None
+    if compact:
+        try:
+            bridges = ClosedDataBridges(objects)
+            objects = bridges.objects
+        except ValueError as error:
+            if not any(bound in str(error) for bound in ('budget', 'depth limit', 'byte limit')):
+                raise
+            # Optional candidate discovery must not reject the old tactic.
+            # Construction is transactional: its partial objects stay private.
+            bridges = None
     proofs = {}
     for name, a in before['actions'].items():
         z = after['actions'][name]
@@ -355,7 +381,7 @@ def produce(before, after, selected, directory, *, compact=False):
         bindings = a['case']['bindings']
         state = cons(before['state'], 0, [var(n) for n in bindings])
         if compact:
-            case = compact_equality(a, z, state, before['frozen_domain'], objects)
+            case = compact_equality(a, z, state, before['frozen_domain'], objects, bridges)
         else:
             facts = [(sub(eq['from'], {'initial': state}), sub(eq['to'], {'initial': state}), i)
                      for i, eq in enumerate(before['frozen_domain'])]
@@ -365,6 +391,8 @@ def produce(before, after, selected, directory, *, compact=False):
         proofs[name] = {'Cases': dict(variable='initial', **{'from': old, 'to': new},
                                       cases=[dict(bindings=bindings, proof=case)])}
     roots = {a['function'] for m in (before, after) for a in m['actions'].values()}
+    if bridges:
+        roots.update(bridges.lemmas)
     def fixed_references(value):
         if isinstance(value, dict):
             function = value.get('function')
