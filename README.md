@@ -915,3 +915,24 @@ chunk. Every law/witness still replays; rehashed false-tail claims reject.
 Generated proof bundles remain local to each explicit plan, not additions to the
 default catalogue or automatic profitability authority. Expanded layout retains
 its selected code, but its updated proof packaging has different plan bytes.
+
+## Explicit device rewrite calibration
+
+Twelve immutable observations now record the source-checked U64 quotient-by-eight
+fold comparison on an explicitly requested WebGPU device: two unchanged equality
+plans, three fresh processes each for training and disjoint normalized holdout.
+The held-out median of process medians is 2.710 ms for the original GPU program
+and 0.686 ms for the rewritten GPU program; the median paired ratio is 3.955.
+This is a complete warm async-call comparison, including uploads, readback and
+full consumption, on one shared workstation. It is not a CPU-placement gain.
+
+These rows use the distinct explicit-device bridge, exact source/plan/toolchain
+identity and browser-exposed adapter context. Independent supplied-device hooks
+verify compute dispatches, submissions and readbacks, alongside exact original
+reference results and unchanged captured inputs. Browser startup, device creation,
+module load, first call and build controls are retained separately in distribution
+`bench/v8-learning/device-calibration`. Whole-browser peak memory is unknown
+(`null`), so no zero-memory estimate, automatic selection or runtime policy is
+installed. Canonical plan IDs remain separate from the automatic adapter's
+measurement IDs. The proof snapshot and all existing observation bytes remain
+unchanged. These measurements are cost data, never equality/range premises.
