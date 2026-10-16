@@ -24,6 +24,8 @@ from producers.function_equality import produce
 
 class FunctionPartial(ChunkPartial):
     def should_inline(self, name, args, original):
+        if not args and self.value(self.functions[name]['body']):
+            return True
         if name in self.helper_names:
             return super().should_inline(name, args, original)
         return any(self.value(a) for a in args)

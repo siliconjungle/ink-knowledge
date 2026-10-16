@@ -15,13 +15,56 @@ import tempfile
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from ink_knowledge import Store, canonical
-from producers.action_replacement import call, var
+from producers.action_replacement import call, convert, var
+from producers.fold_chunks import compose
 from producers.computation_equality import ComputationEquality
 from producers.frozen_composition import comparison_chunks
 from producers.point_delta import free_variables
+from producers.definition_correspondence import DefinitionCorrespondence
 
 
 class FunctionEquality(ComputationEquality):
+    def __init__(self, chunks):
+        super().__init__(chunks)
+        self.correspondence = DefinitionCorrespondence(chunks)
+
+    def prove_local(self, a, z, env, hypotheses=0, depth=0):
+        self.chunks.tick()
+        if depth > 24:
+            raise ValueError('function equality proof depth')
+        # Prove closed constructor correspondence at its own root, before
+        # adding a recursive caller's argument context to the conversion.
+        for closed, other in [(a, z), (z, a)]:
+            invocation = closed.get('Call')
+            if (invocation and not invocation['arguments'] and not free_variables(other)
+                    and 'Construct' in other):
+                definition = self.chunks.objects[invocation['function']]['payload'].get('declaration', {}).get('Function', {})
+                if not definition.get('params') and definition.get('recursive') is None and 'Construct' in definition.get('body', {}):
+                    lemma = self.chunks.theorem([], a, z, convert(a, z))
+                    return {'Use': dict(theorem=lemma, arguments=[], premises=[])}
+        if ('Call' in a and 'Call' in z and a['Call']['function'] == z['Call']['function']
+                and len(a['Call']['arguments']) == len(z['Call']['arguments'])):
+            return {'Call': dict(function=a['Call']['function'], arguments=[
+                self.prove(x, y, env, hypotheses, depth+1)
+                for x, y in zip(a['Call']['arguments'], z['Call']['arguments'])])}
+        if ('Call' in a and 'Call' in z and a['Call']['function'] != z['Call']['function']
+                and len(a['Call']['arguments']) == len(z['Call']['arguments'])):
+            try:
+                lemma = self.correspondence.bridge(a['Call']['function'], z['Call']['function'])
+            except ValueError:
+                pass
+            else:
+                shared = [self.chunks.share_data(x) if 'Construct' in x and not free_variables(x) else x
+                          for x in z['Call']['arguments']]
+                congruence = {'Call': dict(function=a['Call']['function'], arguments=[
+                    self.prove(x, y, env, hypotheses, depth+1)
+                    for x, y in zip(a['Call']['arguments'], shared)])}
+                final = {'Call': dict(function=z['Call']['function'], arguments=[
+                    self.prove(x, y, env, hypotheses, depth+1)
+                    for x, y in zip(shared, z['Call']['arguments'])])}
+                return compose([congruence, {'Use': dict(theorem=lemma, arguments=shared, premises=[])}, final])
+        return super().prove_local(a, z, env, hypotheses, depth)
+
     def normalize(self, term, env, depth=0):
         term = super().normalize(term, env, depth)
         def share(value):
