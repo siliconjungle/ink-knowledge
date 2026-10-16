@@ -20,6 +20,7 @@ from ink_knowledge import Store, canonical, identity
 from ink_knowledge.store import entry
 from producers.frozen_composition import ChunkPartial
 from producers.function_equality import produce
+from producers.checked_core_image import write_checked_image
 
 
 class FunctionPartial(ChunkPartial):
@@ -84,7 +85,8 @@ def main():
             run('check-plan', args.source, packet, '--core', '--state-out', state)
             extended = folder/'extended.json'
             extended.write_bytes(canonical(json.loads(state.read_bytes())['core']))
-        candidate = folder/'selected.json'; candidate.write_bytes(canonical(selected))
+        candidate = folder/'selected.json'
+        selected = write_checked_image(selected, candidate, args.ink)
         def model(path, name):
             output = folder/(name+'.json')
             run('emit-function-model', path, '--core', '--functions', ','.join(changed), '-o', output)

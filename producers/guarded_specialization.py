@@ -18,6 +18,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from ink_knowledge import Store, canonical, identity, semantic_entry
 from ink_knowledge.store import entry
 from producers.definition_context28 import bind
+from producers.checked_core_image import write_checked_image
 from producers.frozen_specialization import literal, source_free
 from producers.semantic_laws import arrow, bound, lam, op, value, var, word
 
@@ -207,8 +208,10 @@ def guard_proof(extended, before, after, function, parameter, fallback, wrapped)
                        arguments=dict(f=callback, x=x, k=fixed), premises=[])}
     comparison, types = comparison_rule(c, extended, before)
     comparison_key = identity(comparison)
-    condition_proof = {'Use': dict(law=comparison_key, types=types,
-                                   arguments=dict(x=x, k=fixed), premises=[])}
+    comparison_use = dict(law=comparison_key, arguments=dict(x=x, k=fixed), premises=[])
+    if types:
+        comparison_use['types'] = types
+    condition_proof = {'Use': comparison_use}
     # Balanced composition bounds written proof depth. Neither branch expands
     # the evaluated graph: beta/projection correspondence meets equal call heads.
     proof = {'Trans': dict(middle=applied,
@@ -226,17 +229,17 @@ def main():
     parser.add_argument('--function', required=True)
     parser.add_argument('--parameter', required=True)
     parser.add_argument('--value', required=True, type=Path, help='typed configuration as JSON; floats accept F32Bits')
+    parser.add_argument('--prefix-plan', type=Path,
+        help='replay an earlier plan before discovering and specializing the guarded function')
     parser.add_argument('--ink', required=True, type=Path)
     parser.add_argument('-o', '--output', required=True, type=Path)
     args = parser.parse_args()
-    for path in [args.source, args.value]:
+    for path in [args.source, args.value, *([args.prefix_plan] if args.prefix_plan else [])]:
         if path.stat().st_size > 16_000_000:
             raise ValueError('guard source/configuration byte limit')
     def reject(token):
         raise ValueError('nonstandard JSON number '+token)
-    source = json.loads(args.source.read_bytes())
     config = json.loads(args.value.read_bytes(), parse_constant=reject)
-    selected, helpers, wrapped = propose_source(source, args.function, args.parameter, config)
     with tempfile.TemporaryDirectory(prefix='ink-guarded-specialization-') as temporary:
         folder = Path(temporary)
         def run(*command):
@@ -244,16 +247,29 @@ def main():
             result.check_returncode()
             return result.stdout
         original = json.loads(run('check-core', args.source))['core_sha256']
+        state = folder/'state.json'
+        plan = dict(schema=1, semantics='ink-compiled-plan-v1', input_core_sha256=original, steps=[])
+        source = json.loads(args.source.read_bytes())
+        working = original
+        if args.prefix_plan:
+            # Replay the complete prefix, including its non-core state. The final
+            # combined replay preserves that state; extracting core here supplies
+            # only the next producer's candidate input, never rewrite authority.
+            run('check-plan', args.source, args.prefix_plan, '--core', '--state-out', state)
+            prefix_state = json.loads(state.read_bytes())
+            source, working = prefix_state['core'], prefix_state['source']
+            plan = json.loads(args.prefix_plan.read_bytes())
+        selected, helpers, wrapped = propose_source(source, args.function, args.parameter, config)
         obj = entry('definition', 'ink-source-extension-v1', dict(functions=helpers)); key = identity(obj)
         store = Store.publish(folder/'extensions', [obj])
-        request = dict(schema=1, semantics='ink-source-extension-v1', input_core_sha256=original,
+        request = dict(schema=1, semantics='ink-source-extension-v1', input_core_sha256=working,
                        extension=key, knowledge=store.bundle([key]))
-        plan = dict(schema=1, semantics='ink-compiled-plan-v1', input_core_sha256=original,
-                    steps=[dict(kind='extension', package=request)])
+        plan['steps'].append(dict(kind='extension', package=request))
         packet = folder/'plan.json'; packet.write_bytes(canonical(plan))
-        state = folder/'state.json'; run('check-plan', args.source, packet, '--core', '--state-out', state)
+        run('check-plan', args.source, packet, '--core', '--state-out', state)
         extended = json.loads(state.read_bytes())['core']; ext = folder/'extended.json'; ext.write_bytes(canonical(extended))
-        candidate = folder/'candidate.json'; candidate.write_bytes(canonical(selected))
+        candidate = folder/'candidate.json'
+        selected = write_checked_image(selected, candidate, args.ink)
         def subject(path, name):
             output = folder/(name+'.json'); run('emit-semantic', path, '--core', '-o', output)
             return json.loads(output.read_bytes())
