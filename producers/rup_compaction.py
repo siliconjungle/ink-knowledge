@@ -10,6 +10,7 @@ import json
 import time
 
 from producers.bitvector_proofs import HintBuilder
+from producers.rup_transport import unpack_certificate
 
 
 def _bytes(certificate):
@@ -181,13 +182,15 @@ def compact_certificate(problem, certificate, seconds=30):
     if (certificate['problem_sha256'] != problem['sha256'] or
             certificate.get('encoding') != problem.get('encoding')):
         raise ValueError('certificate problem/encoding mismatch')
+    wire = certificate
+    deadline = time.monotonic() + seconds
+    certificate = unpack_certificate(certificate)
     original = len(problem['clauses'])
     steps = certificate['steps']
     if not steps or steps[-1]['clause']:
         raise ValueError('certificate must end in a contradiction')
     if len(steps) > 20000 or any(len(s['hints']) > 100000 for s in steps):
         raise ValueError('certificate exceeds compaction authoring bounds')
-    deadline = time.monotonic() + seconds
 
     def check():
         if time.monotonic() >= deadline:
@@ -200,7 +203,7 @@ def compact_certificate(problem, certificate, seconds=30):
     factored, prefix = _factor(problem, certificate, deadline)
     inlined, count, passes = _inline(problem, factored, check)
     check()
-    candidates = [certificate, factored, inlined]
+    candidates = [wire, factored, inlined]
     sizes = [_bytes(c) for c in candidates]
     check()
     selected = min(range(len(candidates)), key=lambda i: sizes[i])

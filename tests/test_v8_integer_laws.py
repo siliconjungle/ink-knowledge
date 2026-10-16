@@ -115,6 +115,37 @@ class IntegerLaws(unittest.TestCase):
    self.assertIn('v8-integer/u64_quot_or_power_3',found)
    self.assertNotIn('v8-integer/u64_quot_or_power_4',found)
 
+ def test_wide_self_quotient_is_discovered_and_keeps_strict_work_and_lazy_fallback(self):
+  from ink_planner.semantic_search import positions,match
+  from producers.v8_integer_laws import specialize
+  row=next(row for row in read(DATA)if row['name']=='u64_quot_or_self');law=row['law'];obj=semantic_entry(law)
+  with tempfile.TemporaryDirectory()as tmp:
+   d=Path(tmp);run(compiler(),'emit-core',SOURCE,'-o',d/'core.json')
+   run(compiler(),'emit-semantic',d/'core.json','--core','-o',d/'semantic.json');subject=json.loads((d/'semantic.json').read_bytes())
+   self.assertTrue(any(name=='v8-integer/u64_quot_or_self'for name,_ in specialize({'functions':{'renamed':subject['functions']['wide_self']}},{})))
+   store=Store.publish(d/'knowledge',[obj]);applications=[]
+   for function in ['strict_wide_self','wide_self']:
+    for path,target in positions(subject['functions'][function]):
+     arguments={}
+     if match(law['from'],target,law['params'],arguments):
+      applications.append(dict(function=function,path=list(path),law=identity(obj),arguments=arguments,premises=[]));break
+    else:self.fail('missing wide self application')
+   selection=dict(schema=1,semantics='ink-evidence-v1',input_core_sha256=subject['input_core_sha256'],knowledge=store.bundle([identity(obj)]),applications=applications)
+   (d/'selection.json').write_bytes(canonical(selection));run(compiler(),'check-selection',d/'core.json',d/'selection.json')
+   def call(function,args,budget=100000,selected=False):
+    (d/'args.json').write_bytes(canonical(args))
+    return run(compiler(),'run',d/'core.json',function,d/'args.json','--core','--evaluation-budget',budget,*(['--selection',d/'selection.json']if selected else []),ok=False)
+   values=[0,1,(1<<64)-1,(1<<63),(1<<53)+1]
+   for bits in [8,16,24,32,40,48,56]:values.extend([(1<<bits)-1,1<<bits,(1<<bits)+1])
+   fallback=(1<<63)+17
+   self.assertEqual(call('once_wide',[9],1500).returncode,0)
+   for selected in [False,True]:
+    self.assertNotEqual(call('strict_wide_self',[9],1500,selected).returncode,0)
+    self.assertEqual(json.loads(call('strict_wide_self',[9],2500,selected).stdout),1)
+    self.assertNotEqual(call('strict_wide_self',[0],2500,selected).returncode,0)
+    self.assertEqual(json.loads(call('strict_wide_self',[0],100000,selected).stdout),73)
+    self.assertEqual(json.loads(call('wide_self',[values,fallback],100000,selected).stdout),[fallback if x==0 else 1 for x in values])
+
  def test_source_applications_keep_unused_and_repeated_work_and_lazy_fallback(self):
   with tempfile.TemporaryDirectory()as tmp:
    d=Path(tmp);selection=packet(d);self.assertEqual(len(selection['applications']),len(FUNCTIONS))

@@ -149,6 +149,8 @@ def main():
     parser.add_argument('--conflicts', type=int, default=100_000)
     parser.add_argument('--compact-seconds', type=float, default=0,
                         help='opt-in root-unit factoring/inlining budget; ordinary replay still required')
+    parser.add_argument('--pack-hints', action='store_true',
+                        help='opt-in bounded lossless hint transport; ordinary replay still required')
     args = parser.parse_args(); directory = args.directory.resolve()
     if not 0 < args.solver_seconds <= 600 or not 0 < args.conflicts <= 1_000_000: parser.error('invalid proof-search budget')
     if not 0 <= args.compact_seconds <= 600: parser.error('invalid proof-compaction budget')
@@ -193,12 +195,24 @@ def main():
         if args.compact_seconds:
             from producers.rup_compaction import compact_certificate
             proof, compaction = compact_certificate(problem, proof, args.compact_seconds)
+        hints = sum(len(s['hints']) for s in proof['steps'])
+        packing = None
+        if args.pack_hints:
+            from producers.rup_transport import pack_certificate
+            before = len(json.dumps(proof, sort_keys=True, separators=(',', ':')).encode())
+            proof = pack_certificate(proof)
+            packing = dict(before_bytes=before,
+                           after_bytes=len(json.dumps(proof, sort_keys=True, separators=(',', ':')).encode()),
+                           decoded_hints=hints)
         derivation = {'BitVector':dict(**{'from':left,'to':right},hypotheses=list(range(len(conditions))),certificate=proof)}
         identity = store(name,'Theorem',dict(**goal,proof=derivation))
         if not conditions: proposals.append(dict(function=name,**{'from':source(left),'to':source(right)},datatype=datatype,from_definitions=[],to_definitions=[],proof={'Use':dict(theorem=identity,arguments=[var(n) for n,_ in params],premises=[])}))
         result = 'Bool' if name in ('unsigned_reflexive','unsigned_maximum') else 'u64'
         if not conditions: sources.append(f'fn {name}('+', '.join(n+': '+('u64' if t=='U64' else t) for n,t in params)+f') -> {result} {{ return {render(source(left))}; }}')
-        measurements.append(dict(name=name,conditions=len(conditions),variables=problem['variables'],clauses=len(problem['clauses']),steps=len(proof['steps']),hints=sum(len(s['hints']) for s in proof['steps']),producer_seconds=elapsed,problem_sha256=problem['sha256']))
+        measurements.append(dict(name=name,conditions=len(conditions),variables=problem['variables'],clauses=len(problem['clauses']),steps=len(proof['steps']),hints=hints,producer_seconds=elapsed,problem_sha256=problem['sha256']))
+        if packing is not None:
+            measurements[-1]['hint_transport'] = packing
+            measurements[-1]['producer_seconds'] = time.perf_counter() - start
         if compaction is not None:
             measurements[-1]['compaction'] = compaction
             measurements[-1]['producer_seconds'] = time.perf_counter() - start

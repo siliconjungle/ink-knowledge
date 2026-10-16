@@ -17,3 +17,7 @@ pub fn unsigned_quot(xs:List<u32>)->List<u32>{return xs.map(fn(x)=>quot_or(x,8,7
 pub fn unsigned_rem(xs:List<u32>)->List<u32>{return xs.map(fn(x)=>rem_or(x,8,73));}
 pub fn wide_quot(xs:List<u64>)->List<u64>{return xs.map(fn(x)=>quot_or(x,8,73));}
 pub fn wide_rem(xs:List<u64>)->List<u64>{return xs.map(fn(x)=>rem_or(x,8,73));}
+fn slow_wide(x:u64)->u64{return repeat(1000,x,fn(i)=>fn(a)=>a);}
+pub fn once_wide(x:u64)->u64{return slow_wide(x);}
+pub fn strict_wide_self(x:u64)->u64{return quot_or(slow_wide(x),slow_wide(x),slow_wide(73));}
+pub fn wide_self(xs:List<u64>,fallback:u64)->List<u64>{return xs.map(fn(x)=>quot_or(x,x,fallback));}

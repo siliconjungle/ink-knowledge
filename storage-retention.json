@@ -189,11 +189,11 @@
   "safe_to_remove": [
     {
       "path": "research/build/bitvector-producer/add_commute.cnf.json",
-      "reason": "Owned completed two-case compaction CLI validation; selected inputs/logs and checked proof bundle retained in distribution bench/v8-learning/rup-compaction."
+      "reason": "Owned completed packed-hint author compatibility proof. Exact CNF/goals/emitted source and checked immutable proof bundle are retained in distribution bench/v8-learning/hint-transport/selected-inputs.tar.gz; corpus copying and all author/audit workers are terminal."
     },
     {
       "path": "research/build/bitvector-producer/add_commute.goal.json",
-      "reason": "Owned completed two-case compaction CLI validation; selected inputs/logs and checked proof bundle retained in distribution bench/v8-learning/rup-compaction."
+      "reason": "Owned completed packed-hint author compatibility proof. Exact CNF/goals/emitted source and checked immutable proof bundle are retained in distribution bench/v8-learning/hint-transport/selected-inputs.tar.gz; corpus copying and all author/audit workers are terminal."
     },
     {
       "path": "research/build/bitvector-producer/add_zero.cnf.json",
@@ -205,7 +205,15 @@
     },
     {
       "path": "research/build/bitvector-producer/checked.rs",
-      "reason": "Owned completed two-case compaction CLI validation; selected inputs/logs and checked proof bundle retained in distribution bench/v8-learning/rup-compaction."
+      "reason": "Owned completed packed-hint author compatibility proof. Exact CNF/goals/emitted source and checked immutable proof bundle are retained in distribution bench/v8-learning/hint-transport/selected-inputs.tar.gz; corpus copying and all author/audit workers are terminal."
+    },
+    {
+      "path": "research/build/bitvector-producer/given_equal.cnf.json",
+      "reason": "Owned completed packed-hint author compatibility proof. Exact CNF/goals/emitted source and checked immutable proof bundle are retained in distribution bench/v8-learning/hint-transport/selected-inputs.tar.gz; corpus copying and all author/audit workers are terminal."
+    },
+    {
+      "path": "research/build/bitvector-producer/given_equal.goal.json",
+      "reason": "Owned completed packed-hint author compatibility proof. Exact CNF/goals/emitted source and checked immutable proof bundle are retained in distribution bench/v8-learning/hint-transport/selected-inputs.tar.gz; corpus copying and all author/audit workers are terminal."
     }
   ]
 }

@@ -964,3 +964,35 @@ cohorts are not a causal comparison between compiler versions. First-call costs
 vary and all observations remain warm explicit GPU-vs-GPU measurements with
 unknown complete-browser peak memory; CPU placement and automatic policy remain
 unproven and unchanged.
+
+`producers.rup_transport` optionally writes bounded lossless `hint_deltas_v1`
+streams instead of decimal hint arrays. Both wire forms replay the same ordered
+RUP references and consume the same proof budgets. Legacy arrays retain their
+existing encoding and direct replay loop. `--pack-hints` is opt-in on the standalone
+bitvector author; malformed, noncanonical, ambiguous, future or over-limit streams
+reject. Packing grants no theorem or solver authority.
+
+`producers.conditional_cover.boolean_cover` authors ordinary exhaustive Boolean
+`Cases` from explicit conditional bitvector laws. It checks common statements,
+bounds depth/leaves and remaps only each selected original premise. The compiler
+replays the complete cover with shared semantic/circuit budgets. The U64
+self-quotient law now fits the unchanged 16 MB object limit (23,762,435 to
+8,305,056 canonical law bytes), bringing the indexed integer library to 338 of
+340 proposals without changing the prior 337 proof identities. Strict repeated
+operands still execute and exceptional defaults remain lazy. U64 self-remainder
+and zero-numerator remainder remain unadmitted. Proof capacity alone establishes
+no compiled-program speedup or automatic profitable choice.
+
+
+The self-quotient mechanism control has 36 immutable observations: 24 CPU and
+12 explicit-device rows with their original source, plan, toolchain, typed inputs
+and complete-call boundary. JavaScript/native retain the baseline under the
+unchanged gain/extrema guard. The explicit WebGPU holdout median is 3.090 to
+0.609 ms, median paired ratio 5.203 across three fresh browser processes; every
+training/holdout process passes the guard with actual dispatch/readback and exact
+U64 results. Whole-browser peak memory remains unknown. These timing-only rows
+grant no theorem, automatic placement or broad application gain. The unchanged
+frozen ten-program corpus compiles all programs, observes 22 laws/six reused,
+selects no alternative and stops at measurement evidence for every program. Its
+final context check passes. Distribution evidence lives in
+`bench/v8-learning/hint-transport` and `bench/v8-learning/corpus-hint-transport`.
