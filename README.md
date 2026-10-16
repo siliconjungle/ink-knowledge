@@ -760,7 +760,11 @@ snapshot is unchanged by this source-library addition; the distribution retains
 cross-target session checks, compiled durable recovery and the frozen-corpus audit.
 
 `libraries/policy_gradient.ink` supplies generic categorical score-function learning,
-masked choices, authored returns/baselines and trajectory gradients. Applications
+masked choices, authored returns/baselines and trajectory gradients. `joint_gradient`
+weights the ordered sum of conditional scores with one full-computation return;
+`total_gradient` and `mean_gradient` make reduction explicit. `score_action`
+evaluates a specified choice at the current policy for authored likelihood or
+elite-distillation objectives; it does not turn stale samples into on-policy data. Applications
 provide masses and derivatives, random inputs, rewards, constraints and versioned
 feedback. The distribution retains independent finite differences, contextual
 learning, exact Adam resume and cross-target execution. This is F32 authored source,
@@ -861,6 +865,18 @@ bounded authoring strategy when it produces helpers and the direct producer
 otherwise. Normal trained-artifact publication replays and binds either format;
 failed construction/checking never silently changes strategy. General graph/tape
 specialization and automatic profitability remain further work.
+
+Residual workload traversals can remain behind conservative typed pure helpers
+while closed captures specialize. Ordinary generalized induction relates the old
+and new open folds, and prefix laws support fixed, unused and reordered captures.
+`producers.computation_equality` composes those laws through typed cases and
+congruence. It factors unconditional equations into reusable lemmas under the
+existing checking limits, imports introduced field/signature sorts explicitly,
+and proves matched scrutinees equal before sharing their payload case split.
+Result-valued inlining retains its complete contextual type and argument order.
+Neither authoring caches nor inferred capture correspondence grant authority:
+complete action proofs replay, and authenticated wrong accumulator/scope claims
+reject. Work/depth/helper limits remain bounded.
 
 
 Generated frozen helpers now share exact typed bodies modulo parameter and

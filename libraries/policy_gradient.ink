@@ -60,6 +60,20 @@ fn decide(masses:List<f32>,derivatives:List<List<f32>>,allowed:List<Bool>,unit:f
  if !finite(score) || probability<=0.0 {return Err("nonfinite policy score or probability underflow");}
  return Ok(Decision{action:selected,probability:probability,score:score});
 }
+// Score a specified action at the current policy. This supports explicit
+// likelihood/elite-distillation objectives; it is not an on-policy sample.
+fn score_action(masses:List<f32>,derivatives:List<List<f32>>,allowed:List<Bool>,action:u32)->Result<Decision,String> {
+ let scaled=weights(masses,allowed)?;
+ let parameters=length(derivatives.at_or(0,[]));
+ if length(derivatives)!=length(masses) || parameters==0 || parameters>4096 || length(masses)>quot_or(65536,parameters,0)
+  || action>=length(masses) || !allowed.at_or(action,false) || scaled.at_or(action,0.0)<=0.0 {return Err("policy selected action or derivative shape");}
+ if !foldl(derivatives,true,fn(row)=>fn(ok)=>ok && length(row)==parameters && finite(row)) {return Err("policy derivative domain");}
+ let total=foldl(scaled,0.0,fn(x)=>fn(sum)=>sum+x);
+ let score=scores(masses,derivatives,allowed,total,action);
+ let probability=scaled.at_or(action,0.0)/total;
+ if !finite(score) || probability<=0.0 {return Err("nonfinite policy score or probability underflow");}
+ return Ok(Decision{action:action,probability:probability,score:score});
+}
 // Negative reward-weighted score: compatible with a minimizing SGD/Adam update.
 fn reinforce(decision:Decision,return_value:f32,baseline:f32)->Result<List<f32>,String> {
  if !is_finite(return_value) || !is_finite(baseline) || !is_finite(decision.probability)
@@ -76,13 +90,24 @@ fn accumulate(accumulator:Result<List<f32>,String>,decision:Decision,return_valu
  if !finite(total) {return Err("nonfinite trajectory gradient");}
  return Ok(total);
 }
-fn mean_gradient(decisions:List<Decision>,return_values:List<f32>,baselines:List<f32>)->Result<List<f32>,String> {
+fn total_gradient(decisions:List<Decision>,return_values:List<f32>,baselines:List<f32>)->Result<List<f32>,String> {
  let first=decisions.at_or(0,Decision{action:0,probability:0.0,score:[]});let parameters=length(first.score);
  if length(decisions)==0 || length(decisions)>4096 || length(return_values)!=length(decisions) || length(baselines)!=length(decisions)
   || parameters==0 || parameters>4096 || length(decisions)>quot_or(65536,parameters,0) {return Err("trajectory shape");}
  var accumulator:Result<List<f32>,String>=Ok(first.score.map(fn(x)=>0.0));var i:u32=0;
  for decision in decisions {accumulator=accumulate(accumulator,decision,return_values.at_or(i,0.0),baselines.at_or(i,0.0));i=i+1;}
- let total=accumulator?;return Ok(total.map(fn(g)=>g/f32_from_u32(length(decisions))));
+ return accumulator;
+}
+// A trajectory mean retains its existing ordered sum followed by division.
+fn mean_gradient(decisions:List<Decision>,return_values:List<f32>,baselines:List<f32>)->Result<List<f32>,String> {
+ let total=total_gradient(decisions,return_values,baselines)?;
+ return Ok(total.map(fn(g)=>g/f32_from_u32(length(decisions))));
+}
+// The log probability of a complete sampled computation is the sum of its
+// conditional decision log probabilities. One authored whole-computation return
+// therefore weights the ordered sum of their score vectors, not their average.
+fn joint_gradient(decisions:List<Decision>,return_value:f32,baseline:f32)->Result<List<f32>,String> {
+ return total_gradient(decisions,decisions.map(fn(d)=>return_value),decisions.map(fn(d)=>baseline));
 }
 fn returns(rewards:List<f32>,discount:f32,bootstrap:f32)->Result<List<f32>,String> {
  if length(rewards)>4096 || !finite(rewards) || !is_finite(discount) || discount<0.0 || discount>1.0 || !is_finite(bootstrap) {return Err("return domain");}

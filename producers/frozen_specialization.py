@@ -99,6 +99,7 @@ class Partial:
         self.serial = 0
         self.generated = set()
         self.types = {}
+        self.contextual = set()
         self.source_text = json.dumps(program)
 
     def fresh(self):
@@ -182,6 +183,23 @@ class Partial:
             expression = body
         return expression
 
+    def preserve_result(self, residual, result):
+        if isinstance(result, dict) and 'Result' in result:
+            result_name = self.fresh()
+            self.types[result_name] = result
+            self.contextual.add(result_name)
+            residual = {'Let': [result_name, result, residual, {'Var': result_name}]}
+        return residual
+
+    def inline_call(self, function, args, active, depth):
+        names = [self.fresh() for _ in args]
+        for fresh, (_, ty) in zip(names, function['params']):
+            self.types[fresh] = ty
+        body = substitute(function['body'], {p[0]: {'Var': fresh} for p, fresh in zip(function['params'], names)})
+        for fresh, (_, ty), value in reversed(list(zip(names, function['params'], args))):
+            body = {'Let': [fresh, ty, value, body]}
+        return self.preserve_result(self.expr(body, {}, active, depth+1), function['result'])
+
     def expr(self, e, env=None, active=(), depth=0):
         self.tick(depth)
         env = env or {}
@@ -194,7 +212,7 @@ class Partial:
             n, ty, value, body = e['Let']
             value = rec(value)
             local = {k: v for k, v in env.items() if k != n}
-            if self.value(value):
+            if self.value(value) and n not in self.contextual:
                 local[n] = value
                 return self.expr(body, local, active, depth+1)
             return {'Let': [n, ty, value, self.expr(body, local, active, depth+1)]}
@@ -228,13 +246,7 @@ class Partial:
             if n in self.functions and n not in active and len(active) < 16:
                 f = self.functions[n]
                 if len(args) == len(f['params']) and any(self.value(x) for x in args):
-                    names = [self.fresh() for _ in args]
-                    for fresh, (_, ty) in zip(names, f['params']):
-                        self.types[fresh] = ty
-                    body = substitute(f['body'], {p[0]: {'Var': fresh} for p, fresh in zip(f['params'], names)})
-                    for (fresh, (_, ty), value) in reversed(list(zip(names, f['params'], args))):
-                        body = {'Let': [fresh, ty, value, body]}
-                    return self.expr(body, {}, (*active, n), depth+1)
+                    return self.inline_call(f, args, (*active, n), depth+1)
             return {'Call': [n, args]}
         if 'Method' in e:
             base, name, args = e['Method']
@@ -284,7 +296,7 @@ class Partial:
                 n, ty, value = statement['Let']
                 value = self.expr(value, env)
                 env.pop(n, None)
-                if self.value(value):
+                if self.value(value) and n not in self.contextual:
                     env[n] = value
                 else:
                     value = self.leading_bindings(value, result)

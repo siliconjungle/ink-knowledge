@@ -85,7 +85,26 @@ class FoldChunks:
     def theorem(self, params, left, right, proof):
         declaration = {'Theorem': dict(params=params, conditions=[],
             **{'from': left, 'to': right}, proof=proof)}
-        obj = entry('theorem', MATH, {'declaration': declaration}, self.references(declaration),
+        dependencies = self.references(declaration)
+        # Cases and induction introduce fields whose types need not occur in
+        # the written endpoints. Import those sorts explicitly: a checked
+        # dependency's private imports are not visible to this theorem.
+        pending = list(dependencies)
+        while pending:
+            key = pending.pop()
+            declared = self.objects[key]['payload'].get('declaration', {})
+            if 'Datatype' in declared:
+                signature = declared['Datatype']
+            elif 'Function' in declared:
+                signature = {name: declared['Function'][name] for name in ('params', 'result')}
+            elif 'Theorem' in declared:
+                signature = declared['Theorem']['params']
+            else:
+                continue
+            fields = self.references(signature)
+            pending.extend(fields - dependencies)
+            dependencies.update(fields)
+        obj = entry('theorem', MATH, {'declaration': declaration}, dependencies,
                     parameters=dict(params))
         key = identity(obj); self.objects[key] = obj; self.lemmas.add(key)
         return key
@@ -158,7 +177,7 @@ class FoldChunks:
         key = identity(obj); self.objects[key] = obj
         return key
 
-    def consume(self, fold, rows, helper):
+    def consume(self, fold, rows, helper, layout=None):
         """A reusable suffix-parametric prefix law plus a closed row witness.
 
         Prefix equations quantify over the unconsumed tail as well as all live
@@ -166,7 +185,14 @@ class FoldChunks:
         to that prefix. No proof depends on a cached producer verdict.
         """
         self.tick()
-        key = ('consume', fold, json.dumps(rows, sort_keys=True, separators=(',', ':')), helper)
+        f = self.folds[fold][0]
+        if layout is None:
+            params = [['chunk_dynamic_'+str(i), t] for i, (_, t) in enumerate(f['params'][1:])]
+            values = [var(n) for n, _ in params]
+            layout = params, values, values
+        params, values, helper_values = layout
+        layout_key = json.dumps(layout,sort_keys=True,separators=(',',':'))
+        key = ('consume', fold, json.dumps(rows, sort_keys=True, separators=(',', ':')), helper,layout_key)
         if key in self.cache:
             return self.cache[key]
         if key in self.active or len(self.active) >= self.MAX_DEPTH:
@@ -176,36 +202,39 @@ class FoldChunks:
             f, head_name, tail_name, step = self.folds[fold]
             g = self.objects[helper]['payload']['declaration']['Function']
             if (helper not in self.helpers or g['recursive'] is not None
-                    or [t for _, t in g['params']] != [t for _, t in f['params'][1:]]
-                    or g['result'] != f['result']):
+                    or len(g['params']) != len(helper_values) or not g['params']
+                    or len(values) != len(f['params'])-1
+                    or g['params'][-1][1] != f['result'] or g['result'] != f['result']):
                 raise ValueError('fold chunk helper signature')
             list_type = f['params'][0][1]; datatype = list_type['Data']
-            params = [['chunk_dynamic_'+str(i), t] for i, (_, t) in enumerate(f['params'][1:])]
-            values = [var(n) for n, _ in params]; suffix = var('chunk_suffix')
+            scope = [var(n) for n, _ in params]; suffix = var('chunk_suffix')
             prefix_params = [['chunk_suffix', list_type]] + params
-            invocation = call(helper, values)
-            normalized = normal(sub(g['body'], dict(zip([n for n, _ in g['params']], values))),
+            invocation = call(helper, helper_values)
+            normalized = normal(sub(g['body'], dict(zip([n for n, _ in g['params']], helper_values))),
                 self.objects, opaque=self.helpers | self.closed, blocked=self.folds)
             right_call = normalized.get('Call', {}); right_helper = right_call.get('function')
             left_call = (right_call.get('arguments') or [{}])[-1].get('Call', {})
             left_helper = left_call.get('function')
             if right_helper in self.helpers and left_helper in self.helpers:
-                if right_call['arguments'][:-1] != values[:-1] or left_call['arguments'] != values:
+                if (not left_call.get('arguments') or left_call['arguments'][-1] != values[-1]
+                        or any(params[-1][0] in free_variables(t) for t in right_call['arguments'][:-1])):
                     raise ValueError('fold chunk composition changes a capture')
-                middle_rows, first, first_law, first_rows = self.consume(fold, rows, left_helper)
-                remaining, second, second_law, second_rows = self.consume(fold, middle_rows, right_helper)
-                template_key = ('prefix-pair', fold, helper, first, second)
+                left_values = left_call['arguments']
+                right_values = [*right_call['arguments'][:-1],values[-1]]
+                middle_rows, first, first_law, first_rows = self.consume(fold, rows, left_helper,(params,values,left_values))
+                remaining, second, second_law, second_rows = self.consume(fold, middle_rows, right_helper,(params,values,right_values))
+                template_key = ('prefix-pair', fold, helper, first, second,layout_key)
                 if template_key not in self.cache:
                     nested = call(first, [call(second, [suffix])])
                     builder = self.definition([['chunk_suffix', list_type]], list_type, nested)
-                    middle = call(left_helper, values)
-                    expanded = call(right_helper, [*values[:-1], middle])
+                    middle = call(left_helper, left_values)
+                    expanded = call(right_helper, [*right_values[:-1], middle])
                     left = call(fold, [call(builder, [suffix]), *values])
                     right = call(fold, [suffix, *values[:-1], invocation])
                     law = self.theorem(prefix_params, left, right, compose([
                         convert(left, call(fold, [nested, *values])),
-                        {'Use': dict(theorem=first_law, arguments=[call(second,[suffix]),*values], premises=[])},
-                        {'Use': dict(theorem=second_law, arguments=[suffix,*values[:-1],middle], premises=[])},
+                        {'Use': dict(theorem=first_law, arguments=[call(second,[suffix]),*scope], premises=[])},
+                        {'Use': dict(theorem=second_law, arguments=[suffix,*scope[:-1],middle], premises=[])},
                         convert(call(fold,[suffix,*values[:-1],expanded]),right),
                     ]))
                     self.cache[template_key] = builder, law
@@ -240,7 +269,7 @@ class FoldChunks:
                 if matched is None:
                     raise ValueError('fold chunk has no matching bounded computation')
                 remaining, heads = matched
-                template_key = ('prefix-leaf',fold,helper,json.dumps(heads,sort_keys=True,separators=(',',':')))
+                template_key = ('prefix-leaf',fold,helper,json.dumps(heads,sort_keys=True,separators=(',',':')),layout_key)
                 if template_key not in self.cache:
                     prefix = suffix
                     for head in reversed(heads): prefix = cons(datatype,1,[head,prefix])
@@ -271,19 +300,57 @@ class FoldChunks:
         finally:
             self.active.remove(key)
 
-    def bridge(self, fold, rows, helper):
-        remaining, builder, prefix, witness = self.consume(fold, rows, helper)
+    def bridge(self, fold, rows, helper, layout=None):
+        f = self.folds[fold][0]
+        if layout is None:
+            params = [['chunk_dynamic_'+str(i), t] for i, (_, t) in enumerate(f['params'][1:])]
+            values = [var(n) for n,_ in params]
+            layout = params,values,values
+        params,values,helper_values = layout
+        scope = [var(n) for n,_ in params]
+        remaining, builder, prefix, witness = self.consume(fold, rows, helper,layout)
         exposed = self.expose(remaining)['Construct']
         if exposed['constructor'] != 0 or exposed['arguments']:
             raise ValueError('fold chunk composition does not consume every row')
-        f = self.folds[fold][0]
-        params = [['chunk_dynamic_'+str(i), t] for i, (_, t) in enumerate(f['params'][1:])]
-        values = [var(n) for n,_ in params]
-        left, right = call(fold,[rows,*values]),call(helper,values)
+        left, right = call(fold,[rows,*values]),call(helper,helper_values)
         proof = compose([
             lift({'Use':dict(theorem=witness,arguments=[],premises=[])},
                  call(fold,[var('chunk_rows_hole'),*values]),'chunk_rows_hole'),
-            {'Use':dict(theorem=prefix,arguments=[remaining,*values],premises=[])},
+            {'Use':dict(theorem=prefix,arguments=[remaining,*scope],premises=[])},
             convert(call(fold,[remaining,*values[:-1],right]),right),
         ])
         return self.theorem(params,left,right,proof)
+
+
+    def application_layout(self, fold, original, target_params, actual):
+        f=self.folds[fold][0]
+        if original==actual and [t for _,t in target_params]==[t for _,t in f['params'][1:]]:
+            params=[['chunk_dynamic_'+str(i),t] for i,(_,t) in enumerate(f['params'][1:])]
+            values=[var(n) for n,_ in params]
+            return (params,values,values),original
+        if not actual or actual[-1]!=original[-1] or len(actual)!=len(target_params):
+            raise ValueError('fold chunk accumulator correspondence')
+        params=[];arguments=[];values=[];seen={}
+        for index,(term,(_,ty)) in enumerate(zip(original[:-1],f['params'][1:-1])):
+            present=any(term==arg and ty==t for arg,(_,t) in zip(actual[:-1],target_params[:-1]))
+            if not present and not free_variables(term):
+                values.append(term);continue
+            key=json.dumps([term,ty],sort_keys=True,separators=(',',':'))
+            if key not in seen:
+                name='chunk_capture_'+str(index);seen[key]=var(name)
+                params.append([name,ty]);arguments.append(term)
+            values.append(seen[key])
+        name='chunk_accumulator';params.append([name,f['result']]);arguments.append(original[-1]);values.append(var(name))
+        helper_values=[]
+        for term,(_,ty) in zip(actual[:-1],target_params[:-1]):
+            index=next((i for i,(arg,(_,t)) in enumerate(zip(original[:-1],f['params'][1:-1])) if arg==term and t==ty),None)
+            if index is None:raise ValueError('fold chunk captured argument correspondence')
+            helper_values.append(values[index])
+        helper_values.append(values[-1])
+        return (params,values,helper_values),arguments
+
+    def bridge_application(self, invocation, target):
+        fold,helper = invocation['function'],target['function']
+        g=self.objects[helper]['payload']['declaration']['Function']
+        layout,arguments=self.application_layout(fold,invocation['arguments'][1:],g['params'],target['arguments'])
+        return self.bridge(fold,invocation['arguments'][0],helper,layout),arguments
