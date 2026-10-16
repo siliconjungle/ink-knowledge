@@ -785,3 +785,11 @@ upstream-only geometry/continuation oracle, cross-target state histories and
 diagnostic performance controls. This source library grants no rewrite authority
 and changes no canonical proof snapshot. Segmentation, shaping, measurement,
 incremental preparation and the requested speed parity remain separate work.
+
+The structural-price resource declares maximum-arm lazy choice work and
+zero-cardinality branch hypotheses for equality/inequality against `count`.
+These affect search ranking only; the planner interprets them in local lexical
+contexts and does not export them as source proof facts. Both complete equality
+replay and comparable lifecycle evidence remain required. See the distribution's
+`bench/v8-learning/branch-cardinality` for default-discovery callback controls,
+native acquisition and a rejection-only holdout.
