@@ -20,6 +20,35 @@ from ink_knowledge import Store
 from producers.action_replacement import alpha_normal, call, cons, convert, trans, var
 from producers.point_delta import equality, lift, normal, replace, sub
 from producers.closed_data_bridges import ClosedDataBridges
+from producers.fixed_f32 import evaluate as fixed_f32
+
+
+def source_free(value, bound=frozenset()):
+    if isinstance(value, list):
+        return set().union(*(source_free(x, bound) for x in value)) if value else set()
+    if not isinstance(value, dict):
+        return set()
+    if 'Var' in value:
+        return {value['Var']} - bound
+    if 'Lambda' in value:
+        name, body = value['Lambda']; return source_free(body, bound | {name})
+    if 'Let' in value:
+        name, _, initial, body = value['Let']
+        return source_free(initial, bound) | source_free(body, bound | {name})
+    return set().union(*(source_free(x, bound) for x in value.values()))
+
+
+def float_bits(value):
+    if isinstance(value, dict):
+        if set(value) == {'Float'}:
+            return value['Float']
+        if set(value) == {'Call'} and value['Call'][0] == 'f32_from_bits':
+            args = value['Call'][1]
+            if len(args) == 1 and isinstance(args[0], dict) and set(args[0]) == {'Num'}:
+                bits = args[0]['Num']
+                if type(bits) is int and 0 <= bits <= 0xffffffff:
+                    return bits
+    return None
 
 
 def substitute(e, bindings):
@@ -141,9 +170,9 @@ class Partial:
     def fold(self, name, args, active, depth):
         """Expand a closed traversal, keeping the accumulator in fresh slots.
 
-        This is a proposal, not a new evaluator or equality rule. In particular
-        no floating arithmetic is evaluated here. The ordinary transition proof
-        must establish every step, including its original operation order.
+        This is a proposal, not a new equality rule. Closed scalar arithmetic
+        uses the integer-only fixed-primitive author; the ordinary transition
+        proof must establish every step in its original operation order.
         """
         if len(args) != 3:
             return None
@@ -191,6 +220,56 @@ class Partial:
             residual = {'Let': [result_name, result, residual, {'Var': result_name}]}
         return residual
 
+    def should_inline(self, name, args, original):
+        return any(self.value(x) for x in args)
+
+    def scalar(self, op, left, right=None):
+        a = float_bits(left); b = 0 if right is None else float_bits(right)
+        if a is None or b is None:
+            return None
+        result = fixed_f32('f32:'+op, a, b)
+        return result if result is None or 'Bool' in result else literal('F32', {'F32Bits': result['U64']}, self.program)
+
+    def constant_call(self, name, args):
+        if name == 'length' and len(args) == 1 and isinstance(args[0],dict) and self.value(args[0]) and args[0].get('Call', [None])[0] == 'list':
+            return {'Num': len(args[0]['Call'][1]) & 0xffffffff}
+        if name == 'f32_bits' and len(args) == 1:
+            bits = float_bits(args[0])
+            return None if bits is None else {'Num': bits}
+        if name in ('f32_from_bits','f32_from_u32','f32_from_u64','f32_from_i32') and len(args) == 1:
+            argument = args[0]; negative = name == 'f32_from_i32' and isinstance(argument, dict) and 'Neg' in argument
+            if negative: argument = argument['Neg']
+            limit = (1 << 64) if name == 'f32_from_u64' else (1 << 31) if name == 'f32_from_i32' else (1 << 32)
+            if negative: limit += 1
+            if isinstance(argument, dict) and set(argument) == {'Num'} and type(argument['Num']) is int and 0 <= argument['Num'] < limit:
+                word = (-argument['Num'] if negative else argument['Num']) % (1 << 64)
+                bits = word & 0xffffffff if name == 'f32_from_bits' else fixed_f32('f32:'+name[4:], word)['U64']
+                return literal('F32', {'F32Bits': bits}, self.program)
+        unary = {'sqrt','floor','ceil','trunc','round_ties_even','is_nan','is_finite'}
+        if name in unary and len(args) == 1: return self.scalar(name,args[0])
+        if name == 'f32_div' and len(args) == 2: return self.scalar('div',*args)
+        return None
+
+    def closed_map(self, base, callback, active, depth):
+        if (not isinstance(base, dict) or base.get('Call',[None])[0] != 'list'
+                or not self.value(base) or not isinstance(callback, dict) or 'Lambda' not in callback):
+            return None
+        name, body = callback['Lambda']
+        if source_free(body,{name}) - self.enums - self.program['enums'].keys() - {'None'}:
+            return None
+        # A failed closed-value attempt must not retain speculative helper code
+        # or lexical/type state. Its work still counts against the global budget.
+        names = ['serial','generated','contextual','types','functions','helpers','helper_index','helper_names']
+        snapshot = {key:copy.copy(getattr(self,key)) for key in names if hasattr(self,key)}
+        values = []
+        for value in base['Call'][1]:
+            result = self.expr(substitute(body,{name:value}),{},active,depth+1)
+            if not self.value(result):
+                for key, saved in snapshot.items(): setattr(self,key,saved)
+                return None
+            values.append(result)
+        return {'Call':['list',values]}
+
     def inline_call(self, function, args, active, depth):
         names = [self.fresh() for _ in args]
         for fresh, (_, ty) in zip(names, function['params']):
@@ -236,6 +315,10 @@ class Partial:
                     return rec(args[1 if condition['Bool'] else 2])
                 return {'Call': [n, [condition, rec(args[1]), rec(args[2])]]}
             args = [rec(x) for x in args]
+            if n not in self.functions:
+                value = self.constant_call(n,args)
+                if value is not None:
+                    return value
             if n in ('foldl', 'foldr'):
                 folded = self.fold(n, args, active, depth)
                 if folded is not None:
@@ -245,13 +328,16 @@ class Partial:
             # inside helpers without capturing or duplicating dynamic inputs.
             if n in self.functions and n not in active and len(active) < 16:
                 f = self.functions[n]
-                if len(args) == len(f['params']) and any(self.value(x) for x in args):
+                if len(args) == len(f['params']) and self.should_inline(n,args,e['Call'][1]):
                     return self.inline_call(f, args, (*active, n), depth+1)
             return {'Call': [n, args]}
         if 'Method' in e:
             base, name, args = e['Method']
             base = rec(base)
             args = [rec(x) for x in args]
+            if name == 'map' and len(args) == 1:
+                value = self.closed_map(base,args[0],active,depth)
+                if value is not None: return value
             root = base.get('Var') if isinstance(base, dict) else None
             if root in self.program.get('frozen', {}) and name in ('get', 'contains') and len(args) == 1 and 'Num' in args[0]:
                 keyty, valuety = self.roots[root]
@@ -278,14 +364,22 @@ class Partial:
             if op in ('&&', '||') and 'Bool' in a:
                 return rec(z) if a['Bool'] == (op == '&&') else a
             z = rec(z)
-            # Source IEEE equality is not Python syntax/raw-bit equality.
-            # Keep float comparisons (including nested values) in the source.
+            if op in ('+','-','*','==','!=','<','<=','>','>='):
+                value = self.scalar(op,a,z)
+                if value is not None: return value
+            # Composite equality does not use Python syntax/raw-bit equality
+            # for a value containing floats. Scalar IEEE proposals above are
+            # separate and still need ordinary checked conversion.
             if op in ('==', '!=') and self.value(a, equality=True) and self.value(z, equality=True):
                 return {'Bool': (a == z) == (op == '==')}
             return {'Binary': [op, a, z]}
         if 'Neg' in e or 'Try' in e:
             k = next(iter(e))
-            return {k: rec(e[k])}
+            value = rec(e[k])
+            if k == 'Neg':
+                folded = self.scalar('neg',value)
+                if folded is not None: return folded
+            return {k: value}
         return copy.deepcopy(e)
 
     def statements(self, statements, env=None):

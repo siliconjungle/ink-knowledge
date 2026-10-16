@@ -29,6 +29,59 @@ adaptive query serve(input:u32)->u32 reads(Code,Weight){
 
 
 class FrozenComposition(unittest.TestCase):
+    def test_closed_float_fold_collapses_with_checked_witnesses_and_live_primals(self):
+        source='''module closed_float;
+state Code:Table<u64,List<u32>>=Table.empty();
+state Short:Table<u64,List<u32>>=Table.empty();
+fn instruction_count(code:List<u32>)->f32 {
+ return foldl(code,0.0,fn(op)=>fn(total)=>total+choose(op==0,1.0,0.0));
+}
+fn evaluate(code:List<u32>,x:f32,w:f32)->f32 {
+ return foldl(code,x,fn(op)=>fn(value)=>choose(op==0,value*w,value+0.25));
+}
+query amount()->f32 reads(Code) {return instruction_count(Code.get(0).unwrap_or([]));}
+query little()->f32 reads(Short) {return instruction_count(Short.get(0).unwrap_or([]));}
+query serve(x:f32,w:f32)->f32 reads(Code) {return evaluate(Code.get(0).unwrap_or([]),x,w);}
+'''
+        with tempfile.TemporaryDirectory() as directory:
+            folder=Path(directory);src=folder/'source.ink';src.write_text(source)
+            core=folder/'core.json';emitted=subprocess.run([INK,'emit-core',src,'-o',core],capture_output=True,text=True)
+            self.assertEqual(emitted.returncode,0,emitted.stderr)
+            data=json.loads(core.read_bytes());data['semantics']='ink-executable-core-v14'
+            data['program']['frozen']={'Code':[[0,[0,1]*16]],'Short':[[0,[0,1,0]]]};core.write_text(json.dumps(data))
+            plan=folder/'plan.json'
+            proposed=subprocess.run(['python3',PRODUCER,core,'--ink',INK,'-o',plan],capture_output=True,text=True)
+            self.assertEqual(proposed.returncode,0,proposed.stderr)
+            packet=json.loads(plan.read_bytes());rewrite=packet['steps'][1]['package']
+            actions=rewrite['action_replacement']['selected']['program']['actions']
+            amount=next(a for a in actions if a['name']=='amount')
+            self.assertEqual(amount['body'],[{'Return':{'Float':0x41800000}}])
+            self.assertFalse(any(a['name'].startswith('frozen_proof_witness_') for a in actions))
+            calls=[dict(call='amount',args=[]),dict(call='little',args=[])]
+            calls += [dict(call='serve',args=[{'F32Bits':x},{'F32Bits':w}])
+                for x in [0,0x80000000,1,0x3dcccccd,0x7f800000,0x7fa01234]
+                for w in [0,0x3f000000,0x3f800001,0xff800000]]
+            for name,options in [('baseline',[]),('selected',['--plan',plan])]:
+                command=[INK,'compile' if options else 'build',core,'--core',*options,
+                         '--target','javascript','-o',folder/(name+'.mjs')]
+                compiled=subprocess.run(command,capture_output=True,text=True)
+                self.assertEqual(compiled.returncode,0,compiled.stderr)
+            script=folder/'check.mjs';script.write_text('''import assert from 'node:assert/strict';
+import {pathToFileURL} from 'node:url';
+const [a,b]=await Promise.all(process.argv.slice(2).map(async p=>(await import(pathToFileURL(p))).createState()));
+for(const {call,args} of '''+json.dumps(calls)+'''){
+ const x=a.invoke(call,args),y=b.invoke(call,args);assert.deepEqual(x,y);
+ if(call==='amount')assert.equal(x.result,16);
+ if(call==='little')assert.equal(x.result,2);
+ assert.deepEqual(await a.checkpoint(),await b.checkpoint());
+}''')
+            checked=subprocess.run(['node',script,folder/'baseline.mjs',folder/'selected.mjs'],capture_output=True,text=True)
+            self.assertEqual(checked.returncode,0,checked.stderr)
+            amount['body'][0]['Return']['Float'] ^= 1
+            bad=folder/'bad.json';bad.write_text(json.dumps(packet))
+            rejected=subprocess.run([INK,'check-plan',core,bad,'--core'],capture_output=True,text=True)
+            self.assertNotEqual(rejected.returncode,0)
+
     def test_residual_workload_folds_and_result_helpers_keep_runtime_state(self):
         source = '''module residual_computation;
 record Item { x:u32, y:u32, }

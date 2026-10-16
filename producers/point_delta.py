@@ -5,6 +5,7 @@ The core knows no query/update pattern and rechecks all future-state obligations
 """
 from producers.action_replacement import var,call,cons,convert,trans
 from producers.cache_maintenance import variables
+from producers.fixed_f32 import evaluate as fixed_f32
 import json
 
 def choice(c,t,f):return {'If':dict(condition=c,on_true=t,on_false=f)}
@@ -156,9 +157,11 @@ def _normal(t,objects,depth,opaque,blocked,eager,cache):
         return match(scrutinee,branches)
     if 'Binary' in t:
         x=t['Binary'];a,z=recur(x['left']),recur(x['right'])
-        # Other fixed scalar operations, including F32 operations over bit
-        # carriers, remain ordinary terms. Convert replays their core meaning;
-        # this untrusted tactic must not interpret them as integer arithmetic.
+        # Closed binary32 proposals use exact integer rounding. They remain
+        # ordinary conversions that the independent kernel must replay.
+        if 'U64' in a and 'U64' in z and x['op'].startswith('f32:'):
+            proposed = fixed_f32(x['op'],a['U64'],z['U64'])
+            if proposed is not None:return proposed
         if 'U64' in a and 'U64' in z and x['op'] in ['==','!=','<','<=','>','>=','+','-','*','&']:
             av,zv=a['U64'],z['U64'];op=x['op'];return {'Bool':{'==':av==zv,'!=':av!=zv,'<':av<zv,'<=':av<=zv,'>':av>zv,'>=':av>=zv}[op]} if op in ['==','!=','<','<=','>','>='] else {'U64':{'+':av+zv,'-':av-zv,'*':av*zv,'&':av&zv}[op]%(1<<64)}
         if 'Bool'in a and 'Bool'in z:
