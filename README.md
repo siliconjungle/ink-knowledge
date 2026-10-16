@@ -892,3 +892,15 @@ order and duplicate sites are preserved, and a changed subject rebuilds the inde
 Only matched metadata triggers proof decompression; content/index consistency and
 ordinary kernel replay remain mandatory. No index, cache key or head label grants
 an equality, condition or profitability fact.
+
+Frozen fold prefix proofs now quantify over the remaining suffix. Leaf helpers
+prove an ordinary universal prefix equation, parents compose checked child
+laws, and separate closed-data witnesses bind the exact configured list. The
+32/128/512-operation cases share 3/5/7 universal prefix laws; the 128-operation
+plan shrinks from 3,292,182 to 836,086 bytes with unchanged runtime source.
+The 512-operation example now checks under the existing budgets. Identity
+callbacks consume the longest matching bounded prefix and handle a short final
+chunk. Every law/witness still replays; rehashed false-tail claims reject.
+Generated proof bundles remain local to each explicit plan, not additions to the
+default catalogue or automatic profitability authority. Expanded layout retains
+its selected code, but its updated proof packaging has different plan bytes.
