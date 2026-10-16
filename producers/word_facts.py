@@ -8,6 +8,12 @@ from dataclasses import dataclass
 from .semantic_laws import value, word, term, op
 
 
+_WORD_ROUNDTRIPS = {
+    'call:word_narrow_u64_to_u32': ('call:word_widen_u32_to_u64', 'U32', (1 << 32) - 1),
+    'call:word_widen_u32_to_u64': ('call:word_narrow_u64_to_u32', 'U64', (1 << 32) - 1),
+}
+
+
 @dataclass(frozen=True)
 class Facts:
     width: int
@@ -384,6 +390,18 @@ def _candidates(source, *, _scope=(), _depth=0, _memo=None, _facts=None):
         a,b=(analyse(t,_scope=_scope,_memo=_memo) for t in args);mask=(1<<facts.width)-1
         if (mask^a.zero)&(mask^b.zero)==0:
             yield 'disjoint-fields',op(source['sort'],'call:word_or',*args)
+    # Representation equality alone is insufficient: a lossy round trip is
+    # an identity only when this branch's complete input range fits. These are
+    # proposal-side fixed word conversions, never type/check-elision authority.
+    if name in _WORD_ROUNDTRIPS and len(args)==1:
+        inverse, original_kind, maximum = _WORD_ROUNDTRIPS[name]
+        inner = args[0]['node'].get('Op')
+        if inner is not None and inner[0]==inverse and len(inner[1])==1:
+            original = inner[1][0]
+            if original['sort']==value(original_kind):
+                original_facts = analyse(original,_scope=_scope,_memo=_memo)
+                if original_facts.maximum <= maximum:
+                    yield 'lossless-word-roundtrip',original
     if name=='call:word_and' and len(args)==2:
         for i in (0,1):
             literal=args[i]['node'].get('Word')

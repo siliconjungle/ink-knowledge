@@ -113,6 +113,20 @@ def templates():
         conversions.append(('widen_'+label,
             op(boolean,'binary:'+relation,widen(small_x),widen(small_y)),
             op(boolean,'binary:'+relation,small_x,small_y), {'small_x':u32,'small_y':u32}))
+    # Range-guided representation reuse must bind the *whole* lazy branch.
+    # No range annotation or physical representation grants the equality.
+    fit = lambda t: op(boolean,'binary:<=',t,word('U64',(1 << 32)-1))
+    roundtrip = lambda t: widen(narrow(t))
+    choose64 = lambda c,a,b: op(u64,'call:choose',c,a,b)
+    increment = op(u64,'binary:+',x,word('U64',1))
+    upper = var(u64,'upper')
+    relation = op(boolean,'binary:&&',op(boolean,'binary:<',x,upper),
+                  op(boolean,'binary:<=',upper,word('U64',1 << 32)))
+    conversions.extend([
+        ('guarded_roundtrip',choose64(fit(x),roundtrip(x),x),x,{'x':u64}),
+        ('guarded_wrapping_roundtrip',choose64(fit(increment),roundtrip(increment),increment),
+         increment,{'x':u64}),
+        ('relational_roundtrip',choose64(relation,roundtrip(x),x),x,{'x':u64,'upper':u64})])
     for name, left, right, params in conversions:
         rows.append(dict(name='conversion/'+name,
                          goal=dict(params=params,conditions=[],**{'from':left,'to':right})))
