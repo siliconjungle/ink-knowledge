@@ -805,3 +805,13 @@ forms. Physical representation equality grants no range or check-elision fact.
 See `tests/test_range_conversions.py` for independent boundary values, renamed
 normal discovery and cross-branch forgery rejection. Profitability is measured
 separately; these proposals do not select a runtime implementation by themselves.
+
+Frozen structural specialization now retains transparent fixed-data definitions
+in its checked evidence closure, including roots no surviving action reads.
+The distribution derives their exact meaning from immutable source rows; the
+producer supplies no additional premise. Tests specialize complete finite
+64/128/232/512-element parameter results, preserve live updates and exact
+checkpoints, and reject a changed value. This relies on the distribution's
+shared frozen-literal projection and exhaustive-case proof checking. Long action
+continuations and general graph/tape specialization still need further work;
+this adds no automatic profitability or approximation authority.

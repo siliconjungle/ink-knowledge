@@ -364,7 +364,21 @@ def produce(before, after, selected, directory, *, compact=False):
         # and all premises. It grants no recursive induction hypothesis.
         proofs[name] = {'Cases': dict(variable='initial', **{'from': old, 'to': new},
                                       cases=[dict(bindings=bindings, proof=case)])}
-    roots = sorted({a['function'] for m in (before, after) for a in m['actions'].values()})
+    roots = {a['function'] for m in (before, after) for a in m['actions'].values()}
+    def fixed_references(value):
+        if isinstance(value, dict):
+            function = value.get('function')
+            if isinstance(function, str) and function in objects:
+                roots.add(function)
+            for child in value.values():
+                fixed_references(child)
+        elif isinstance(value, list):
+            for child in value:
+                fixed_references(child)
+    # Large fixed rows use transparent closed definitions. Their meaning must
+    # remain in the checked closure even if no surviving action reads the root.
+    fixed_references(before['frozen_domain'])
+    roots = sorted(roots)
     store = Store.publish(directory, list(objects.values()))
     return dict(schema=1, semantics='ink-evidence-v1', input_core_sha256=before['source'],
                 knowledge=store.bundle(roots), applications=[],

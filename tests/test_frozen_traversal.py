@@ -18,6 +18,49 @@ INK = Path(os.environ.get('INK_COMPILER', ROOT/'target/debug/ink'))
 
 
 class FrozenTraversal(unittest.TestCase):
+    def test_large_fixed_data_remains_in_the_checked_closure_and_returns_every_value(self):
+        source = '''module large_constants;
+state Model:Table<u64,List<f32>>=Table.empty();
+state Live:Table<u64,u64>=Table.empty();
+query all()->List<f32> reads(Model){return Model.get(0).unwrap_or([]);}
+query present()->Bool reads(Model){return Model.contains(0);}
+query live()->u64 reads(Live){return Live.get(0).unwrap_or(0);}
+change set(value:u64)->Unit writes(Live){Live.put(0,value);return ();}
+'''
+        with tempfile.TemporaryDirectory() as temp:
+            temp = Path(temp)
+            src, core, packet = temp/'source.ink', temp/'source.core.json', temp/'selection.json'
+            src.write_text(source)
+            subprocess.run([INK, 'emit-core', src, '-o', core], check=True, capture_output=True)
+            base = json.loads(core.read_bytes())
+            for count in [64, 128, 232, 512]:
+                original = copy.deepcopy(base)
+                original['semantics'] = 'ink-executable-core-v14'
+                words = [0, 0x80000000, 1, 0x3e800001, 0x4b800000, 0xcb800000]
+                original['program']['frozen'] = {'Model': [[0, [{'F32Bits': words[i % len(words)]} for i in range(count)]]]}
+                core.write_text(json.dumps(original))
+                authored = subprocess.run(['python3', ROOT/'knowledge/producers/frozen_specialization.py',
+                    core, '--ink', INK, '-o', packet], capture_output=True, text=True)
+                self.assertEqual(authored.returncode, 0, (count, authored.stderr))
+                subprocess.run([INK, 'check-selection', core, packet], check=True, capture_output=True)
+                steps = [dict(call='all', args=[]), dict(call='present', args=[]),
+                         dict(call='set', args=[42]), dict(call='live', args=[]), dict(call='all', args=[])]
+                script = temp/'script.json';script.write_text(json.dumps(steps))
+                observed = []
+                for selection in [None, packet]:
+                    snapshot = temp/f'{selection is not None}.snapshot'
+                    command = [INK, 'execute', core, script, '--core', '--portable', '--snapshot-out', snapshot]
+                    if selection:
+                        command += ['--selection', selection]
+                    run = subprocess.run(command, check=True, capture_output=True)
+                    observed.append((json.loads(run.stdout), snapshot.read_bytes()))
+                self.assertEqual(observed[0], observed[1], count)
+                forged = json.loads(packet.read_bytes())
+                action = next(a for a in forged['action_replacement']['selected']['program']['actions'] if a['name'] == 'all')
+                action['body'][0]['Return']['Call'][1][-1]['Float'] ^= 1
+                bad = temp/'wrong-value.json';bad.write_text(json.dumps(forged))
+                self.assertNotEqual(subprocess.run([INK, 'check-selection', core, bad], capture_output=True).returncode, 0)
+
     def test_compact_rejection_replays_checked_fallback_and_failure_keeps_prior_output(self):
         with tempfile.TemporaryDirectory() as temp:
             temp = Path(temp)
