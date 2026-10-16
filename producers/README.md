@@ -7,6 +7,18 @@ bounded codec on supported action values. Admission checks exact definitions and
 source data; these entries do not certify an interpreter or a replacement.
 See ink-lang `docs/action-values.md` for the format and replay commands.
 
+`guarded_specialization.py --function NAME --parameter NAME --value CONFIG.json`
+proposes an exact guard, a specialized branch and the unchanged generic fallback
+for an ordinary pure function. A checked source extension, semantic rewrite and
+universal function equalities replay the complete plan. Runtime configurations
+and weights remain mutable. The reusable laws in
+`libraries/proofs/guarded-specialization` establish guarded substitution and exact
+list comparison; recursive helper correspondence uses ordinary structural
+induction. Configuration bytes, fingerprints and source-shape matching confer no
+authority. F32 guards preserve stored bits, unsupported types fail closed, and
+the output is published atomically only after complete replay. These proposals
+are explicit and carry no profitability evidence.
+
 `representations.py --cache-query NAME --preserve-cache` proposes source-bound
 cache retention after aborted changes/host failure and unrelated committed
 writes. `cache_maintenance.py` generates universal branch equations using the
