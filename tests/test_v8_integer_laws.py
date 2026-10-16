@@ -2,7 +2,7 @@
 import copy,json,os,random,subprocess,tempfile,unittest
 from pathlib import Path
 from ink_knowledge import Store,canonical,identity,semantic_entry
-from producers.frozen_laws import read
+from producers.frozen_laws import read,closure
 from producers.v8_integer_laws import templates
 from producers.semantic_laws import value,var,word,op,term
 ROOT=Path(__file__).resolve().parents[2]
@@ -88,7 +88,7 @@ class IntegerLaws(unittest.TestCase):
    d=Path(tmp);run(compiler(),'emit-core',SOURCE,'-o',d/'core.json')
    def check(law):
     with tempfile.TemporaryDirectory(dir=d)as candidate:
-     obj=semantic_entry(law);store=Store.publish(candidate,[obj]);(d/'bundle.json').write_bytes(canonical(store.bundle([identity(obj)])))
+     obj=semantic_entry(law);entries=[semantic_entry(w)for _,w in closure(DATA,[('candidate',law)])];store=Store.publish(candidate,entries);(d/'bundle.json').write_bytes(canonical(store.bundle([identity(obj)])))
      return run(compiler(),'knowledge-check',d/'core.json',d/'bundle.json',ok=False)
    rows=read(DATA)
    for row in rows:
@@ -156,7 +156,7 @@ class IntegerLaws(unittest.TestCase):
    run(compiler(),'emit-semantic',d/'core.json','--core','-o',d/'semantic.json');subject=json.loads((d/'semantic.json').read_bytes())
    functions={'strict_wide_rem_self':names[0],'wide_rem_self':names[0],
               'strict_wide_zero_numerator':names[1],'wide_zero_numerator':names[1]}
-   objects={n:semantic_entry(law)for n,law in rows.items()};store=Store.publish(d/'knowledge',objects.values());applications=[]
+   objects={n:semantic_entry(law)for n,law in rows.items()};entries=[semantic_entry(w)for _,w in closure(DATA,list(rows.items()))];store=Store.publish(d/'knowledge',entries);applications=[]
    for function,name in functions.items():
     law=rows[name]
     self.assertIn('v8-integer/'+name,dict(specialize({'functions':{'arbitrary':subject['functions'][function]}},{})))

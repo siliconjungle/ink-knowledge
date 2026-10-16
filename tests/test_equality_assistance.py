@@ -8,12 +8,12 @@ from ink_knowledge import Store, canonical, identity, semantic_entry
 from producers.equality_assistance import prove_with_equalities
 from producers.semantic_laws import value, var
 from tests.test_v8_integer_laws import compiler, run, SOURCE, DATA
-from producers.frozen_laws import read
+from producers.frozen_laws import read,closure
 
 
 class EqualityAssistance(unittest.TestCase):
  def check(self, core, directory, law):
-  obj=semantic_entry(law);store=Store.publish(directory,[obj]);path=directory/'view.json'
+  obj=semantic_entry(law);entries=[semantic_entry(w)for _,w in closure(DATA,[('candidate',law)])];store=Store.publish(directory,entries);path=directory/'view.json'
   path.write_bytes(canonical(store.bundle([identity(obj)])))
   return run(compiler(),'knowledge-check',core,path,ok=False)
 
@@ -37,7 +37,7 @@ class EqualityAssistance(unittest.TestCase):
   with tempfile.TemporaryDirectory()as tmp:
    d=Path(tmp);run(compiler(),'emit-core',SOURCE,'-o',d/'core.json')
    for name in ['u64_rem_or_self','u64_rem_or_zero_numerator']:
-    law=rows[name];self.assertEqual(law['dependencies'],[])
+    law=rows[name];self.assertEqual(len(law['dependencies']),1)
     self.assertEqual(self.check(d/'core.json',d/(name+'-positive'),law).returncode,0)
     for mode in ['unproved','wrong-endpoint','missing-fact','wrong-body']:
      bad=copy.deepcopy(law);node=bad['proof']['AssertEquality']

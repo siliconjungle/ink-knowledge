@@ -71,6 +71,13 @@ class IndexedProofLibraries(unittest.TestCase):
             sites=[t for body in bodies.values()for _,t in positions(body)]
             expected=[('prefix/'+row['name'],row['sha256'])for row in rows
                       if any(match(row['from'],t,row['params'],{})for t in sites)]
+            with patch.object(frozen_laws,'load',side_effect=AssertionError('metadata opened a proof')):
+                selected=frozen_laws.matching_rows(subject,rows)
+                self.assertEqual([('prefix/'+row['name'],row['sha256'])for row in selected],expected)
+            # V2 may additionally load explicit supporting witnesses, exercised
+            # by the dependency tests. V1 keeps the exact former load behavior.
+            if json.loads(directory.read_bytes())['schema']!=1:
+                continue
             with patch.object(frozen_laws,'load',side_effect=lambda _,row:row['sha256'])as loader:
                 self.assertEqual(frozen_laws.specialize(subject,directory.parent,'prefix/'),expected)
                 self.assertEqual(loader.call_count,len(expected))
