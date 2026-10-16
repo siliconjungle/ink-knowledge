@@ -39,9 +39,51 @@ def source_free(value, bound=frozenset()):
 
 
 class ChunkPartial(Partial):
-    def __init__(self, program):
+    def __init__(self, program, *, share_helpers=True):
         super().__init__(program)
+        self.share_helpers = share_helpers
         self.helpers = []
+        self.helper_index = {}
+
+    def intern(self, function):
+        """Share generated code, never results or evaluations.
+
+        The key records exact types, free/callee names, literals and operand
+        order. Only parameter and lexical binder spelling is discarded. This
+        is an untrusted proposal; source extension and action equality replay
+        still decide admission independently of the key.
+        """
+        if not self.share_helpers:
+            self.helpers.append(function)
+            return function['name']
+        serial = 0
+        def binder():
+            nonlocal serial
+            name = serial; serial += 1; return name
+        bindings = {name: binder() for name, _ in function['params']}
+        def visit(value, env, depth=0):
+            self.tick(depth)
+            if isinstance(value, list):
+                return [visit(v, env, depth+1) for v in value]
+            if not isinstance(value, dict):
+                return value
+            if 'Var' in value:
+                name = value['Var']
+                return {'bound': env[name]} if name in env else {'free': name}
+            if 'Lambda' in value:
+                name, body = value['Lambda']; local = binder()
+                return {'Lambda': [local, visit(body, {**env, name: local}, depth+1)]}
+            if 'Let' in value:
+                name, ty, initial, body = value['Let']; local = binder()
+                return {'Let': [local, ty, visit(initial, env, depth+1),
+                    visit(body, {**env, name: local}, depth+1)]}
+            return {key: visit(v, env, depth+1) for key, v in value.items()}
+        key = json.dumps([[ty for _, ty in function['params']], function['result'],
+                          visit(function['body'], bindings)], sort_keys=True, separators=(',', ':'))
+        if key not in self.helper_index:
+            self.helper_index[key] = function['name']
+            self.helpers.append(function)
+        return self.helper_index[key]
 
     def plain(self, ty, active=()):
         if isinstance(ty, str):
@@ -110,7 +152,7 @@ class ChunkPartial(Partial):
             expression = {'Var': previous}
             for local, value in reversed(bindings):
                 expression = {'Let': [local, result, value, expression]}
-            self.helpers.append(dict(name=name, params=params, result=result, body=expression))
+            names[index] = self.intern(dict(name=name, params=params, result=result, body=expression))
         # A balanced composition tree bounds source/checker/host call depth by
         # log(chunk count), instead of putting every chunk on one call stack.
         while len(names) > 1:
@@ -122,15 +164,14 @@ class ChunkPartial(Partial):
                 arguments = [*[{'Var': n} for n in captures], {'Var': argument}]
                 expression = {'Let': [middle, result, {'Call': [names[offset], arguments]},
                     {'Call': [names[offset+1], [*[{'Var': n} for n in captures], {'Var': middle}]]}]}
-                self.helpers.append(dict(name=name, params=capture_params+[[argument,result]],
-                                         result=result, body=expression))
-                level.append(name)
+                level.append(self.intern(dict(name=name, params=capture_params+[[argument,result]],
+                                              result=result, body=expression)))
             names = level
         return {'Call': [names[0], [*[{'Var': n} for n in captures], initial]]}
 
 
-def propose_source(source):
-    selected = copy.deepcopy(source); partial = ChunkPartial(selected['program'])
+def propose_source(source, *, share_helpers=True):
+    selected = copy.deepcopy(source); partial = ChunkPartial(selected['program'], share_helpers=share_helpers)
     for action in selected['program']['actions']:
         partial.types = dict(action['params'])
         action['body'] = partial.statements(action['body'])
@@ -225,10 +266,14 @@ def produce(before, after, selected, directory):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('source', type=Path); parser.add_argument('--ink', required=True, type=Path)
-    parser.add_argument('-o', '--output', required=True, type=Path); args = parser.parse_args()
+    parser.add_argument('-o', '--output', required=True, type=Path)
+    parser.add_argument('--helper-layout', choices=['shared', 'expanded'], default='shared',
+                        help='explicit code layout proposal; both layouts require complete proofs')
+    args = parser.parse_args()
     if args.source.stat().st_size > 16_000_000:
         raise ValueError('frozen composition source byte limit')
-    source = json.loads(args.source.read_bytes()); selected, helpers = propose_source(source)
+    source = json.loads(args.source.read_bytes())
+    selected, helpers = propose_source(source, share_helpers=args.helper_layout == 'shared')
     if not helpers:
         raise ValueError('no admitted closed traversal chunk opportunity')
     with tempfile.TemporaryDirectory(prefix='ink-frozen-composition-') as folder:

@@ -59,6 +59,43 @@ class FrozenComposition(unittest.TestCase):
             self.assertNotEqual(result.returncode, 0)
             self.assertIn('every action proof', result.stderr)
 
+    def test_repeated_word_computation_shares_code_without_caching_results(self):
+        with tempfile.TemporaryDirectory() as directory:
+            folder = Path(directory); core, source = self.fixture(folder, 128)
+            source['program']['frozen']['Code'][0][1] = list(range(8))*16
+            core.write_text(json.dumps(source)); plan = folder/'plan.json'
+            run = subprocess.run(['python3', PRODUCER, core, '--ink', INK, '-o', plan], capture_output=True, text=True)
+            self.assertEqual(run.returncode, 0, run.stderr)
+            self.assertEqual(json.loads(run.stdout)['helpers'], 5)
+            package = json.loads(plan.read_bytes())
+            selected = package['steps'][1]['package']['action_replacement']['selected']
+            self.assertEqual(len(selected['program']['functions']), len(source['program']['functions'])+5)
+            expanded = folder/'expanded.json'
+            run = subprocess.run(['python3',PRODUCER,core,'--ink',INK,'--helper-layout','expanded','-o',expanded],capture_output=True,text=True)
+            self.assertEqual(run.returncode,0,run.stderr)
+            self.assertEqual(json.loads(run.stdout)['helpers'],31)
+            for name, options in [('baseline', []), ('selected', ['--plan', plan]), ('expanded',['--plan',expanded])]:
+                command = ([INK, 'compile', core, '--core', *options] if options else
+                           [INK, 'build', core, '--core'])
+                subprocess.run([*command, '--target', 'javascript', '-o', folder/(name+'.mjs')],
+                               check=True, capture_output=True)
+            script = folder/'check.mjs'
+            script.write_text("""import assert from 'node:assert/strict';
+import {pathToFileURL} from 'node:url';
+const [a,b,c]=await Promise.all(process.argv.slice(2).map(async p=>(await import(pathToFileURL(p))).createState()));
+for(const w of [0,1,0xffffffff,0x80000001]){
+ const update=a.invoke('retune',[w]);assert.deepEqual(update,b.invoke('retune',[w]));assert.deepEqual(update,c.invoke('retune',[w]));
+ for(const x of [0,1,0xffffffff,0x12345678]){
+  let expected=x;for(let i=0;i<128;i++)expected=(Math.imul(expected,w)+(i%8))>>>0;
+  const left=a.invoke('serve',[x]),right=b.invoke('serve',[x]);
+  assert.deepEqual(left,right);assert.deepEqual(left,c.invoke('serve',[x]));assert.equal(left.result,expected);
+  assert.deepEqual(await a.checkpoint(),await b.checkpoint());assert.deepEqual(await a.checkpoint(),await c.checkpoint());
+ }
+}
+""")
+            run = subprocess.run(['node',script,folder/'baseline.mjs',folder/'selected.mjs',folder/'expanded.mjs'],capture_output=True,text=True)
+            self.assertEqual(run.returncode,0,run.stderr)
+
     def test_unknown_and_short_traversals_do_not_acquire_helpers(self):
         with tempfile.TemporaryDirectory() as directory:
             _, source = self.fixture(Path(directory), 8)
