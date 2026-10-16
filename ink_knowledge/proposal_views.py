@@ -18,7 +18,10 @@ class ProposalViews:
             if ident in identities:continue
             obj=self.source.object(ident);identities.add(ident);pending.extend(obj['dependencies'])
         with _publication_lock(self.directory):
-            self.transport=Store._publish_ids(self.directory,identities,{},64)
+            # A view repeats the complete leaf bucket for each member. Small
+            # leaves trade a few Merkle siblings for bounded repeated metadata,
+            # preserving existing per-entry, source and catalogue byte limits.
+            self.transport=Store._publish_ids(self.directory,identities,{},2)
         self.members=self.transport.members()
     def update(self,extra):
         """Extend proposal transport; every new closure still needs kernel admission."""

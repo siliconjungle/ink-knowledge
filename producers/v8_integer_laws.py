@@ -53,7 +53,25 @@ def templates(all_powers=True):
                         return choose(compare('<',a,constant(0)),neg(call('word_and',neg(a),constant((1<<k)-1))),call('word_and',a,constant((1<<k)-1)))
                     target=bindings([sort],[x],lambda a:result(a[0]))if carrier=='I32'else result(x)
                     add(prefix+operation+'_power_'+tag,{'x':sort,'default':sort},call(operation,x,constant(divisor),default),target)
-    return rows
+    return rows + guarded_templates()
+
+
+def guarded_templates():
+    """Strict variable-divisor guards, with ordinary exhaustively composed proofs."""
+    sort=value('U32');boolean=value('Bool')
+    x=var(sort,'x');y=var(sort,'y');default=var(sort,'default')
+    zero=word('U32',0);one=word('U32',1)
+    def masked(a,b):return op(sort,'call:word_and',a,b)
+    def predecessor(a):return op(sort,'binary:-',a,one)
+    def remainder(a,b):return op(sort,'call:rem_or',a,b,default)
+    def replacement(a):
+        nonzero=op(boolean,'binary:!=',a[1],zero)
+        one_bit=op(boolean,'binary:==',masked(a[1],predecessor(a[1])),zero)
+        guard=op(boolean,'binary:&&',nonzero,one_bit)
+        return op(sort,'call:choose',guard,masked(a[0],predecessor(a[1])),remainder(a[0],a[1]))
+    return [dict(name='u32_rem_or_variable_power_guard',goal=dict(
+        params={'x':sort,'y':sort,'default':sort},conditions=[],
+        **{'from':remainder(x,y),'to':bindings([sort,sort],[x,y],replacement)}))]
 
 
 def specialize(subject, core):

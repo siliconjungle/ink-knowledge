@@ -48,6 +48,7 @@ class IntegerLaws(unittest.TestCase):
    if 'Lambda'in n:return lambda a:evaluate(n['Lambda'],env,trace,(*bound,a))
    name,args=n['Op']
    if name=='call:choose':return evaluate(args[1]if evaluate(args[0],env,trace,bound)else args[2],env,trace,bound)
+   if name=='binary:&&':return evaluate(args[0],env,trace,bound)and evaluate(args[1],env,trace,bound)
    a=evaluate(args[0],env,trace,bound)
    if name=='apply':return a(evaluate(args[1],env,trace,bound))
    if name=='neg':return (-a)&mask
@@ -62,10 +63,10 @@ class IntegerLaws(unittest.TestCase):
    if name=='call:word_or':return (a|b)&mask
    if name=='call:wrapping_shl':return (a<<(b&(63 if kind=='U64'else 31)))&mask
    if name=='call:wrapping_shr':return ((signed(a)if kind=='I32'else a)>>(b&(63 if kind=='U64'else 31)))&mask
-   if name in ['binary:+','binary:*']:return ((a+b)if name=='binary:+'else(a*b))&mask
+   if name in ['binary:+','binary:*','binary:-']:return ({'binary:+':lambda:a+b,'binary:*':lambda:a*b,'binary:-':lambda:a-b}[name]())&mask
    if name.startswith('binary:'):
     if args[0]['sort']==value('I32'):a,b=signed(a),signed(b)
-    return {'==':lambda:a==b,'<':lambda:a<b}[name[7:]]()
+    return {'==':lambda:a==b,'!=':lambda:a!=b,'<':lambda:a<b}[name[7:]]()
    raise AssertionError(name)
   rng=random.Random(0x7838696e74)
   for row in templates():

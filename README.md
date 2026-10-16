@@ -996,3 +996,31 @@ frozen ten-program corpus compiles all programs, observes 22 laws/six reused,
 selects no alternative and stops at measurement evidence for every program. Its
 final context check passes. Distribution evidence lives in
 `bench/v8-learning/hint-transport` and `bench/v8-learning/corpus-hint-transport`.
+
+The V8 integer library also discovers an ordinary guarded **U32 variable-divisor
+remainder** law. It retains strict numerator/divisor evaluation, uses a mask for
+nonzero one-bit divisors (including `0x80000000`), and retains the original lazy
+fallback for zero and other divisors. Exhaustive `Cases`, scoped equality
+assertions and explicit checked constant witnesses prove every branch; two
+constant witnesses share ordinary quotient facts where the complete proof
+closure is smaller. The library now has 341 root patterns, with every previous 340
+root proof identity unchanged. This does not cover signed or U64 variable
+remainder, nor arbitrary-divisor reciprocal multiplication.
+
+Ephemeral proposal views use two-entry Merkle leaf buckets to reduce membership
+metadata repeated across dependency closures. They retain the same authenticated
+objects, transitive dependencies and ordinary kernel replay. A real35-object
+source selection falls from16,031,589 bytes (rejected) to15,970,479 bytes (accepted)
+without changing the16MB source/catalogue cap,128MB view cap or proof budgets.
+This establishes a transport capability; the rejected input is not a successful
+checker timing baseline. The new membership regression checks an external
+support closure, tampered membership and a genuinely false rehashed equation.
+
+Complete-call JavaScript/Rust controls retain the baseline for the tested mixed
+power/nonpower/zero/empty profiles. Explicit actual-GPU power controls have lower
+medians, but zero-divisor controls regress and not every process passes the 10%
+extrema guard. No global speedup, automatic CPU placement or default selection
+is claimed. The separately measured zero-first proof prototype trades away the
+GPU power gain to remove most of that fallback regression; it is not an installed
+root in this batch. Exact source/proof/plan contexts and both controls are in the
+distribution's `bench/v8-learning/variable-power` evidence.
