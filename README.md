@@ -803,3 +803,13 @@ checkpoints, and reject a changed value. This relies on the distribution's
 shared frozen-literal projection and exhaustive-case proof checking. Long action
 continuations and general graph/tape specialization still need further work;
 this adds no automatic profitability or approximation authority.
+
+`producers.closed_data_bridges` now factors exact closed-data equalities into
+ordinary source-bound theorems. A later transparent chunk reuses prior lemmas;
+complete action proofs retain data sharing even when literal syntax differs.
+Candidate fingerprints and membership grant no proof authority. Discovery work,
+depth or size exhaustion discards partial objects and retains the prior checked
+tactic. Tests cover complete exceptional F32 lists through 512 values, a changed
+NaN payload after rebuilding the candidate closure, authenticated invalid
+theorems and transactional discovery fallback. These generated proof views ship
+with selected models; the default canonical catalogue remains unchanged.
