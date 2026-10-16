@@ -97,6 +97,20 @@ change set(value:f32)->Unit writes(Live) emits(Changed) {Live.put(0,value);emit 
                 packet = temp/'selection.json'
                 subprocess.run(['python3', ROOT/'knowledge/producers/frozen_specialization.py',
                                 core, '--ink', INK, '-o', packet], check=True, capture_output=True)
+                forged = json.loads(packet.read_bytes())
+                serve = next(a for a in forged['action_replacement']['selected']['program']['actions'] if a['name'] == 'serve')
+                def change_coefficient(e):
+                    if isinstance(e, dict):
+                        if 'Float' in e:
+                            e['Float'] ^= 1
+                            return True
+                        return any(change_coefficient(x) for x in e.values())
+                    return isinstance(e, list) and any(change_coefficient(x) for x in e)
+                self.assertTrue(change_coefficient(serve['body']))
+                bad = temp/'wrong-coefficient.json'
+                bad.write_text(json.dumps(forged))
+                rejected = subprocess.run([INK, 'check-selection', core, bad], capture_output=True)
+                self.assertNotEqual(rejected.returncode, 0, 'a changed coefficient reused its old proof')
                 steps = [dict(call='self_equal', args=[]), dict(call='is_zero', args=[]), dict(call='raw', args=[])]
                 for x in [0, 0x80000000, 0x3dcccccd, 0x7fa05678]:
                     steps.extend([dict(call='set', args=[{'F32Bits': x}]), dict(call='serve', args=[{'F32Bits': x}])])
