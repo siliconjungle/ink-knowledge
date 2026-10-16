@@ -71,10 +71,10 @@ def main():
     p.add_argument('--data', type=Path, required=True)
     p.add_argument('--library', action='store_true', help='Write an indexed, immutable proof library')
     p.add_argument('--seconds', type=int, default=10)
-    p.add_argument('--semantics', choices=('opaque-v1','fixed-words-v2'), default='opaque-v1')
+    p.add_argument('--semantics', choices=('opaque-v1','fixed-words-v2','fixed-scalars-v3'), default='opaque-v1')
     p.add_argument('--encoding', choices=('literal-v1','shared-v2'), default='literal-v1')
     p.add_argument('--case', action='append')
-    p.add_argument('--family', choices=('word', 'v8'), default='word',
+    p.add_argument('--family', choices=('word', 'v8', 'v8-float'), default='word',
                    help='Offline proposal family; all use the same independent checker')
     a = p.parse_args()
     if not 1 <= a.seconds <= 120:
@@ -84,6 +84,8 @@ def main():
     rows, failures = [], []
     if a.family == 'v8':
         from .v8_word_laws import templates as family_templates
+    elif a.family == 'v8-float':
+        from .v8_float_laws import templates as family_templates
     else:
         family_templates = templates
     requested = family_templates()
@@ -119,7 +121,7 @@ def main():
         else:
             frozen_count = update_frozen_data(a.data, rows)
         objects = [semantic_entry(r['law']) for r in rows]
-        namespace = 'v8-word-laws/' if a.family == 'v8' else 'word-identities/'
+        namespace = 'v8-float-laws/' if a.family == 'v8-float' else 'v8-word-laws/' if a.family == 'v8' else 'word-identities/'
         names = {namespace+r['name']: identity(semantic_entry(r['law'])) for r in rows}
         store = (Store(a.output_store).extend(objects, names) if Store.is_published(a.output_store)
                  else Store.publish(a.output_store, objects, names))

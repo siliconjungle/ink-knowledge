@@ -815,3 +815,14 @@ checkpoints, and reject a changed value. This relies on the distribution's
 shared frozen-literal projection and exhaustive-case proof checking. Long action
 continuations and general graph/tape specialization still need further work;
 this adds no automatic profitability or approximation authority.
+
+The V8 floating library supplies fifteen checked F32 bit-cast, sign,
+classification and IEEE self-comparison laws through ordinary indexed discovery.
+It requires the distribution's explicit `fixed-scalars-v3` circuit semantics;
+proof bytes replay independently with the existing resource limits. Bit identity
+and IEEE equality differ for NaNs and signed zero. Always-false comparisons keep
+strict operand evaluation through a bound application. Unsupported floating
+arithmetic stays opaque and F64 semantic proofs reject. These are reusable
+source laws, not a floating fast-math mode or automatic profitability decision.
+See `tests/test_v8_float_laws.py` for payload/boundary oracles, mode substitution,
+a rehashed false IEEE claim, callback scope and retained failing work.
