@@ -128,7 +128,7 @@ class FoldChunks:
             raise ValueError('fold chunk requires constructor rows')
         return rows
 
-    def share(self, term):
+    def share_data(self, term):
         """Factor closed constructor depth into transparent ordinary definitions."""
         if free_variables(term):
             raise ValueError('fold chunk sharing requires closed data')
@@ -152,6 +152,10 @@ class FoldChunks:
                 self.data_cache[fingerprint] = key
             return call(self.data_cache[fingerprint], []), 0
         result, _ = visit(term)
+        return result
+
+    def share(self, term):
+        result = self.share_data(term)
         lemma = self.theorem([], term, result, convert(term, result))
         return result, lemma
 

@@ -292,16 +292,13 @@ def witness_helpers(selected, helpers):
             and all(partial.plain(t) for _, t in f['params'])]
 
 
-def produce(before, after, selected, directory, witnesses=None, *, owned_chunk_width=4):
-    if (before['semantics'] != 'ink-action-transition-v1' or after['semantics'] != before['semantics']
-            or not before.get('frozen_domain') or before['frozen_domain'] != after.get('frozen_domain')
-            or before['state'] != after['state'] or before['events'] != after['events']):
-        raise ValueError('frozen composition projection/domain mismatch')
-    objects = {**(witnesses or {}).get('objects',{}), **before['objects'], **after['objects']}
+def comparison_chunks(before_objects, after_objects, witness_objects=None, *, owned_chunk_width=4):
+    """Prepare untrusted universal fold bridges for source correspondence."""
+    objects = {**(witness_objects or {}), **before_objects, **after_objects}
     helpers = set()
     for key, obj in objects.items():
         function = obj['payload'].get('declaration', {}).get('Function')
-        if (key not in before['objects'] and function and function['params']
+        if (key not in before_objects and function and function['params']
                 and function['params'][0][0] == 'pure_arg_0'):
             helpers.add(key)
     chunks = FoldChunks(objects, helpers, owned_chunk_width=owned_chunk_width)
@@ -343,6 +340,18 @@ def produce(before, after, selected, directory, witnesses=None, *, owned_chunk_w
     # entire concrete graph inside a frame's state/event context.
     chunks.gates = {key for key in recursive if key not in helpers
                     and key not in chunks.folds and chunks.acyclic(key)}
+    return chunks
+
+
+def produce(before, after, selected, directory, witnesses=None, *, owned_chunk_width=4):
+    if (before['semantics'] != 'ink-action-transition-v1' or after['semantics'] != before['semantics']
+            or not before.get('frozen_domain') or before['frozen_domain'] != after.get('frozen_domain')
+            or before['state'] != after['state'] or before['events'] != after['events']):
+        raise ValueError('frozen composition projection/domain mismatch')
+    chunks = comparison_chunks(before['objects'], after['objects'],
+        (witnesses or {}).get('objects'), owned_chunk_width=owned_chunk_width)
+    helpers = chunks.helpers
+    objects = {**(witnesses or {}).get('objects', {}), **before['objects'], **after['objects']}
     fixed = [chunks.share(e['to']) for e in before['frozen_domain']]
     opaque = helpers | chunks.closed | chunks.gates
     proofs = {}
