@@ -11,15 +11,81 @@ import json
 def choice(c,t,f):return {'If':dict(condition=c,on_true=t,on_false=f)}
 def binary(n,a,b):return {'Binary':dict(op=n,left=a,right=b)}
 def match(t,branches):return {'Match':dict(scrutinee=t,branches=[dict(bindings=ns,body=b) for ns,b in branches])}
+
+class _BindingFacts:
+    """Bounded immutable syntax summaries for one synchronous authoring walk.
+
+    Keep exact objects alive on a cache hit: Python identities never survive this
+    walk or authorize a proof. Charge a conservative unshared tree size as well
+    as summary metadata, so retaining a small key cannot retain an unbounded
+    temporary tree. Cache exhaustion preserves ordinary traversal.
+    """
+    MAX_ENTRIES = 4096
+    MAX_BYTES = 2_000_000
+    MAX_ENTRY_BYTES = 8192
+
+    def __init__(self):
+        self.entries = {}
+        self.bytes = 0
+
+    def of(self, value):
+        # During this walk the root keeps every borrowed descendant alive.
+        # Large shared subtrees therefore need only bounded summary metadata;
+        # no input object is retained after this walk merely for its identity.
+        return self._of(value, {}, [0])
+
+    def _of(self, value, local, local_bytes):
+        if not isinstance(value, (dict, list)):
+            size = 64 + (4 * len(value) if isinstance(value, str) else 64)
+            return frozenset(), frozenset(), min(size, self.MAX_ENTRY_BYTES + 1)
+        found = self.entries.get(id(value))
+        if found is not None and found[0] is value:
+            return found[1]
+        found = local.get(id(value))
+        if found is not None:
+            return found
+        free, bound = set(), set()
+        size = 128 + 96 * len(value)
+        def add(child, subtract=()):
+            nonlocal size
+            names, bindings, weight = self._of(child, local, local_bytes)
+            free.update(names - set(subtract)); bound.update(bindings)
+            size = min(self.MAX_ENTRY_BYTES + 1, size + weight)
+        if isinstance(value, dict) and set(value) == {'Var'}:
+            free.add(value['Var'])
+            size += 64 + 4 * len(value['Var'])
+        elif isinstance(value, dict) and 'Match' in value:
+            node = value['Match']; add(node['scrutinee'])
+            for branch in node['branches']:
+                names = branch['bindings']; bound.update(names)
+                size += sum(64 + 4 * len(name) for name in names)
+                add(branch['body'], names)
+        else:
+            if isinstance(value, dict):
+                size += sum(64 + 4 * len(key) for key in value)
+                children = value.values()
+            else:
+                children = value
+            for child in children:
+                add(child)
+        result = frozenset(free), frozenset(bound), min(size, self.MAX_ENTRY_BYTES + 1)
+        metadata = 1024 + sum(128 + 4 * len(name) for name in free | bound)
+        weight = result[2] + metadata
+        if (size <= self.MAX_ENTRY_BYTES and len(self.entries) < self.MAX_ENTRIES
+                and self.bytes + weight <= self.MAX_BYTES):
+            self.entries[id(value)] = value, result
+            self.bytes += weight
+        if len(local) < self.MAX_ENTRIES and local_bytes[0] + metadata <= self.MAX_BYTES:
+            local[id(value)] = result
+            local_bytes[0] += metadata
+        return result
+
 def free_variables(t,bound=frozenset()):
-    if isinstance(t,list):return set().union(*(free_variables(x,bound) for x in t)) if t else set()
-    if not isinstance(t,dict):return set()
-    if set(t)=={'Var'}:return set() if t['Var'] in bound else {t['Var']}
-    if 'Match'in t:
-        x=t['Match'];return free_variables(x['scrutinee'],bound)|set().union(*(free_variables(b['body'],bound|set(b['bindings'])) for b in x['branches']))
-    return set().union(*(free_variables(x,bound) for x in t.values())) if t else set()
+    return set(_BindingFacts().of(t)[0]) - set(bound)
 def sub(t,m):
-    if isinstance(t,list):return [sub(x,m) for x in t]
+    return _sub(t,m,_BindingFacts())
+def _sub(t,m,facts):
+    if isinstance(t,list):return [_sub(x,m,facts) for x in t]
     if not isinstance(t,dict):return t
     if set(t)=={'Var'}:return m.get(t['Var'],t)
     if 'Match' in t:
@@ -29,8 +95,9 @@ def sub(t,m):
             # The kernel also forbids lexical shadowing of an outer binder by
             # binders inside a substituted value. Bound names in arguments must
             # therefore be avoided even when they cannot capture a free value.
-            captures=set().union(*(free_variables(v)|binding_names(v) for v in local.values())) if local else set()
-            occupied=variables(body)|binding_names(body)|captures|set(local)|set(bindings);renames={}
+            captures=set().union(*(facts.of(v)[0]|facts.of(v)[1] for v in local.values())) if local else set()
+            free,bound,_=facts.of(body)
+            occupied=set(free)|set(bound)|captures|set(local)|set(bindings);renames={}
             for i,n in enumerate(bindings):
                 if n not in captures:continue
                 serial=0
@@ -38,10 +105,10 @@ def sub(t,m):
                     fresh=n[:40]+'_proposal_'+str(serial);serial+=1
                     if fresh not in occupied:break
                 occupied.add(fresh);bindings[i]=fresh;renames[n]=var(fresh)
-            if renames:body=sub(body,renames)
-            branches.append((bindings,sub(body,local)))
-        return match(sub(x['scrutinee'],m),branches)
-    return {k:sub(v,m) for k,v in t.items()}
+            if renames:body=_sub(body,renames,facts)
+            branches.append((bindings,_sub(body,local,facts)))
+        return match(_sub(x['scrutinee'],m,facts),branches)
+    return {k:_sub(v,m,facts) for k,v in t.items()}
 def replace(t,a,z):
     if t==a:return z
     if isinstance(t,list):return [replace(x,a,z) for x in t]
@@ -49,10 +116,7 @@ def replace(t,a,z):
     return t
 
 def binding_names(t):
-    if isinstance(t,list):return set().union(*(binding_names(x)for x in t))if t else set()
-    if not isinstance(t,dict):return set()
-    here=set().union(*(set(b['bindings'])for b in t['Match']['branches']))if 'Match'in t else set()
-    return here|set().union(*(binding_names(x)for x in t.values()))if t else here
+    return set(_BindingFacts().of(t)[1])
 
 class _CallCache:
     """Exact invocation-local authoring results, never proof verdicts.
@@ -67,7 +131,7 @@ class _CallCache:
     WARMUP_CALLS=32
 
     def __init__(self):
-        self.entries={};self.bytes=0;self.calls=0
+        self.entries={};self.bytes=0;self.calls=0;self.structural={}
 
     @classmethod
     def encode(cls,value):
@@ -102,20 +166,48 @@ class _CallCache:
         self.entries[key]=encoded;self.bytes+=len(key)+len(encoded)
 
 
-def normal(t,objects,depth=0,opaque=(),*,blocked=(),eager=()):
+def normal(t,objects,depth=0,opaque=(),*,blocked=(),eager=(),heads=()):
     """Authoring computation only. Every proposed reduction is checked by Convert."""
-    return _normal(t,objects,depth,opaque,blocked,eager,_CallCache())
+    return _normal(t,objects,depth,opaque,blocked,eager,heads,_CallCache())
 
 
-def _normal(t,objects,depth,opaque,blocked,eager,cache):
+def _constructor_head(term,objects,heads,depth):
+    original=term;seen=set()
+    while isinstance(term,dict) and 'Call' in term:
+        invocation=term['Call'];key=invocation['function']
+        if invocation['arguments'] or key not in heads:return original
+        if key in seen or depth+len(seen)>96:raise ValueError('constructor head depth/cycle budget')
+        seen.add(key);f=objects[key]['payload']['declaration'].get('Function')
+        if not f or f['params'] or f['recursive'] is not None:return original
+        term=f['body']
+    return term if isinstance(term,dict) and 'Construct' in term else original
+
+
+def _normal(t,objects,depth,opaque,blocked,eager,heads,cache):
     if depth>96:raise ValueError('point delta producer depth budget')
-    recur=lambda t:_normal(t,objects,depth+1,opaque,blocked,eager,cache)
+    recur=lambda t:_normal(t,objects,depth+1,opaque,blocked,eager,heads,cache)
     if not isinstance(t,dict):return t
     if 'Call' in t:
         x=t['Call'];args=[recur(a) for a in x['arguments']];decl=objects[x['function']]['payload']['declaration']
         if x['function'] in opaque or 'AbstractFunction' in decl:return call(x['function'],args)
         if x['function'] in blocked and not (x['function']in eager and any('Construct'in a for a in args)):return call(x['function'],args)
         f=decl['Function']
+        if f['recursive'] is not None:
+            i=f['recursive'];exposed=_constructor_head(args[i],objects,heads,depth+1)
+            if exposed is not args[i]:
+                # Constructor aliases may drive recursive data operations.
+                # Acyclic owner gates stay explicit for their universal case
+                # lemmas, rather than expanding a whole application context.
+                if x['function'] not in cache.structural:
+                    pending=[f['body']];found=False
+                    while pending:
+                        value=pending.pop()
+                        if isinstance(value,dict):
+                            if 'SelfCall' in value:found=True;break
+                            pending.extend(value.values())
+                        elif isinstance(value,list):pending.extend(value)
+                    cache.structural[x['function']]=found
+                if cache.structural[x['function']]:args[i]=exposed
         if f['recursive'] is not None and 'Construct' not in args[f['recursive']]:return call(x['function'],args)
         # Small authoring jobs should not pay for structural keys. Repeated
         # expansion earns the bounded cache within this invocation only.
@@ -140,7 +232,7 @@ def _normal(t,objects,depth,opaque,blocked,eager,cache):
     if 'Construct' in t:
         x=t['Construct'];return cons(x['datatype'],x['constructor'],[recur(a) for a in x['arguments']])
     if 'Match' in t:
-        x=t['Match'];scrutinee=recur(x['scrutinee'])
+        x=t['Match'];scrutinee=_constructor_head(recur(x['scrutinee']),objects,heads,depth+1)
         if 'Construct' in scrutinee:
             c=scrutinee['Construct'];b=x['branches'][c['constructor']];return recur(sub(b['body'],dict(zip(b['bindings'],c['arguments']))))
         branches=[]

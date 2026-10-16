@@ -193,8 +193,13 @@ class Partial:
         for value in values if name == 'foldl' else reversed(values):
             self.tick(depth)
             following = self.fresh()
-            expression = substitute(body, {element: value, accumulator: {'Var': previous}})
-            bindings.append((following, self.expr(expression, {}, active, depth + 1)))
+            # Retain the original argument syntax while exposing newly closed
+            # callback bindings. Nested callees can then see that a former
+            # callback parameter became known, rather than mistaking it for an
+            # already literal initializer that should remain unexpanded.
+            expression = self.expr(body, {element: value, accumulator: {'Var': previous}},
+                                   active, depth + 1)
+            bindings.append((following, expression))
             previous = following
         result = {'Var': previous}
         for local, value in reversed(bindings):

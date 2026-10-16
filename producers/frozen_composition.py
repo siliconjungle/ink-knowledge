@@ -24,8 +24,11 @@ from producers.point_delta import free_variables, lift, normal, replace, sub
 
 
 class ChunkPartial(Partial):
-    def __init__(self, program, *, share_helpers=True):
+    def __init__(self, program, *, share_helpers=True, owned_chunk_width=4):
         super().__init__(program)
+        if owned_chunk_width not in (1, 2, 4, 8):
+            raise ValueError('owned chunk width must be 1, 2, 4 or 8')
+        self.owned_chunk_width = owned_chunk_width
         self.share_helpers = share_helpers
         self.helpers = []
         self.helper_index = {}
@@ -96,7 +99,19 @@ class ChunkPartial(Partial):
                 return False
             return (value.get('Call', [None])[0] in ('foldl', 'foldr', 'repeat', 'repeat_until')
                     or any(traversal(v) for v in value.values()))
-        if traversal(body):
+        def owned_work(value):
+            if isinstance(value, list):
+                return any(owned_work(v) for v in value)
+            if not isinstance(value, dict):
+                return False
+            ty = self.known_type(value)
+            return ((ty is not None and not self.plain(ty))
+                    or any(owned_work(v) for v in value.values()))
+        # Actions have capability typing; temporary affine storage belongs in
+        # pure functions. Keep an outer pure boundary around owned work after
+        # its traversal disappears, while allowing nested steps to specialize
+        # inside that boundary. Source checking still rejects invalid transfers.
+        if traversal(body) or (len(active) == 1 and owned_work(body)):
             # A residual pure traversal stays behind a typed function boundary.
             # Dynamic arguments retain their original order, including unused
             # arguments. The conservative extension and complete action proof
@@ -139,7 +154,38 @@ class ChunkPartial(Partial):
             return {'Named': value['Record'][0]}
         if 'Call' in value and value['Call'][0] in self.functions:
             return self.functions[value['Call'][0]]['result']
+        if value.get('Call', [None])[0] == 'buffer' and len(value['Call'][1]) == 1:
+            source = self.known_type(value['Call'][1][0])
+            if isinstance(source, dict) and 'List' in source:
+                return {'Buffer': source['List']}
         return None
+
+    def threaded(self, ty, active=()):
+        """Types passed once from one chunk to the next, never captured twice.
+
+        This only bounds proposal construction. The source checker must still
+        admit the generated linear calls and the kernel must prove the complete
+        action equation. Captures retain the stricter immutable ``plain`` gate.
+        """
+        if self.plain(ty, active):
+            return True
+        if not isinstance(ty, dict):
+            return False
+        if 'Named' in ty:
+            name = ty['Named']
+            return (name not in active and name in self.program['records']
+                    and all(self.threaded(t, (*active, name))
+                            for _, t in self.program['records'][name]))
+        for container in ['Buffer', 'List', 'Option']:
+            if container in ty:
+                return self.threaded(ty[container], active)
+        if 'Map' in ty:
+            return all(self.threaded(t, active) for t in ty['Map'])
+        if 'Result' in ty:
+            return all(self.threaded(t, active) for t in ty['Result'])
+        if 'Vector' in ty:
+            return self.threaded(ty['Vector'][0], active)
+        return False
 
     def fold(self, name, args, active, depth):
         if name != 'foldl' or len(args) != 3:
@@ -155,11 +201,16 @@ class ChunkPartial(Partial):
         accumulator, body = inner['Lambda']; result = self.known_type(initial)
         captures = sorted(source_free(body, {element, accumulator}) - self.enums
                           - self.program['enums'].keys() - {'None'})
-        if (result is None or not self.plain(result)
+        if (result is None or not self.threaded(result)
                 or any(n not in self.types or not self.plain(self.types[n]) for n in captures)):
             return super().fold(name, args, active, depth)
         values = rows['Call'][1]
-        count = (len(values) + FoldChunks.MAX_CHUNK - 1) // FoldChunks.MAX_CHUNK
+        # Owned record fields can reuse an earlier primal several times. Keep
+        # their leaf equations smaller, within the same checker work/depth
+        # bounds; balanced composition retains scalability without expanding
+        # the full owned computation into one proof term.
+        width = FoldChunks.MAX_CHUNK if self.plain(result) else min(self.owned_chunk_width, FoldChunks.MAX_CHUNK)
+        count = (len(values) + width - 1) // width
         if len(self.helpers) + 2*count-1 > FoldChunks.MAX_HELPERS:
             raise ValueError('frozen composition helper budget')
         names = [self.fresh() for _ in range(count)]
@@ -168,11 +219,11 @@ class ChunkPartial(Partial):
             initial_name = self.fresh(); previous = initial_name; self.types[previous] = result
             params = capture_params + [[initial_name, result]]
             bindings = []
-            for value in values[index*FoldChunks.MAX_CHUNK:(index+1)*FoldChunks.MAX_CHUNK]:
+            for value in values[index*width:(index+1)*width]:
                 self.tick(depth)
                 following = self.fresh(); self.types[following] = result
-                expression = self.expr(substitute(body, {element: value, accumulator: {'Var': previous}}),
-                                       {}, active, depth + 1)
+                expression = self.expr(body, {element: value, accumulator: {'Var': previous}},
+                                       active, depth + 1)
                 bindings.append((following, expression)); previous = following
             expression = {'Var': previous}
             for local, value in reversed(bindings):
@@ -199,8 +250,9 @@ class ChunkPartial(Partial):
         return self.expr(invocation,{},active,depth+1) if all(self.value(a) for a in arguments) else invocation
 
 
-def propose_source(source, *, share_helpers=True):
-    selected = copy.deepcopy(source); partial = ChunkPartial(selected['program'], share_helpers=share_helpers)
+def propose_source(source, *, share_helpers=True, owned_chunk_width=4):
+    selected = copy.deepcopy(source); partial = ChunkPartial(selected['program'], share_helpers=share_helpers,
+                                                           owned_chunk_width=owned_chunk_width)
     for action in selected['program']['actions']:
         partial.types = dict(action['params'])
         action['body'] = partial.statements(action['body'])
@@ -208,7 +260,39 @@ def propose_source(source, *, share_helpers=True):
     return selected, partial.helpers
 
 
-def produce(before, after, selected, directory, witnesses=None):
+def witness_helpers(selected, helpers):
+    """Only unreachable plain helpers need an auxiliary query for projection.
+
+    Reachable helpers are already projected through complete actions. Owned
+    signatures cannot cross an action interface; their surviving pure calls
+    stay behind ordinary source ownership checking. This is an authoring choice,
+    never proof admission or a semantic reachability certificate.
+    """
+    program = selected['program']
+    functions = {f['name']: f for f in program['functions']}
+    pending = [a['body'] for a in program['actions']]
+    reached = set()
+    work = 0
+    while pending:
+        work += 1
+        if work > FoldChunks.MAX_WORK:
+            raise ValueError('frozen witness reachability work budget')
+        value = pending.pop()
+        if isinstance(value, list):
+            pending.extend(value)
+        elif isinstance(value, dict):
+            if 'Call' in value:
+                name = value['Call'][0]
+                if name in functions and name not in reached:
+                    reached.add(name)
+                    pending.append(functions[name]['body'])
+            pending.extend(value.values())
+    partial = ChunkPartial(program)
+    return [f for f in helpers if f['name'] not in reached and partial.plain(f['result'])
+            and all(partial.plain(t) for _, t in f['params'])]
+
+
+def produce(before, after, selected, directory, witnesses=None, *, owned_chunk_width=4):
     if (before['semantics'] != 'ink-action-transition-v1' or after['semantics'] != before['semantics']
             or not before.get('frozen_domain') or before['frozen_domain'] != after.get('frozen_domain')
             or before['state'] != after['state'] or before['events'] != after['events']):
@@ -220,16 +304,47 @@ def produce(before, after, selected, directory, witnesses=None):
         if (key not in before['objects'] and function and function['params']
                 and function['params'][0][0] == 'pure_arg_0'):
             helpers.add(key)
-    chunks = FoldChunks(objects, helpers)
+    chunks = FoldChunks(objects, helpers, owned_chunk_width=owned_chunk_width)
     recursive = {key for key,obj in objects.items() if obj['payload'].get('declaration',{}).get('Function',{}).get('recursive') is not None}
+    direct = {}
+    initial_helpers = set(helpers)
+    def raw_dependencies(helper):
+        pending = [helper]; seen = set(); result = set()
+        while pending:
+            chunks.tick(); key = pending.pop()
+            if key in seen: continue
+            seen.add(key)
+            if key not in direct:
+                direct[key] = chunks.references(objects[key]['payload']['declaration']['Function']['body'])
+            for dependency in direct[key]:
+                if dependency in initial_helpers or dependency in chunks.folds:
+                    result.add(dependency)
+                elif dependency not in recursive and dependency not in chunks.closed:
+                    if 'Function' in objects[dependency]['payload'].get('declaration',{}):
+                        pending.append(dependency)
+        return result
+    raw = {key:raw_dependencies(key) for key in helpers}
     while True:
-        rejected = {key for key in helpers if chunks.references(normal(objects[key]['payload']['declaration']['Function']['body'],objects,
-            opaque=helpers|chunks.closed,blocked=recursive)) & (recursive|(chunks.helpers-helpers))}
+        # A residual workload fold needs its own induction bridge. Ordinary
+        # recursive value operations (such as logical Buffer.push) can remain
+        # opaque on both sides of a chunk equation; recursion alone does not
+        # disqualify an otherwise straight-line source helper.
+        # A dependency walk can accept the common case without expanding local
+        # owner binds. If it finds a possible residual fold, retain the existing
+        # normalization attempt so dead branches can still disappear.
+        possible = {key for key in helpers if raw[key] & (chunks.folds.keys()|(initial_helpers-helpers))}
+        rejected = {key for key in possible if chunks.references(normal(objects[key]['payload']['declaration']['Function']['body'],objects,
+            opaque=helpers|chunks.closed,blocked=recursive,heads=chunks.closed)) & (chunks.folds.keys()|(chunks.helpers-helpers))}
         if not rejected:break
         helpers-=rejected
     chunks.helpers=helpers
+    # Keep owner boundaries during complete-action exposure. Open them with
+    # universal case lemmas at the comparison site, not by normalizing an
+    # entire concrete graph inside a frame's state/event context.
+    chunks.gates = {key for key in recursive if key not in helpers
+                    and key not in chunks.folds and chunks.acyclic(key)}
     fixed = [chunks.share(e['to']) for e in before['frozen_domain']]
-    opaque = helpers | chunks.closed
+    opaque = helpers | chunks.closed | chunks.gates
     proofs = {}
     for name, old in before['actions'].items():
         new = after['actions'][name]; args = [var(n) for n, _ in old['params']]
@@ -238,7 +353,7 @@ def produce(before, after, selected, directory, witnesses=None):
             proofs[name] = {'Refl': old_call}; continue
         state = cons(before['state'], 0, [var(n) for n in old['case']['bindings']])
         def expose(action):
-            term = normal(action['case']['call'], chunks.objects, opaque=opaque, blocked=chunks.folds)
+            term = normal(action['case']['call'], chunks.objects, opaque=opaque, blocked=chunks.folds,heads=chunks.closed)
             steps = [convert(action['case']['call'], term)]
             for index, equation in enumerate(before['frozen_domain']):
                 left = sub(equation['from'], {'initial': state}); right, lemma = fixed[index]
@@ -250,7 +365,7 @@ def produce(before, after, selected, directory, witnesses=None):
                     {'Use': dict(theorem=lemma, arguments=[], premises=[])}])
                 steps.append(lift(equality, context, 'composition_fact_hole'))
                 term = replace(term, exposed, right)
-            normalized = alpha_normal(normal(term, chunks.objects, opaque=opaque, blocked=chunks.folds))
+            normalized = alpha_normal(normal(term, chunks.objects, opaque=opaque, blocked=chunks.folds,heads=chunks.closed))
             steps.append(convert(term, normalized))
             return normalized, compose(steps)
         left, forward = expose(old); right, backward = expose(new)
@@ -300,8 +415,14 @@ def produce(before, after, selected, directory, witnesses=None):
                 context = replace(current, a, var(hole))
                 steps.append(lift(compose(proofs_at_site), context, hole)); current = replace(current, a, z)
             steps += [convert(current, right), {'Sym': backward}]
+        proof = compose(steps)
+        if any(objects[key]['payload']['declaration']['Function']['recursive'] is not None for key in helpers):
+            fields = chunks.objects[before['state']]['payload']['declaration']['Datatype']['constructors'][0]['fields']
+            env = {n:t for n,t in old['params'] if n!='initial'}
+            env.update(zip(old['case']['bindings'],fields))
+            proof = chunks.factor_conversions(proof,env)
         proofs[name] = {'Cases': dict(variable='initial', **{'from': old_call, 'to': new_call},
-            cases=[dict(bindings=old['case']['bindings'], proof=compose(steps))])}
+            cases=[dict(bindings=old['case']['bindings'], proof=proof)])}
     roots = {a['function'] for m in [before, after] for a in m['actions'].values()} | chunks.lemmas
     # Preserve exact immutable-source definitions even when selected actions
     # stop reading them. Membership is checked independently of theorem truth.
@@ -319,11 +440,14 @@ def main():
     parser.add_argument('-o', '--output', required=True, type=Path)
     parser.add_argument('--helper-layout', choices=['shared', 'expanded'], default='shared',
                         help='explicit code layout proposal; both layouts require complete proofs')
+    parser.add_argument('--owned-chunk-width', type=int, choices=[1, 2, 4, 8], default=4,
+                        help='explicit owned-helper leaf size; proof and profitability remain separate')
     args = parser.parse_args()
     if args.source.stat().st_size > 16_000_000:
         raise ValueError('frozen composition source byte limit')
     source = json.loads(args.source.read_bytes())
-    selected, helpers = propose_source(source, share_helpers=args.helper_layout == 'shared')
+    selected, helpers = propose_source(source, share_helpers=args.helper_layout == 'shared',
+                                      owned_chunk_width=args.owned_chunk_width)
     if not helpers:
         raise ValueError('no admitted closed traversal chunk opportunity')
     with tempfile.TemporaryDirectory(prefix='ink-frozen-composition-') as folder:
@@ -352,7 +476,7 @@ def main():
         witness_source = copy.deepcopy(selected)
         occupied = {a['name'] for a in witness_source['program']['actions']}
         occupied.update(f['name'] for f in witness_source['program']['functions'])
-        for index, helper in enumerate(helpers):
+        for index, helper in enumerate(witness_helpers(selected, helpers)):
             name = 'frozen_proof_witness_'+str(index)
             while name in occupied: name += '_'
             occupied.add(name)
@@ -361,7 +485,7 @@ def main():
                 body=[{'Return':{'Call':[helper['name'],[{'Var':n} for n,_ in helper['params']]]}}]))
         witness_path = folder/'witnesses.json';witness_path.write_text(json.dumps(witness_source))
         rewrite = produce(model(extended, 'before'), model(candidate, 'after'), selected, folder/'proofs',
-                          model(witness_path,'witness-model'))
+                          model(witness_path,'witness-model'), owned_chunk_width=args.owned_chunk_width)
         plan['steps'].append(dict(kind='rewrite', package=rewrite))
         encoded = json.dumps(plan, separators=(',', ':'))+'\n'
         if len(encoded.encode()) > 16_000_000:
