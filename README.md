@@ -955,7 +955,7 @@ unchanged. These measurements are cost data, never equality/range premises.
 
 
 A further twelve observations bind the same source and equality plans to the
-current distribution compiler image, after its GPU/runtime updates. Its held-out
+distribution-source `e62614e33e5d03ea813fca3c388426fb0e417b0f` compiler image. Its held-out
 median of process medians is 6.2775 ms before the rewrite and 0.7075 ms after it;
 the median paired ratio is 8.9576. All three training and all three holdout
 processes pass exact independent results and provided-device counter checks.
