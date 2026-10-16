@@ -328,6 +328,25 @@ class FoldChunks:
             right_call = normalized.get('Call', {}); right_helper = right_call.get('function')
             left_call = (right_call.get('arguments') or [{}])[-1].get('Call', {})
             left_helper = left_call.get('function')
+            if (right_helper in self.helpers and right_call['arguments']
+                    and right_call['arguments'][-1] == helper_values[-1]):
+                # A pure wrapper can forward its owner to another helper,
+                # possibly changing the immutable capture layout. Keep that
+                # boundary instead of expanding the entire helper graph.
+                # Reuse only the prefix construction; close this wrapper with
+                # its own ordinary unfolding and complete universal equation.
+                inner_layout = params, values, right_call['arguments']
+                remaining, builder, inner_law, witness = self.consume(
+                    fold, rows, right_helper, inner_layout)
+                left = call(fold, [call(builder, [suffix]), *values])
+                right = call(fold, [suffix, *values[:-1], invocation])
+                law = self.theorem(prefix_params, left, right, compose([
+                    {'Use': dict(theorem=inner_law, arguments=[suffix, *scope], premises=[])},
+                    self.close_helper(fold, suffix, values[:-1], helper, helper_values, normalized),
+                ]))
+                result = remaining, builder, law, witness
+                self.cache[key] = result
+                return result
             if right_helper in self.helpers and left_helper in self.helpers:
                 if (not left_call.get('arguments') or left_call['arguments'][-1] != values[-1]
                         or any(params[-1][0] in free_variables(t) for t in right_call['arguments'][:-1])):

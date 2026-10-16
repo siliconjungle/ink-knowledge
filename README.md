@@ -866,6 +866,15 @@ otherwise. Normal trained-artifact publication replays and binds either format;
 failed construction/checking never silently changes strategy. General graph/tape
 specialization and automatic profitability remain further work.
 
+Source wrapper exposure now precedes generated chunk expansion, and an ordinary
+universal prefix equation can retain a forwarding helper with its immutable
+capture layout. This composes owned field projection with frozen specialization
+without flattening the full graph into a conversion. The same action checker and
+resource limits apply. A 32-node F32 regression covers the four-step combined
+plan, changing weights, exact snapshots, exceptional values and rollback;
+replacing its selected result still rejects. Proof success does not establish
+profitable unrolling.
+
 Residual workload traversals can remain behind conservative typed pure helpers
 while closed captures specialize. Ordinary generalized induction relates the old
 and new open folds, and prefix laws support fixed, unused and reordered captures.

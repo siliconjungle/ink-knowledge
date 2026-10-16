@@ -215,7 +215,14 @@ class ComputationEquality:
         # rather than that accumulator itself. Expose one checked definition
         # before splitting its result into unrelated constructor fields. Keep
         # its chunk callees opaque so their universal fold bridges remain small.
-        for side, term in [('right', right), ('left', left)]:
+        # Open source wrappers before generated chunks. The wrapper may expose
+        # the original fold, allowing its universal bridge to retain the whole
+        # balanced helper graph. Opening every selected helper first instead
+        # expands the computation into one large conversion with copied live
+        # captures. This is only proposal order; every equation still checks.
+        sides = [('right', right), ('left', left)]
+        sides.sort(key=lambda item: item[1].get('Call', {}).get('function') in self.chunks.helpers)
+        for side, term in sides:
             invocation = term.get('Call')
             if invocation and (invocation['function'] in self.chunks.helpers
                     or (self.chunks.objects[invocation['function']]['payload'].get('declaration',{}).get('Function',{}).get('recursive') is not None
