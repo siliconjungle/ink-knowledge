@@ -861,3 +861,13 @@ bounded authoring strategy when it produces helpers and the direct producer
 otherwise. Normal trained-artifact publication replays and binds either format;
 failed construction/checking never silently changes strategy. General graph/tape
 specialization and automatic profitability remain further work.
+
+
+Generated frozen helpers now share exact typed bodies modulo parameter and
+lexical binder spelling. Callee/free names, literal bits, operand order, types
+and scope remain part of the proposal key. This shares code, never returned
+values or evaluations, and every resulting extension/action equation still
+replays normally. The repeated 32/128-operation examples need 3/5 definitions
+instead of 7/31; unique word chunks retain separate definitions. The standalone
+producer accepts `--helper-layout shared|expanded`, with shared as the default;
+both are explicit, proof-checked layout proposals, not profitability authority.
