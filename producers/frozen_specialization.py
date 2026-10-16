@@ -98,6 +98,7 @@ class Partial:
         self.work = 0
         self.serial = 0
         self.generated = set()
+        self.types = {}
         self.source_text = json.dumps(program)
 
     def fresh(self):
@@ -228,6 +229,8 @@ class Partial:
                 f = self.functions[n]
                 if len(args) == len(f['params']) and any(self.value(x) for x in args):
                     names = [self.fresh() for _ in args]
+                    for fresh, (_, ty) in zip(names, f['params']):
+                        self.types[fresh] = ty
                     body = substitute(f['body'], {p[0]: {'Var': fresh} for p, fresh in zip(f['params'], names)})
                     for (fresh, (_, ty), value) in reversed(list(zip(names, f['params'], args))):
                         body = {'Let': [fresh, ty, value, body]}
