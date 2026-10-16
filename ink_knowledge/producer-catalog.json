@@ -18,6 +18,7 @@
     "producers.v8_word_laws",
     "producers.v8_integer_laws",
     "producers.v8_count_laws",
+    "producers.v8_count_lanes",
     "producers.v8_float_laws",
     "producers.literal_loop_laws",
     "producers.common_subexpressions",

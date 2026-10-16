@@ -1062,3 +1062,17 @@ alternative. Canonical object bytes establish both content identity and exact
 size once, with the original view-wrapper nesting limit preserved. Cache sizing
 combines those lengths with fully canonical outer metadata. The large guarded
 proof packet remains byte-identical and admitted under the unchanged limits.
+
+`producers.v8_count_lanes` offers seven ordinary, independently replayed U64
+count decompositions using existing narrow/shift/U32-count primitives. The
+strict input binding executes once; nested half-word bindings use hygienic
+indices and count only the selected lazy branch. Plain splits, zero guards,
+a one-bit popcount guard and an odd trailing-zero guard remain alternatives.
+The versioned frozen bank carries fixed-counts-v5/shared-select-v3 RUP proofs;
+patterns and its index grant no equality authority. U32/I32 source counts are
+unchanged. Whole-caller measurements decide profitability: dense words can
+benefit while sparse and zero-only workloads retain their original baseline.
+Exact positive and negative development-context observations are retained;
+no global helper replacement, automatic placement rule or general Ink speed
+claim follows. See `tests/test_v8_count_lanes.py` and the distribution's
+`bench/v8-learning/count-lanes` evidence.
