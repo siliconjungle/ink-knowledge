@@ -17,6 +17,26 @@ INK = Path(os.environ.get('INK_COMPILER', ROOT/'target/debug/ink')).resolve()
 
 
 class OpenComputation(unittest.TestCase):
+    def test_large_literal_choice_uses_an_immediate_checked_step(self):
+        fixture = Path(__file__).parent/'fixtures/literal-choice-conversion.json.gz'
+        wire = json.loads(gzip.decompress(fixture.read_bytes()))
+        original = wire['objects'][wire['roots'][0]]['payload']['declaration']['Theorem']
+        chunks = FoldChunks(wire['objects'], [])
+        key = chunks.theorem(original['params'], original['from'], original['to'],
+                             original['proof'], conditions=original['conditions'])
+        theorem = chunks.objects[key]['payload']['declaration']['Theorem']
+        self.assertIn('Step', theorem['proof'])
+        with tempfile.TemporaryDirectory() as temporary:
+            folder = Path(temporary)
+            source = folder/'source.ink'; core = folder/'source.json'
+            source.write_text('module literal_choice;fn f(x:u32)->u32{return x;}')
+            subprocess.run([INK, 'emit-core', source, '-o', core], check=True, capture_output=True)
+            store = Store.publish(folder/'knowledge', list(chunks.objects.values()))
+            view = folder/'view.json'; view.write_bytes(canonical(store.bundle([key])))
+            result = subprocess.run([INK, 'knowledge-check', core, view], capture_output=True,
+                                    text=True, timeout=180)
+            self.assertEqual(result.returncode, 0, result.stderr[-3000:])
+
     def test_network_conversion_uses_factored_definitions_and_rejects_altered_error(self):
         fixture = Path(__file__).parent/'fixtures/open-equation-conversion.json.gz'
         wire = json.loads(gzip.decompress(fixture.read_bytes()))

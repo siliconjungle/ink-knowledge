@@ -1,6 +1,6 @@
 """Untrusted explicit definitional witnesses with live, opaque captures.
 
-Universal call/constructor equations keep actual captures behind typed variables.
+Small checked definition and selector steps preserve typed, opaque captures.
 Every proposed equation still replays in the ordinary kernel.
 """
 from producers.action_replacement import call, cons, convert, var

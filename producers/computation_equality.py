@@ -191,7 +191,10 @@ class ComputationEquality:
         # rather than being re-evaluated inside every transition branch.
         if (not free_variables(a) and not free_variables(z)
                 and ('U64' in z or 'Bool' in z)):
-            lemma = self.chunks.theorem([], a, z, convert(a, z))
+            value, equality = self.closed_computation.evaluate(a)
+            if value != z:
+                raise ValueError('closed computation endpoints differ')
+            lemma = self.chunks.theorem([], a, z, equality)
             return {'Use': dict(theorem=lemma, arguments=[], premises=[])}
         if 'Call' in a and 'Call' in z and a['Call']['function'] == z['Call']['function']:
             x, y = a['Call'], z['Call']

@@ -7,7 +7,7 @@ import tempfile
 from pathlib import Path
 
 MAX_VIEW_ENTRIES = 16_384
-MAX_VIEW_BYTES = 256_000_000
+MAX_VIEW_BYTES = 512_000_000
 MAX_ENTRY_BYTES = 16_000_000
 SNAPSHOT = 'ink-knowledge-snapshot-v1'
 KINDS = {'definition', 'theorem', 'rewrite', 'implementation', 'representation', 'maintenance', 'bridge'}

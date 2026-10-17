@@ -1107,7 +1107,7 @@ updates, events, rollback and exact checkpoints. No performance conclusion or
 complete-network admission follows from these individual checks.
 
 Dependency traversal is iterative under the existing entry-count and integrity
-checks. Whole views share the compiler's 256 MB aggregate byte bound while
+checks. Whole views share the compiler's 512 MB aggregate byte bound while
 individual entries, proof work, proof depth and mathematical JSON meanings keep
 their own checks. All producer answers remain untrusted until kernel replay.
 
@@ -1122,4 +1122,7 @@ leaving unrelated continuation calls opaque. Exact error payloads remain part
 of the equation. The real open-conversion regression replays its complete view
 and rejects an authenticated altered error result; it does not establish full
 network admission or runtime speed. Whole views permit 16,384 entries under the
-same aggregate byte and ordinary individual proof bounds.
+finite aggregate byte allowance and unchanged ordinary individual proof bounds.
+Literal Boolean choices use the same immediate mechanism, including large
+selected continuations. Closed scalar conclusions compose explicit evaluated
+equations rather than requiring broad conversion to compute an entire predicate.

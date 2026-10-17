@@ -1,4 +1,4 @@
-"""Untrusted constructor-step authoring; the kernel computes each conclusion.
+"""Untrusted constructor/Boolean-step authoring; the kernel computes conclusions.
 
 Exact selector steps retain their fixed datatype meaning and lexical scopes.
 No cached producer result supplies equality authority.
@@ -34,6 +34,15 @@ class ConstructorEquations:
         self.chunks.tick()
         if 'Convert' in proof:
             equation = proof['Convert']; left = equation['from']
+            if 'If' in left and 'Bool' in left['If']['condition']:
+                if not free_variables([left, equation['to']]) <= env.keys():
+                    return proof
+                names = {name: name for name in env}
+                term = fresh_alpha(left, names)
+                node = term['If']
+                body = fresh_alpha(node['on_true' if node['condition']['Bool'] else 'on_false'], names)
+                target = fresh_alpha(equation['to'], names)
+                return {'Step': term} if body == target else proof
             if 'Match' not in left or 'Construct' not in left['Match']['scrutinee']:
                 return proof
             if not free_variables([left, equation['to']]) <= env.keys():

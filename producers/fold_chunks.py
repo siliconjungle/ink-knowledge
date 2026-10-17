@@ -153,8 +153,8 @@ class FoldChunks:
         factored = self.constructor_equations.factor(proof, dict(params))
         previous = self.references(declaration) if factored is not proof else set()
         declaration['Theorem']['proof'] = factored
-        # Retain the original visible definitions when a conversion becomes a
-        # use of a selector lemma with its own private dependency scope.
+        # Retain the original visible definitions when an immediate selector
+        # witness replaces conversion inside an existing proof context.
         dependencies = previous | self.references(declaration)
         # Cases and induction introduce fields whose types need not occur in
         # the written endpoints. Import those sorts explicitly: a checked
