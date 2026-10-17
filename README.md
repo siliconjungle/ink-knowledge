@@ -1097,6 +1097,9 @@ opened. Shared constructor aliases stay opaque until their discriminator is
 needed. Open case facts remain explicit conditions on factored theorems;
 removing unused conditions reindexes all local hypotheses. Used facts cannot
 be cached as unconditional truths. Only proof-reachable objects enter a view.
+Match scrutinees are compared directly only when their mathematical types agree;
+different intermediate types can still produce the same projected result through
+ordinary unfolding and cases. Changing a projected branch result still rejects.
 The independently replayed regressions include the closed traversal conversion
 from the authored handoff network, false results, required premises, dynamic
 updates, events, rollback and exact checkpoints. No performance conclusion or

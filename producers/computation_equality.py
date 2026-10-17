@@ -73,7 +73,10 @@ class ComputationEquality:
         if 'Construct' in term:
             return {'Data': term['Construct']['datatype']}
         if 'Call' in term:
-            return self.chunks.objects[term['Call']['function']]['payload']['declaration']['Function']['result']
+            declaration=self.chunks.objects[term['Call']['function']]['payload']['declaration']
+            function=declaration.get('Function',declaration.get('AbstractFunction'))
+            if function is None:raise ValueError('computation equality call type')
+            return function['result']
         if 'If' in term:
             return self.sort(term['If']['on_true'], env)
         if 'Match' in term:
@@ -316,7 +319,8 @@ class ComputationEquality:
             ]))
         if 'Match' in left and 'Match' in right:
             x,y=left['Match'],right['Match']
-            if x['scrutinee'] != y['scrutinee']:
+            if (x['scrutinee'] != y['scrutinee']
+                    and self.sort(x['scrutinee'],env) == self.sort(y['scrutinee'],env)):
                 # Equal sums must share one case split. Splitting each side
                 # independently would introduce unrelated payload variables.
                 hole=self.fresh(set(env)|variables(left)|variables(right),'computation_hole_')
