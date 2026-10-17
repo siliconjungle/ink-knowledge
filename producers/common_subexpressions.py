@@ -1,4 +1,4 @@
-"""Untrusted exact sharing proposals for pure scalar source expressions.
+"""Untrusted exact sharing proposals for pure numeric value expressions.
 
 Lexical scopes are kept separate. Existing lambda/application syntax supplies
 explicit sharing, and every whole-function candidate needs an ordinary Normalize
@@ -11,6 +11,15 @@ from producers.semantic_laws import bound, lam, law, op
 from producers.beta_specialization15 import free_parameters
 
 SCALARS = ('U32', 'U64', 'I32', 'F32', 'Bool')
+
+
+def shareable(sort):
+    if not isinstance(sort, dict) or set(sort) != {'Value'}:
+        return False
+    carrier = sort['Value']
+    while isinstance(carrier, dict) and set(carrier) == {'List'}:
+        carrier = carrier['List']
+    return isinstance(carrier, str) and carrier in SCALARS
 
 
 def barrier(term):
@@ -27,7 +36,7 @@ def candidates(scope):
     while pending:
         term = pending.pop()
         node = term['node']
-        if isinstance(term['sort'], dict) and term['sort'].get('Value') in SCALARS and isinstance(node, dict) and 'Op' in node:
+        if shareable(term['sort']) and isinstance(node, dict) and 'Op' in node:
             key = canonical(term)
             key_bytes += len(key)
             if key_bytes > 2_000_000:

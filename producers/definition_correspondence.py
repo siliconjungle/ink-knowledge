@@ -27,6 +27,8 @@ class DefinitionCorrespondence:
 
     def discover(self, a, z):
         self.chunks.tick()
+        if a == z:
+            return
         if type(a) is not type(z):
             raise ValueError('definition correspondence shape')
         if isinstance(a, dict):
@@ -69,7 +71,9 @@ class DefinitionCorrespondence:
             self.discover(left, right)
             a, z = call(first, args), call(second, args)
             env = dict(params)
-            if f['recursive'] is None:
+            if left == right and f['recursive'] is None:
+                proof = convert(a, z)
+            elif f['recursive'] is None:
                 proof = compose([convert(a, left), self.terms(left, right, env, {}, {}, 0), convert(right, z)])
             else:
                 index = f['recursive']; variable, sort = params[index]

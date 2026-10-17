@@ -1,4 +1,4 @@
-"""Exact scalar sharing stays capture safe and independently checked."""
+"""Exact numeric value sharing stays capture safe and independently checked."""
 import copy
 import json
 import os
@@ -9,9 +9,18 @@ import unittest
 from ink_knowledge import Store,canonical,identity,semantic_entry
 from producers.definition_context28 import bind
 from producers.common_subexpressions import specialize
+from producers.common_subexpressions import shareable
 
 
 class CommonSubexpressions(unittest.TestCase):
+    def test_list_domain_excludes_owners_strings_functions_and_unknown_types(self):
+        for ty in ['U32', 'F32', 'Bool', {'List':'U64'}, {'List':{'List':'I32'}}]:
+            self.assertTrue(shareable({'Value':ty}))
+        for ty in ['String', 'F64', 'Int', {'Buffer':'U32'}, {'List':{'Buffer':'U32'}},
+                   {'List':'String'}, {'Named':'Opaque'}]:
+            self.assertFalse(shareable({'Value':ty}))
+        self.assertFalse(shareable({'Arrow':[{'Value':'U32'},{'Value':'U32'}]}))
+
     def test_source_capture_identity_values_and_forged_sharing(self):
         compiler=Path(os.environ['INK_COMPILER']).resolve()
         source='''module sharing_checks;
@@ -23,6 +32,8 @@ fn floats(x:f32)->f32{return (x*2.0)+(x*2.0);}
 fn conditional(c:Bool,x:u64)->u64{return choose(c,(x*7)+(x*7),0);}
 fn short_circuit(c:Bool,x:u32)->Bool{return c && (x*7+x*7>0);}
 fn separate(xs:List<u32>)->List<u32>{return xs.map(fn(x)=>x+1).concat(xs.map(fn(x)=>x+1));}
+fn list_capture(xs:List<u32>,bias:u32)->List<u32>{return xs.map(fn(x)=>x+bias).concat(xs.map(fn(x)=>x+bias));}
+fn list_conditional(c:Bool,xs:List<u32>)->List<u32>{return choose(c,xs.map(fn(x)=>x*3).concat(xs.map(fn(x)=>x*3)),[]);}
 '''
         with tempfile.TemporaryDirectory()as tmp:
             d=Path(tmp);p=d/'source.ink';core=d/'core.json';semantic=d/'semantic.json';p.write_text(source)
@@ -32,18 +43,21 @@ fn separate(xs:List<u32>)->List<u32>{return xs.map(fn(x)=>x+1).concat(xs.map(fn(
             run('emit-core',p,'-o',core);run('emit-semantic',core,'--core','-o',semantic)
             model=json.loads(core.read_bytes());subject=json.loads(semantic.read_bytes());rows=specialize(subject,model)
             self.assertTrue(rows)
-            self.assertFalse(any('/separate/' in n for n,_ in rows))
+            self.assertTrue(any('/separate/' in n for n,_ in rows))
             for number,(name,raw) in enumerate(rows):
                 proposal=bind(raw,model,subject);obj=semantic_entry(proposal);store=Store.publish(d/('knowledge'+str(number)),[obj])
                 # One whole-function law per packet, independently bound to source.
                 function=name.split('/')[1]
-                if function in ('conditional','short_circuit'):
-                    self.assertEqual(proposal['to']['node']['Op'][0],{'conditional':'call:choose','short_circuit':'binary:&&'}[function])
+                if function in ('conditional','short_circuit','list_conditional'):
+                    self.assertEqual(proposal['to']['node']['Op'][0],{'conditional':'call:choose','short_circuit':'binary:&&','list_conditional':'call:choose'}[function])
                 packet=dict(schema=1,semantics='ink-evidence-v1',input_core_sha256=subject['input_core_sha256'],knowledge=store.bundle([identity(obj)]),
                             applications=[dict(function=function,path=[],law=identity(obj),arguments={n:dict(sort=s,node={'Free':n}) for n,s in proposal['params'].items()},premises=[])])
                 selected=d/'selection.json';selected.write_bytes(canonical(packet));run('check-selection',core,selected)
                 cases={'scalar':[[0],[18446744073709551615]],'sum_twice':[[[]],[[0,4294967295,7]]],
-                       'nested':[[[1,7,4294967295],4294967295]],'shadow':[[[1,7,4294967295],4]],'floats':[[0.0],[-0.0],[1.25],[-3.5]],'conditional':[[False,18446744073709551615],[True,18446744073709551615]],'short_circuit':[[False,4294967295],[True,4294967295]]}
+                       'nested':[[[1,7,4294967295],4294967295]],'shadow':[[[1,7,4294967295],4]],'floats':[[0.0],[-0.0],[1.25],[-3.5]],'conditional':[[False,18446744073709551615],[True,18446744073709551615]],'short_circuit':[[False,4294967295],[True,4294967295]],
+                       'separate':[[[]],[[0,1,4294967295]]],
+                       'list_capture':[[[],4294967295],[[0,1,4294967295],4294967295]],
+                       'list_conditional':[[False,[0,1,4294967295]],[True,[0,1,4294967295]],[True,[]]]}
                 for args in cases[function]:
                     inp=d/'input.json';inp.write_text(json.dumps(args))
                     a=run('run',core,function,inp,'--core');b=run('run',core,function,inp,'--core','--selection',selected)

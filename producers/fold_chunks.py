@@ -42,6 +42,9 @@ class FoldChunks:
         self.closed = set()
         self.unfoldings = {}
         self.acyclic_bodies = {}
+        # Content-addressed declarations stay immutable throughout authoring.
+        # Reuse only their syntactic type dependencies, never a proof verdict.
+        self.signature_references = {}
         self.gates = set()
         for key, obj in self.objects.items():
             f = obj['payload'].get('declaration', {}).get('Function')
@@ -99,16 +102,18 @@ class FoldChunks:
         pending = list(dependencies)
         while pending:
             key = pending.pop()
-            declared = self.objects[key]['payload'].get('declaration', {})
-            if 'Datatype' in declared:
-                signature = declared['Datatype']
-            elif 'Function' in declared:
-                signature = {name: declared['Function'][name] for name in ('params', 'result')}
-            elif 'Theorem' in declared:
-                signature = declared['Theorem']['params']
-            else:
-                continue
-            fields = self.references(signature)
+            if key not in self.signature_references:
+                declared = self.objects[key]['payload'].get('declaration', {})
+                if 'Datatype' in declared:
+                    signature = declared['Datatype']
+                elif 'Function' in declared:
+                    signature = {name: declared['Function'][name] for name in ('params', 'result')}
+                elif 'Theorem' in declared:
+                    signature = declared['Theorem']['params']
+                else:
+                    continue
+                self.signature_references[key] = self.references(signature)
+            fields = self.signature_references[key]
             pending.extend(fields - dependencies)
             dependencies.update(fields)
         obj = entry('theorem', MATH, {'declaration': declaration}, dependencies,
@@ -279,6 +284,8 @@ class FoldChunks:
         """
         if 'Convert' in proof:
             equation = proof['Convert']
+            if equation['from'] == equation['to']:
+                return {'Refl': equation['from']}
             names = sorted(free_variables(equation['from']) | free_variables(equation['to']))
             params = [[name,env[name]] for name in names]
             if any(sort is None for _,sort in params):

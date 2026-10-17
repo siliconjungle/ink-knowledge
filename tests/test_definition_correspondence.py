@@ -44,6 +44,40 @@ def examples(different_constant=False):
 
 
 class Correspondence(unittest.TestCase):
+    def test_unchanged_large_bodies_keep_compact_checked_equations(self):
+        objects = {}
+        functions = []
+        for version in range(2):
+            value, flag = 'value_'+str(version), 'flag_'+str(version)
+            body = var(value)
+            for index in range(8):
+                body = {'If': dict(condition=var(flag), on_true=body,
+                    on_false={'Binary': dict(op='+', left=body, right={'U64': index})})}
+            function = dict(params=[[value, 'U64'], [flag, 'Bool']], result='U64',
+                            recursive=None, body=body)
+            obj = entry('definition', MATH, {'declaration': {'Function': function}},
+                        parameters=dict(function['params']), result='U64')
+            key = identity(obj); objects[key] = obj; functions.append(key)
+        chunks = FoldChunks(objects, [])
+        theorem = DefinitionCorrespondence(chunks).bridge(*functions)
+        proof = chunks.objects[theorem]['payload']['declaration']['Theorem']['proof']
+        self.assertIn('Convert', proof)
+        self.assertLess(len(canonical(proof)), 600)
+        self.assertLess(chunks.work, 500)
+        with tempfile.TemporaryDirectory() as temporary:
+            folder = Path(temporary)
+            source = folder/'source.ink'
+            source.write_text('module compact_correspondence; pub fn f(x:u32)->u32{return x;}')
+            core = folder/'core.json'
+            emitted = subprocess.run([COMPILER, 'emit-core', source, '-o', core],
+                                     capture_output=True, text=True, timeout=120)
+            self.assertEqual(emitted.returncode, 0, emitted.stderr)
+            store = Store.publish(folder/'proofs', list(chunks.objects.values()))
+            view = folder/'view.json'; view.write_bytes(canonical(store.bundle([theorem])))
+            checked = subprocess.run([COMPILER, 'knowledge-check', core, view],
+                                     capture_output=True, text=True, timeout=120)
+            self.assertEqual(checked.returncode, 0, checked.stderr)
+
     def test_two_recursive_children_and_generalized_parameter_replay(self):
         objects, helpers, functions = examples()
         chunks = FoldChunks(objects, [])
