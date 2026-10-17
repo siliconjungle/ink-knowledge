@@ -43,6 +43,25 @@ class ClosedEquations:
             a, b = left['Binary'], right['Binary']
             return {'Binary': dict(op=a['op'], left=self.conversion(a['left'], b['left']),
                                    right=self.conversion(a['right'], b['right']))}
+        if 'Call' in left:
+            invocation=left['Call'];name=invocation['function']
+            function=self.chunks.objects[name]['payload']['declaration'].get('Function')
+            if function:
+                arguments=list(invocation['arguments']);prefix=[];index=function['recursive']
+                if index is not None:
+                    try:exposed=self.chunks.expose(arguments[index])
+                    except ValueError:return convert(left,right)
+                    if exposed!=arguments[index]:
+                        equalities=[{'Refl':argument} for argument in arguments]
+                        equalities[index]=self.conversion(arguments[index],exposed)
+                        prefix.append({'Call':dict(function=name,arguments=equalities)})
+                        arguments[index]=exposed
+                if not hasattr(self,'control_equations'):
+                    from producers.open_equations import OpenEquations
+                    self.control_equations=OpenEquations(self.chunks)
+                body,opening=self.control_equations.opening(call(name,arguments)['Call'],{})
+                reduced,proof=self.control_equations.normalize(body,{},control=True)
+                return compose([*prefix,opening,proof,self.conversion(reduced,right)])
         return convert(left, right)
 
     def factored(self, original, value, proof):

@@ -25,11 +25,11 @@ class FoldChunks:
     # Complete modules include closed validation and many shared call equations,
     # beyond the original small-fold authoring scope. This bounds proposal work
     # only; every object and complete selection retains ordinary kernel limits.
-    MAX_WORK = 4_000_000
+    MAX_WORK = 16_000_000
     MAX_CHUNK = 8
     # Smaller owned leaves trade declaration count for bounded individual
     # equations. A 232-step graph can use 463 balanced one-step helpers; the
-    # complete source, plan bytes and 8,192-entry proof view remain bounded.
+    # complete source, plan bytes and 16,384-entry proof view remain bounded.
     MAX_HELPERS = 512
     MAX_DEPTH = 16
 
@@ -131,7 +131,7 @@ class FoldChunks:
                     value=node[kind];return {kind:dict(value,cases=[dict(case,proof=walk(case['proof'],rewrite)) for case in value['cases']])}
             if 'BoolCases' in node:
                 value=node['BoolCases'];return {'BoolCases':dict(value,on_false=walk(value['on_false'],rewrite),on_true=walk(value['on_true'],rewrite))}
-            if any(kind in node for kind in ['Refl','Convert','GeneralizedHypothesis','BitVector','WordExtensionality']):return node
+            if any(kind in node for kind in ['Refl','Step','Convert','GeneralizedHypothesis','BitVector','WordExtensionality']):return node
             raise ValueError('unsupported condition liveness proof')
         if not count:return proof,list(conditions)
         try:walk(proof)
@@ -147,7 +147,15 @@ class FoldChunks:
         proof,conditions=self.live_conditions(proof,list(conditions))
         declaration = {'Theorem': dict(params=params, conditions=list(conditions),
             **{'from': left, 'to': right}, proof=proof)}
-        dependencies = self.references(declaration)
+        if not hasattr(self, 'constructor_equations'):
+            from producers.constructor_equations import ConstructorEquations
+            self.constructor_equations = ConstructorEquations(self)
+        factored = self.constructor_equations.factor(proof, dict(params))
+        previous = self.references(declaration) if factored is not proof else set()
+        declaration['Theorem']['proof'] = factored
+        # Retain the original visible definitions when a conversion becomes a
+        # use of a selector lemma with its own private dependency scope.
+        dependencies = previous | self.references(declaration)
         # Cases and induction introduce fields whose types need not occur in
         # the written endpoints. Import those sorts explicitly: a checked
         # dependency's private imports are not visible to this theorem.
@@ -558,26 +566,32 @@ class FoldChunks:
 
     def application_layout(self, fold, original, target_params, actual):
         f=self.folds[fold][0]
-        if original==actual and [t for _,t in target_params]==[t for _,t in f['params'][1:]]:
+        from producers.equational import fresh_alpha
+        # Captures may arrive through independently normalized lexical scopes.
+        # Alpha-equivalent syntax proposes the same slot; ordinary bridge replay
+        # still compares every instantiated argument against the selected call.
+        original_keys=[fresh_alpha(term) for term in original]
+        actual_keys=[fresh_alpha(term) for term in actual]
+        if original_keys==actual_keys and [t for _,t in target_params]==[t for _,t in f['params'][1:]]:
             params=[['chunk_dynamic_'+str(i),t] for i,(_,t) in enumerate(f['params'][1:])]
             values=[var(n) for n,_ in params]
             return (params,values,values),original
-        if not actual or actual[-1]!=original[-1] or len(actual)!=len(target_params):
+        if not actual or actual_keys[-1]!=original_keys[-1] or len(actual)!=len(target_params):
             raise ValueError('fold chunk accumulator correspondence')
         params=[];arguments=[];values=[];seen={}
         for index,(term,(_,ty)) in enumerate(zip(original[:-1],f['params'][1:-1])):
-            present=any(term==arg and ty==t for arg,(_,t) in zip(actual[:-1],target_params[:-1]))
+            present=any(original_keys[index]==arg and ty==t for arg,(_,t) in zip(actual_keys[:-1],target_params[:-1]))
             if not present and not free_variables(term):
                 values.append(term);continue
-            key=json.dumps([term,ty],sort_keys=True,separators=(',',':'))
+            key=json.dumps([original_keys[index],ty],sort_keys=True,separators=(',',':'))
             if key not in seen:
                 name='chunk_capture_'+str(index);seen[key]=var(name)
                 params.append([name,ty]);arguments.append(term)
             values.append(seen[key])
         name='chunk_accumulator';params.append([name,f['result']]);arguments.append(original[-1]);values.append(var(name))
         helper_values=[]
-        for term,(_,ty) in zip(actual[:-1],target_params[:-1]):
-            index=next((i for i,(arg,(_,t)) in enumerate(zip(original[:-1],f['params'][1:-1])) if arg==term and t==ty),None)
+        for term,(_,ty) in zip(actual_keys[:-1],target_params[:-1]):
+            index=next((i for i,(arg,(_,t)) in enumerate(zip(original_keys[:-1],f['params'][1:-1])) if arg==term and t==ty),None)
             if index is None:raise ValueError('fold chunk captured argument correspondence')
             helper_values.append(values[index])
         helper_values.append(values[-1])

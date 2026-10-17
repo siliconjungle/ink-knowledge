@@ -6,7 +6,7 @@ import sqlite3
 import tempfile
 from pathlib import Path
 
-MAX_VIEW_ENTRIES = 8192
+MAX_VIEW_ENTRIES = 16_384
 MAX_VIEW_BYTES = 256_000_000
 MAX_ENTRY_BYTES = 16_000_000
 SNAPSHOT = 'ink-knowledge-snapshot-v1'

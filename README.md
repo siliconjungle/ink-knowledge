@@ -1086,8 +1086,9 @@ or rewrite authority.
 
 Owned-carrier leaves default to one operation and remain balanced; explicit
 widths 1, 2, 4 and 8 are available. Plain leaves retain their eight-operation
-bound. At most 512 distinct helpers and four million charged authoring steps
-bound a proposal. Extensions are batched in groups of at most 256, each bound
+bound. At most 512 distinct helpers and four million charged source-proposal steps
+bound expansion. Factored proof construction has a separate sixteen-million-step
+allowance. Extensions are batched in groups of at most 256, each bound
 to its checked predecessor. Exhausted optional action expansion restores that
 action's original body. Final complete proof admission is still mandatory.
 
@@ -1109,3 +1110,16 @@ Dependency traversal is iterative under the existing entry-count and integrity
 checks. Whole views share the compiler's 256 MB aggregate byte bound while
 individual entries, proof work, proof depth and mathematical JSON meanings keep
 their own checks. All producer answers remain untrusted until kernel replay.
+
+Open computation now authors explicit immediate `Step` witnesses for function
+openings and known-constructor cases. The kernel computes each conclusion from
+the checked input rather than accepting a producer's evaluated destination.
+Factored equations retain typed live captures, original definition visibility,
+and capture-avoiding lexical scopes. Matching capture layouts compares alpha
+equivalence while actual argument terms still enter checked instantiation.
+Closed computations can compose these openings with control-only reductions,
+leaving unrelated continuation calls opaque. Exact error payloads remain part
+of the equation. The real open-conversion regression replays its complete view
+and rejects an authenticated altered error result; it does not establish full
+network admission or runtime speed. Whole views permit 16,384 entries under the
+same aggregate byte and ordinary individual proof bounds.

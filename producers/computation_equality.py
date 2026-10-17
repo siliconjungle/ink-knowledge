@@ -6,9 +6,8 @@ their own proof scopes; all proposed equations replay in the existing kernel.
 import json
 
 from producers.action_replacement import call, cons, convert, var
-from producers.equational import fresh_alpha
 from producers.fold_chunks import compose
-from producers.point_delta import binding_names, free_variables, lift, normal, replace, sub, variables
+from producers.point_delta import binding_names, free_variables, lift, replace, sub, variables
 
 
 class ComputationEquality:
@@ -30,38 +29,14 @@ class ComputationEquality:
             if name not in occupied:
                 return name
 
+    def computation(self):
+        if not hasattr(self, 'open_computation'):
+            from producers.open_equations import OpenEquations
+            self.open_computation = OpenEquations(self.chunks)
+        return self.open_computation
+
     def normalize(self, term, env, depth=0):
-        self.chunks.tick()
-        if depth > 64:
-            raise ValueError('computation equality normalization depth')
-        term = normal(term, self.chunks.objects,
-                      opaque=self.chunks.helpers|self.chunks.closed|self.chunks.gates,
-                      blocked=self.chunks.folds,heads=self.chunks.closed,
-                      preserve_closed_calls=True,tick=self.chunks.tick)
-        # The small normalizer deliberately leaves unknown Match branches
-        # untouched. Enter their syntax here, retaining every local binder.
-        def visit(value, nesting):
-            self.chunks.tick()
-            if nesting > 64:
-                raise ValueError('computation equality term depth')
-            if not isinstance(value, dict):
-                raise ValueError('computation equality needs a complete term')
-            if 'Construct' in value and not free_variables(value):
-                return self.chunks.share_data(value)
-            if 'Match' in value:
-                node=value['Match']
-                return {'Match':dict(scrutinee=visit(node['scrutinee'],nesting+1),
-                    branches=[dict(bindings=b['bindings'],body=self.normalize(b['body'],
-                        {**env,**{name:None for name in b['bindings']}},depth+1)) for b in node['branches']])}
-            if 'Call' in value or 'Construct' in value:
-                kind='Call' if 'Call' in value else 'Construct';node=value[kind]
-                return {kind:dict(node,arguments=[visit(arg,nesting+1) for arg in node['arguments']])}
-            if 'Binary' in value:
-                node=value['Binary'];return {'Binary':dict(node,left=visit(node['left'],nesting+1),right=visit(node['right'],nesting+1))}
-            if 'If' in value:
-                node=value['If'];return {'If':{key:visit(child,nesting+1) for key,child in node.items()}}
-            return value
-        return fresh_alpha(visit(term, 0), {name: name for name in env})
+        return self.computation().normalize(term, env, depth)[0]
 
     def sort(self, term, env):
         if 'Var' in term:
@@ -91,7 +66,7 @@ class ComputationEquality:
         raise ValueError('unsupported computation equality sort')
 
     def reduce(self, term, env):
-        value=self.normalize(term,env);steps=[convert(term,value)]
+        value,first=self.computation().normalize(term,env);steps=[first]
         # A case premise can remain hidden behind a subsequently opened pure
         # wrapper. Reapply it to exposed syntax, writing every substitution.
         # These are proof assumptions in their actual scope, never norm-cache
@@ -99,16 +74,16 @@ class ComputationEquality:
         for _ in range(16):
             changed=False
             for equation,index in self.conditions:
-                left=self.normalize(equation['from'],env);right=self.normalize(equation['to'],env)
+                left,first=self.computation().normalize(equation['from'],env)
+                right,last=self.computation().normalize(equation['to'],env)
                 if left==right:continue
                 occupied=set(env)|variables([value,left,right])|binding_names([value,left,right])
                 hole=self.fresh(occupied,'computation_fact_')
                 context=replace(value,left,var(hole))
                 if context==value:continue
-                equality=compose([{'Sym':convert(equation['from'],left)},
-                    {'Hypothesis':index},convert(equation['to'],right)])
+                equality=compose([{'Sym':first},{'Hypothesis':index},last])
                 steps.append(lift(equality,context,hole));value=replace(value,left,right)
-                reduced=self.normalize(value,env);steps.append(convert(value,reduced));value=reduced;changed=True
+                value,equality=self.computation().normalize(value,env);steps.append(equality);changed=True
             if not changed:return value,compose(steps)
         raise ValueError('computation equality conditional reduction budget')
 
