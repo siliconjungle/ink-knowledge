@@ -26,6 +26,22 @@ def reference(value, bound=frozenset()):
 
 
 class BindingFacts(unittest.TestCase):
+    def test_closed_call_preservation_is_scoped_and_work_is_charged(self):
+        objects = {'increment': {'payload': {'declaration': {'Function': dict(
+            params=[['value', 'U64']], result='U64', recursive=None,
+            body=p.binary('+', p.var('value'), {'U64': 1}))}}}}
+        closed = p.call('increment', [{'U64': 4}])
+        self.assertEqual(p.normal(closed, objects), {'U64': 5})
+        self.assertEqual(p.normal(closed, objects, preserve_closed_calls=True), closed)
+        opened = p.call('increment', [p.var('input')])
+        self.assertEqual(p.normal(opened, objects, preserve_closed_calls=True),
+                         p.binary('+', p.var('input'), {'U64': 1}))
+        self.assertEqual(p.normal(closed, objects), {'U64': 5})
+        def exhausted():
+            raise ValueError('authoring work exhausted')
+        with self.assertRaisesRegex(ValueError, 'authoring work exhausted'):
+            p.normal(closed, objects, tick=exhausted)
+
     def test_shared_terms_keep_free_and_bound_occurrences_distinct(self):
         rng = random.Random(719)
         pool = [p.var(n) for n in ['x', 'y', 'z', 'input']]
@@ -67,6 +83,35 @@ class BindingFacts(unittest.TestCase):
         self.assertEqual((term, objects), saved)
         objects['alias']['payload']['declaration']['Function']['body']['Construct']['arguments'][0] = {'U64': 4}
         self.assertEqual(p.normal(term, objects, opaque={'alias'}, heads={'alias'}), {'U64': 4})
+
+    def test_large_borrowed_dag_uses_summaries_after_retained_cache_is_full(self):
+        # Fill the retained cache before a deeply shared continuation. A tree
+        # walk of the continuation would exceed the explicit work allowance.
+        prefix = [p.var('prefix_'+str(i)) for i in range(5000)]
+        shared = p.var('input')
+        for _ in range(30):
+            shared = p.binary('+',shared,shared)
+        term = [prefix,shared]
+        with patch.object(p._BindingFacts,'MAX_WORK',50_000):
+            self.assertEqual(p.free_variables(term),{'input'}|{v['Var'] for v in prefix})
+        with patch.object(p._BindingFacts,'MAX_LOCAL_BYTES',0), patch.object(p._BindingFacts,'MAX_WORK',50_000):
+            with self.assertRaisesRegex(ValueError,'binding facts resource limit'):
+                p.free_variables(term)
+        # A caller mutation cannot reuse the previous walk's borrowed facts.
+        shared['Binary']['right']=p.var('changed')
+        self.assertIn('changed',p.free_variables(term))
+
+    def test_substitution_reuses_its_exact_large_input_summary_across_binders(self):
+        argument = [p.var('input_'+str(i)) for i in range(3000)]
+        term = [p.match(p.var('tag'),[(['local'],p.var('argument'))]) for _ in range(100)]
+        # A fresh analysis of the same capture at every binder would exceed
+        # this total allowance; its borrowed summary is computed once.
+        with patch.object(p._BindingFacts,'MAX_WORK',30_000):
+            result=p.sub(term,{'argument':argument})
+        self.assertIs(result[0]['Match']['branches'][0]['body'],argument)
+        with patch.object(p._BindingFacts,'MAX_WORK',1):
+            with self.assertRaisesRegex(ValueError,'resource limit'):
+                p.sub(term,{'argument':argument})
 
     def test_constructor_head_alias_cycles_fail_boundedly(self):
         definition = lambda body: {'payload': {'declaration': {'Function': dict(

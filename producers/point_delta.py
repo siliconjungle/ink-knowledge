@@ -23,18 +23,41 @@ class _BindingFacts:
     MAX_ENTRIES = 4096
     MAX_BYTES = 2_000_000
     MAX_ENTRY_BYTES = 8192
+    # Borrowed summaries keep no extra syntax alive. Whole-module arguments
+    # can exceed the small retained cache; cache their DAG during this walk
+    # rather than re-expanding shared descendants after 2 MB of metadata.
+    MAX_LOCAL_ENTRIES = 65536
+    MAX_LOCAL_BYTES = 32_000_000
+    MAX_WORK = 1_000_000
 
-    def __init__(self):
+    def __init__(self, borrowed=()):
         self.entries = {}
         self.bytes = 0
+        self.work = [self.MAX_WORK]
+        # sub() already holds these exact inputs for the entire walk. Retain
+        # only their summaries here, even when their unshared size would make
+        # them ineligible for the ordinary object-retaining cache.
+        self.borrowed = {id(value):(value,None) for value in borrowed}
+        self.borrowed_bytes = 0
 
     def of(self, value):
         # During this walk the root keeps every borrowed descendant alive.
         # Large shared subtrees therefore need only bounded summary metadata;
         # no input object is retained after this walk merely for its identity.
-        return self._of(value, {}, [0])
+        saved = self.borrowed.get(id(value))
+        if saved is not None and saved[0] is value and saved[1] is not None:
+            return saved[1]
+        result = self._of(value, {}, [0], self.work, 0)
+        metadata = 1024 + sum(128 + 4*len(name) for name in result[0]|result[1])
+        if saved is not None and self.borrowed_bytes+metadata <= self.MAX_LOCAL_BYTES:
+            self.borrowed[id(value)] = value,result
+            self.borrowed_bytes += metadata
+        return result
 
-    def _of(self, value, local, local_bytes):
+    def _of(self, value, local, local_bytes, work, depth):
+        work[0] -= 1
+        if work[0] < 0 or depth > 256:
+            raise ValueError('binding facts resource limit')
         if not isinstance(value, (dict, list)):
             size = 64 + (4 * len(value) if isinstance(value, str) else 64)
             return frozenset(), frozenset(), min(size, self.MAX_ENTRY_BYTES + 1)
@@ -48,7 +71,7 @@ class _BindingFacts:
         size = 128 + 96 * len(value)
         def add(child, subtract=()):
             nonlocal size
-            names, bindings, weight = self._of(child, local, local_bytes)
+            names, bindings, weight = self._of(child, local, local_bytes, work, depth+1)
             free.update(names - set(subtract)); bound.update(bindings)
             size = min(self.MAX_ENTRY_BYTES + 1, size + weight)
         if isinstance(value, dict) and set(value) == {'Var'}:
@@ -75,7 +98,7 @@ class _BindingFacts:
                 and self.bytes + weight <= self.MAX_BYTES):
             self.entries[id(value)] = value, result
             self.bytes += weight
-        if len(local) < self.MAX_ENTRIES and local_bytes[0] + metadata <= self.MAX_BYTES:
+        if len(local) < self.MAX_LOCAL_ENTRIES and local_bytes[0] + metadata <= self.MAX_LOCAL_BYTES:
             local[id(value)] = result
             local_bytes[0] += metadata
         return result
@@ -83,8 +106,10 @@ class _BindingFacts:
 def free_variables(t,bound=frozenset()):
     return set(_BindingFacts().of(t)[0]) - set(bound)
 def sub(t,m):
-    return _sub(t,m,_BindingFacts())
+    return _sub(t,m,_BindingFacts([t,*m.values()]))
 def _sub(t,m,facts):
+    facts.work[0] -= 1
+    if facts.work[0] < 0:raise ValueError('binding substitution resource limit')
     if isinstance(t,list):return [_sub(x,m,facts) for x in t]
     if not isinstance(t,dict):return t
     if set(t)=={'Var'}:return m.get(t['Var'],t)
@@ -131,7 +156,7 @@ class _CallCache:
     WARMUP_CALLS=32
 
     def __init__(self):
-        self.entries={};self.bytes=0;self.calls=0;self.structural={}
+        self.entries={};self.bytes=0;self.calls=0;self.structural={};self.tick=None;self.preserve_closed_calls=False
 
     @classmethod
     def encode(cls,value):
@@ -166,9 +191,10 @@ class _CallCache:
         self.entries[key]=encoded;self.bytes+=len(key)+len(encoded)
 
 
-def normal(t,objects,depth=0,opaque=(),*,blocked=(),eager=(),heads=()):
+def normal(t,objects,depth=0,opaque=(),*,blocked=(),eager=(),heads=(),tick=None,preserve_closed_calls=False):
     """Authoring computation only. Every proposed reduction is checked by Convert."""
-    return _normal(t,objects,depth,opaque,blocked,eager,heads,_CallCache())
+    cache=_CallCache();cache.tick=tick;cache.preserve_closed_calls=preserve_closed_calls
+    return _normal(t,objects,depth,opaque,blocked,eager,heads,cache)
 
 
 def _constructor_head(term,objects,heads,depth):
@@ -184,11 +210,13 @@ def _constructor_head(term,objects,heads,depth):
 
 
 def _normal(t,objects,depth,opaque,blocked,eager,heads,cache):
+    if cache.tick is not None:cache.tick()
     if depth>96:raise ValueError('point delta producer depth budget')
     recur=lambda t:_normal(t,objects,depth+1,opaque,blocked,eager,heads,cache)
     if not isinstance(t,dict):return t
     if 'Call' in t:
         x=t['Call'];args=[recur(a) for a in x['arguments']];decl=objects[x['function']]['payload']['declaration']
+        if cache.preserve_closed_calls and not free_variables(args):return call(x['function'],args)
         if x['function'] in opaque or 'AbstractFunction' in decl:return call(x['function'],args)
         if x['function'] in blocked and not (x['function']in eager and any('Construct'in a for a in args)):return call(x['function'],args)
         f=decl['Function']

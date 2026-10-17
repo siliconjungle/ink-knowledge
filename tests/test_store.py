@@ -188,14 +188,13 @@ class StoreTests(unittest.TestCase):
             self.assertEqual(canonical(fresh.bundle([identity(self.b)])),canonical(expected))
         with self.assertRaisesRegex(ValueError,'absent from indexed snapshot'):
             fresh.bundle([identity(self.b)])
-    def test_bundle_preserves_depth_and_object_limits_and_closes_failed_exports(self):
+    def test_bundle_accepts_long_dags_preserves_object_limits_and_closes_failed_exports(self):
         objects=[]
         for number in range(66):
             objects.append(entry('definition','test-v1',dict(body=number),[identity(objects[-1])] if objects else []))
         store=Store.publish(self.root,objects);store.rebuild()
         self.assertEqual(len(Store(self.root).bundle([identity(objects[-2])])['objects']),65)
-        with self.assertRaisesRegex(ValueError,'dependency closure limit'):
-            Store(self.root).bundle([identity(objects[-1])])
+        self.assertEqual(len(Store(self.root).bundle([identity(objects[-1])])['objects']),66)
         # A failed read transaction must not retain a lock on the disposable index.
         with closing(sqlite3.connect(self.root/'index.sqlite',timeout=0)) as db,db:
             db.execute('DELETE FROM names')

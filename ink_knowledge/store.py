@@ -7,7 +7,7 @@ import tempfile
 from pathlib import Path
 
 MAX_VIEW_ENTRIES = 8192
-MAX_VIEW_BYTES = 128_000_000
+MAX_VIEW_BYTES = 256_000_000
 MAX_ENTRY_BYTES = 16_000_000
 SNAPSHOT = 'ink-knowledge-snapshot-v1'
 KINDS = {'definition', 'theorem', 'rewrite', 'implementation', 'representation', 'maintenance', 'bridge'}
@@ -335,21 +335,28 @@ class Store:
             if db is not None and not db.execute('SELECT 1 FROM snapshots WHERE id=?',(self.snapshot_id,)).fetchone():
                 self.members();proof_db=None
             object_bytes=0
-            def visit(i,depth):
-                nonlocal object_bytes
-                if i in objects:return
-                if depth>64 or i in active or len(objects)+len(active)>=MAX_VIEW_ENTRIES:raise ValueError('active dependency closure limit')
-                hash_id(i);active.add(i)
-                membership[i]=self._indexed_witness(i,proof_db,verified) if proof_db is not None else self.witness(i)
-                obj=self._read_object(i,pack_db) if pack_db is not None else self._read_object(i)
-                object_bytes+=len(canonical(obj))
-                if object_bytes>MAX_VIEW_BYTES:raise ValueError('active dependency byte limit')
-                for d in obj['dependencies']:visit(d,depth+1)
-                active.remove(i);objects[i]=obj
-            for i in roots:visit(i,0)
+            for root in roots:
+                pending=[(root,False)]
+                staged={}
+                while pending:
+                    i,leaving=pending.pop()
+                    if leaving:
+                        active.remove(i);objects[i]=staged.pop(i)
+                        continue
+                    if i in objects:continue
+                    if i in active or len(objects)+len(active)>=MAX_VIEW_ENTRIES:
+                        raise ValueError('active dependency closure limit')
+                    hash_id(i);active.add(i)
+                    membership[i]=self._indexed_witness(i,proof_db,verified) if proof_db is not None else self.witness(i)
+                    obj=self._read_object(i,pack_db) if pack_db is not None else self._read_object(i)
+                    object_bytes+=len(canonical(obj))
+                    if object_bytes>MAX_VIEW_BYTES:raise ValueError('active dependency byte limit')
+                    staged[i]=obj;pending.append((i,True))
+                    pending.extend((d,False)for d in reversed(obj['dependencies']))
         result=dict(schema=1,snapshot=self.snapshot,roots=roots,objects=dict(sorted(objects.items())),
                     membership={i:membership[i] for i in sorted(objects)})
-        if len(canonical(result))>MAX_VIEW_BYTES:raise ValueError('active dependency byte limit')
+        encoded=canonical(result)
+        if len(encoded)>MAX_VIEW_BYTES:raise ValueError('active dependency byte limit: '+str(len(encoded)))
         return result
     def rebuild(self):
         target=self.root/'index.sqlite'; fd,tmp=tempfile.mkstemp(prefix='.ink-index-',dir=self.root);os.close(fd)

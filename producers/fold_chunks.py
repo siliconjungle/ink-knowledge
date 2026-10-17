@@ -22,12 +22,20 @@ def compose(proofs):
 
 
 class FoldChunks:
-    MAX_WORK = 100_000
+    # Complete modules include closed validation and many shared call equations,
+    # beyond the original small-fold authoring scope. This bounds proposal work
+    # only; every object and complete selection retains ordinary kernel limits.
+    MAX_WORK = 4_000_000
     MAX_CHUNK = 8
-    MAX_HELPERS = 128
+    # Smaller owned leaves trade declaration count for bounded individual
+    # equations. A 232-step graph can use 463 balanced one-step helpers; the
+    # complete source, plan bytes and 8,192-entry proof view remain bounded.
+    MAX_HELPERS = 512
     MAX_DEPTH = 16
 
-    def __init__(self, objects, helpers, *, owned_chunk_width=4):
+    # One owned operation per leaf bounds individual continuation equations.
+    # Plain scalar carriers still use MAX_CHUNK operations per leaf.
+    def __init__(self, objects, helpers, *, owned_chunk_width=1):
         if owned_chunk_width not in (1, 2, 4, 8):
             raise ValueError('owned chunk width must be 1, 2, 4 or 8')
         self.owned_chunk_width = owned_chunk_width
@@ -92,8 +100,52 @@ class FoldChunks:
                 pending.extend(value)
         return found
 
-    def theorem(self, params, left, right, proof):
-        declaration = {'Theorem': dict(params=params, conditions=[],
+    def live_conditions(self, proof, conditions):
+        """Drop unused outer premises; preserve and reindex every local scope.
+
+        This only authors a smaller ordinary theorem. Its proof, including all
+        premise indices and case binders, is independently checked as before.
+        """
+        count=len(conditions);used=set()
+        def walk(node,rewrite=None):
+            self.tick()
+            if 'Hypothesis' in node:
+                index=node['Hypothesis']
+                if rewrite is None:
+                    if index<count:used.add(index)
+                    return node
+                return {'Hypothesis':rewrite(index)}
+            if 'Trans' in node:return {'Trans':[walk(child,rewrite) for child in node['Trans']]}
+            if 'Sym' in node:return {'Sym':walk(node['Sym'],rewrite)}
+            if 'Substitute' in node:
+                value=node['Substitute'];return {'Substitute':dict(value,equality=walk(value['equality'],rewrite))}
+            if 'Use' in node:
+                value=node['Use'];return {'Use':dict(value,premises=[walk(child,rewrite) for child in value['premises']])}
+            for kind in ['Call','Construct']:
+                if kind in node:
+                    value=node[kind];return {kind:dict(value,arguments=[walk(child,rewrite) for child in value['arguments']])}
+            if 'Binary' in node:
+                value=node['Binary'];return {'Binary':dict(value,left=walk(value['left'],rewrite),right=walk(value['right'],rewrite))}
+            for kind in ['Cases','Induction','GeneralizedInduction']:
+                if kind in node:
+                    value=node[kind];return {kind:dict(value,cases=[dict(case,proof=walk(case['proof'],rewrite)) for case in value['cases']])}
+            if 'BoolCases' in node:
+                value=node['BoolCases'];return {'BoolCases':dict(value,on_false=walk(value['on_false'],rewrite),on_true=walk(value['on_true'],rewrite))}
+            if any(kind in node for kind in ['Refl','Convert','GeneralizedHypothesis','BitVector','WordExtensionality']):return node
+            raise ValueError('unsupported condition liveness proof')
+        if not count:return proof,list(conditions)
+        try:walk(proof)
+        except ValueError as error:
+            if str(error)!='unsupported condition liveness proof':raise
+            return proof,list(conditions)
+        selected=sorted(used)
+        if len(selected)==count:return proof,list(conditions)
+        mapping={old:new for new,old in enumerate(selected)}
+        return walk(proof,lambda index:mapping[index] if index<count else index-count+len(selected)),[conditions[i] for i in selected]
+
+    def theorem(self, params, left, right, proof, *, conditions=()):
+        proof,conditions=self.live_conditions(proof,list(conditions))
+        declaration = {'Theorem': dict(params=params, conditions=list(conditions),
             **{'from': left, 'to': right}, proof=proof)}
         dependencies = self.references(declaration)
         # Cases and induction introduce fields whose types need not occur in
@@ -108,6 +160,8 @@ class FoldChunks:
                     signature = declared['Datatype']
                 elif 'Function' in declared:
                     signature = {name: declared['Function'][name] for name in ('params', 'result')}
+                elif 'AbstractFunction' in declared:
+                    signature = {name: declared['AbstractFunction'][name] for name in ('params','result')}
                 elif 'Theorem' in declared:
                     signature = declared['Theorem']['params']
                 else:
@@ -117,21 +171,29 @@ class FoldChunks:
             pending.extend(fields - dependencies)
             dependencies.update(fields)
         obj = entry('theorem', MATH, {'declaration': declaration}, dependencies,
-                    parameters=dict(params))
+                    parameters=dict(params),conditions=list(conditions))
         key = identity(obj); self.objects[key] = obj; self.lemmas.add(key)
         return key
 
     def expose(self, rows):
         seen = set()
-        while 'Call' in rows:
-            self.tick(); invocation = rows['Call']; key = invocation['function']
-            if invocation['arguments'] or key not in self.closed or key in seen:
-                raise ValueError('fold chunk requires closed constructor rows')
-            seen.add(key)
-            rows = self.objects[key]['payload']['declaration']['Function']['body']
-        if 'Construct' not in rows:
-            raise ValueError('fold chunk requires constructor rows')
-        return rows
+        while True:
+            self.tick()
+            if 'Construct' in rows:return rows
+            if 'Call' in rows:
+                invocation=rows['Call'];key=invocation['function']
+                if not invocation['arguments'] and key in self.closed:
+                    if key in seen:raise ValueError('fold chunk requires closed constructor rows')
+                    seen.add(key)
+                    rows=self.objects[key]['payload']['declaration']['Function']['body'];continue
+            if free_variables(rows):raise ValueError('fold chunk requires constructor rows')
+            # A frozen value may still sit behind a closed table lookup or
+            # control expression. Expose that spine, leaving named data shared.
+            # Prefix witnesses below must replay this reduction independently.
+            reduced=normal(rows,self.objects,opaque=self.helpers|self.closed,
+                blocked=self.folds,heads=self.closed,tick=self.tick)
+            if reduced==rows:raise ValueError('fold chunk requires constructor rows')
+            rows=reduced
 
     def share_data(self, term):
         """Factor closed constructor depth into transparent ordinary definitions."""
@@ -414,7 +476,14 @@ class FoldChunks:
                     accumulator = normal(sub(step,bindings),self.objects,
                         opaque=self.helpers|self.closed,blocked=self.folds,heads=self.closed)
                 if matched is None:
-                    raise ValueError('fold chunk has no matching bounded computation')
+                    if not heads:
+                        raise ValueError('fold chunk has no matching bounded computation')
+                    # A nested traversal or an acyclic owner gate can make
+                    # equal leaf computations have different normal forms.
+                    # Propose the bounded prefix just visited; the complete
+                    # universal equation below must prove its computation.
+                    # Neither the leaf width nor this choice grants equality.
+                    matched = current, list(heads)
                 remaining, heads = matched
                 template_key = ('prefix-leaf',fold,helper,json.dumps(heads,sort_keys=True,separators=(',',':')),layout_key)
                 if template_key not in self.cache:
@@ -444,7 +513,17 @@ class FoldChunks:
                             proofs.append(convert(call(fold,[tail,*values[:-1],raw]),call(fold,[tail,*values[:-1],simplified])))
                         current, accumulator = tail, simplified
                     right = call(fold,[suffix,*values[:-1],invocation])
-                    proofs.append(self.close_helper(fold,suffix,values[:-1],helper,helper_values,accumulator))
+                    if alpha_normal(accumulator) == alpha_normal(normalized):
+                        proofs.append(self.close_helper(fold,suffix,values[:-1],helper,helper_values,accumulator))
+                    else:
+                        from producers.computation_equality import ComputationEquality
+                        if not hasattr(self,'leaf_equalities'):
+                            self.leaf_equalities=ComputationEquality(self)
+                        equality=self.leaf_equalities.prove(accumulator,invocation,dict(params))
+                        hole='chunk_leaf_equation_hole'
+                        occupied=variables([accumulator,invocation,*values,suffix])|binding_names([accumulator,invocation])
+                        while hole in occupied:hole+='_'
+                        proofs.append(lift(equality,call(fold,[suffix,*values[:-1],var(hole)]),hole))
                     law = self.theorem(prefix_params,left,right,compose(proofs))
                     self.cache[template_key] = builder, law
                 builder, law = self.cache[template_key]

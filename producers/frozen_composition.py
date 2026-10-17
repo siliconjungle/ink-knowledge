@@ -16,15 +16,17 @@ import tempfile
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from ink_knowledge import Store, identity
-from ink_knowledge.store import entry
+from ink_knowledge.store import entry, MAX_VIEW_BYTES
 from producers.action_replacement import alpha_normal, call, cons, convert, var
 from producers.fold_chunks import FoldChunks, compose
 from producers.frozen_specialization import Partial, substitute, source_free
 from producers.point_delta import free_variables, lift, normal, replace, sub
 
+EXTENSION_BATCH_SIZE = 256
+
 
 class ChunkPartial(Partial):
-    def __init__(self, program, *, share_helpers=True, owned_chunk_width=4, closed_call=None):
+    def __init__(self, program, *, share_helpers=True, owned_chunk_width=1, closed_call=None):
         super().__init__(program, closed_call=closed_call)
         if owned_chunk_width not in (1, 2, 4, 8):
             raise ValueError('owned chunk width must be 1, 2, 4 or 8')
@@ -255,7 +257,7 @@ class ChunkPartial(Partial):
         return self.expr(invocation,{},active,depth+1) if all(self.value(a) for a in arguments) else invocation
 
 
-def propose_source(source, *, share_helpers=True, owned_chunk_width=4, closed_call=None):
+def propose_source(source, *, share_helpers=True, owned_chunk_width=1, closed_call=None):
     selected = copy.deepcopy(source); partial = ChunkPartial(selected['program'], share_helpers=share_helpers,
                                                            owned_chunk_width=owned_chunk_width, closed_call=closed_call)
     for action in selected['program']['actions']:
@@ -311,14 +313,14 @@ def witness_helpers(selected, helpers):
             and all(partial.plain(t) for _, t in f['params'])]
 
 
-def comparison_chunks(before_objects, after_objects, witness_objects=None, *, owned_chunk_width=4):
+def comparison_chunks(before_objects, after_objects, witness_objects=None, *, owned_chunk_width=1, pure_helpers=None):
     """Prepare untrusted universal fold bridges for source correspondence."""
     objects = {**(witness_objects or {}), **before_objects, **after_objects}
     helpers = set()
     for key, obj in objects.items():
         function = obj['payload'].get('declaration', {}).get('Function')
         if (key not in before_objects and function and function['params']
-                and function['params'][0][0] == 'pure_arg_0'):
+                and (key in pure_helpers if pure_helpers is not None else function['params'][0][0] == 'pure_arg_0')):
             helpers.add(key)
     chunks = FoldChunks(objects, helpers, owned_chunk_width=owned_chunk_width)
     recursive = {key for key,obj in objects.items() if obj['payload'].get('declaration',{}).get('Function',{}).get('recursive') is not None}
@@ -362,18 +364,23 @@ def comparison_chunks(before_objects, after_objects, witness_objects=None, *, ow
     return chunks
 
 
-def produce(before, after, selected, directory, witnesses=None, *, owned_chunk_width=4):
-    if (before['semantics'] != 'ink-action-transition-v1' or after['semantics'] != before['semantics']
+def produce(before, after, selected, directory, witnesses=None, *, owned_chunk_width=1):
+    if (before['semantics'] not in ('ink-action-transition-v1', 'ink-action-transition-v2') or after['semantics'] != before['semantics']
             or not before.get('frozen_domain') or before['frozen_domain'] != after.get('frozen_domain')
             or before['state'] != after['state'] or before['events'] != after['events']):
         raise ValueError('frozen composition projection/domain mismatch')
+    pure_helpers = None
+    if before['semantics'] == 'ink-action-transition-v2':
+        pure_helpers = {f['function'] for model in [after, witnesses or {}]
+                        for f in model.get('pure_functions', {}).values()}
     chunks = comparison_chunks(before['objects'], after['objects'],
-        (witnesses or {}).get('objects'), owned_chunk_width=owned_chunk_width)
+        (witnesses or {}).get('objects'), owned_chunk_width=owned_chunk_width, pure_helpers=pure_helpers)
     helpers = chunks.helpers
     objects = {**(witnesses or {}).get('objects', {}), **before['objects'], **after['objects']}
     fixed = [chunks.share(e['to']) for e in before['frozen_domain']]
     opaque = helpers | chunks.closed | chunks.gates
     proofs = {}
+    equality = None
     for name, old in before['actions'].items():
         new = after['actions'][name]; args = [var(n) for n, _ in old['params']]
         old_call, new_call = call(old['function'], args), call(new['function'], args)
@@ -432,10 +439,12 @@ def produce(before, after, selected, directory, witnesses=None, *, owned_chunk_w
             if str(error) != 'frozen composition has unmatched source structure':
                 raise
             from producers.computation_equality import ComputationEquality
+            if equality is None:
+                equality = ComputationEquality(chunks)
             fields = chunks.objects[before['state']]['payload']['declaration']['Datatype']['constructors'][0]['fields']
             env = {n:t for n,t in old['params'] if n!='initial'}
             env.update(zip(old['case']['bindings'],fields))
-            steps += [ComputationEquality(chunks).prove(left,right,env,len(before['frozen_domain'])), {'Sym': backward}]
+            steps += [equality.prove(left,right,env,len(before['frozen_domain'])), {'Sym': backward}]
         else:
             for a, z in opportunities:
                 _, proofs_at_site = align(a, z)
@@ -451,24 +460,31 @@ def produce(before, after, selected, directory, witnesses=None, *, owned_chunk_w
             proof = chunks.factor_conversions(proof,env)
         proofs[name] = {'Cases': dict(variable='initial', **{'from': old_call, 'to': new_call},
             cases=[dict(bindings=old['case']['bindings'], proof=proof)])}
-    roots = {a['function'] for m in [before, after] for a in m['actions'].values()} | chunks.lemmas
+    # Import the equations actually used by these complete proofs. Search may
+    # have built unused intermediate proposals; their presence in an authoring
+    # cache is neither admission nor a reason to inflate the checked view.
+    roots = {a['function'] for m in [before, after] for a in m['actions'].values()} | chunks.references(proofs)
     # Preserve exact immutable-source definitions even when selected actions
     # stop reading them. Membership is checked independently of theorem truth.
     for equation in before['frozen_domain']:
         roots.update(chunks.references(equation))
     store = Store.publish(directory, list(chunks.objects.values()))
+    replacement = dict(selected=selected, proofs=proofs)
+    if before['semantics'] == 'ink-action-transition-v2':
+        replacement['projection'] = 'structural-v2'
     return dict(schema=1, semantics='ink-evidence-v1', input_core_sha256=before['source'],
-        knowledge=store.bundle(sorted(roots)), applications=[],
-        action_replacement=dict(selected=selected, proofs=proofs))
+        knowledge=store.bundle(sorted(roots)), applications=[], action_replacement=replacement)
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('source', type=Path); parser.add_argument('--ink', required=True, type=Path)
     parser.add_argument('-o', '--output', required=True, type=Path)
+    parser.add_argument('--projection', choices=['legacy', 'structural-v2'], default='structural-v2',
+                        help='explicit source correspondence version, independently re-derived by checking')
     parser.add_argument('--helper-layout', choices=['shared', 'expanded'], default='shared',
                         help='explicit code layout proposal; both layouts require complete proofs')
-    parser.add_argument('--owned-chunk-width', type=int, choices=[1, 2, 4, 8], default=4,
+    parser.add_argument('--owned-chunk-width', type=int, choices=[1, 2, 4, 8], default=1,
                         help='explicit owned-helper leaf size; proof and profitability remain separate')
     args = parser.parse_args()
     if args.source.stat().st_size > 16_000_000:
@@ -486,18 +502,25 @@ def main():
             result = subprocess.run([str(args.ink.resolve()), *map(str, command)], capture_output=True)
             result.check_returncode()
         def model(core, name):
-            path = folder/(name+'.json'); run('emit-action-model', core, '--core', '-o', path)
+            path = folder/(name+'.json'); run('emit-action-model', core, '--core', '--projection', args.projection, '-o', path)
             return json.loads(path.read_bytes())
         original = model(args.source, 'original')
-        obj = entry('definition', 'ink-source-extension-v1', dict(functions=helpers)); key = identity(obj)
-        store = Store.publish(folder/'extensions', [obj])
-        request = dict(schema=1, semantics='ink-source-extension-v1', input_core_sha256=original['source'],
-            knowledge=store.bundle([key]), extension=key)
         plan = dict(schema=1, semantics='ink-compiled-plan-v1', input_core_sha256=original['source'],
-                    steps=[dict(kind='extension', package=request)])
-        packet = folder/'plan.json'; packet.write_text(json.dumps(plan, separators=(',', ':')))
-        state = folder/'state.json'; run('check-plan', args.source, packet, '--core', '--state-out', state)
-        extended = folder/'extended.json'; extended.write_text(json.dumps(json.loads(state.read_bytes())['core']))
+                    steps=[])
+        packet = folder/'plan.json'; state = folder/'state.json'; current=original['source']
+        # Compose the existing bounded extension contract. Each batch binds
+        # its exact checked predecessor; no larger trusted admission is needed
+        # merely because smaller leaves require more helper declarations.
+        for start in range(0,len(helpers),EXTENSION_BATCH_SIZE):
+            obj=entry('definition','ink-source-extension-v1',dict(functions=helpers[start:start+EXTENSION_BATCH_SIZE]))
+            key=identity(obj);store=Store.publish(folder/('extensions-'+str(start)),[obj])
+            request=dict(schema=1,semantics='ink-source-extension-v1',input_core_sha256=current,
+                         knowledge=store.bundle([key]),extension=key)
+            plan['steps'].append(dict(kind='extension',package=request))
+            packet.write_text(json.dumps(plan,separators=(',',':')))
+            run('check-plan',args.source,packet,'--core','--state-out',state)
+            checked=json.loads(state.read_bytes());current=checked['source']
+        extended = folder/'extended.json'; extended.write_text(json.dumps(checked['core']))
         candidate = folder/'selected.json'; candidate.write_text(json.dumps(selected))
         # A completely evaluated helper is absent from the selected actions'
         # reachable projection. Project it through an auxiliary pure query so
@@ -518,7 +541,7 @@ def main():
                           model(witness_path,'witness-model'), owned_chunk_width=args.owned_chunk_width)
         plan['steps'].append(dict(kind='rewrite', package=rewrite))
         encoded = json.dumps(plan, separators=(',', ':'))+'\n'
-        if len(encoded.encode()) > 16_000_000:
+        if len(encoded.encode()) > MAX_VIEW_BYTES:
             raise ValueError('frozen composition plan byte budget')
         packet.write_text(encoded); run('check-plan', args.source, packet, '--core')
         args.output.parent.mkdir(parents=True, exist_ok=True)
@@ -532,7 +555,7 @@ def main():
         finally:
             if pending is not None:
                 pending.unlink(missing_ok=True)
-    print(json.dumps(dict(status='checked-proposal', helpers=len(helpers), steps=2,
+    print(json.dumps(dict(status='checked-proposal', helpers=len(helpers), steps=len(plan['steps']),
         profitability='unmeasured; explicit selection only')))
 
 

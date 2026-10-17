@@ -1076,3 +1076,33 @@ Exact positive and negative development-context observations are retained;
 no global helper replacement, automatic placement rule or general Ink speed
 claim follows. See `tests/test_v8_count_lanes.py` and the distribution's
 `bench/v8-learning/count-lanes` evidence.
+
+Complete frozen-action authoring now defaults to `structural-v2` projection.
+Canonical lexical binders and minimal source imports keep unchanged helper
+identities stable when source extensions add unrelated declarations; the checker
+re-derives the selected mode and all reachable source definitions. Legacy
+projection remains an explicit authoring option. Metadata is never equality
+or rewrite authority.
+
+Owned-carrier leaves default to one operation and remain balanced; explicit
+widths 1, 2, 4 and 8 are available. Plain leaves retain their eight-operation
+bound. At most 512 distinct helpers and four million charged authoring steps
+bound a proposal. Extensions are batched in groups of at most 256, each bound
+to its checked predecessor. Exhausted optional action expansion restores that
+action's original body. Final complete proof admission is still mandatory.
+
+Closed computations use explicit call equations and ordinary traversal-step
+lemmas, with congruence proving changed arguments before a continuation is
+opened. Shared constructor aliases stay opaque until their discriminator is
+needed. Open case facts remain explicit conditions on factored theorems;
+removing unused conditions reindexes all local hypotheses. Used facts cannot
+be cached as unconditional truths. Only proof-reachable objects enter a view.
+The independently replayed regressions include the closed traversal conversion
+from the authored handoff network, false results, required premises, dynamic
+updates, events, rollback and exact checkpoints. No performance conclusion or
+complete-network admission follows from these individual checks.
+
+Dependency traversal is iterative under the existing entry-count and integrity
+checks. Whole views share the compiler's 256 MB aggregate byte bound while
+individual entries, proof work, proof depth and mathematical JSON meanings keep
+their own checks. All producer answers remain untrusted until kernel replay.
