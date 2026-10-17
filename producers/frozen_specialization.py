@@ -77,6 +77,8 @@ def literal(ty, value, program, depth=0):
         return {'Num': value}
     if ty == 'Bool' and type(value) is bool:
         return {'Bool': value}
+    if ty == 'String' and isinstance(value, str):
+        return {'String': value}
     if ty == 'F32':
         if isinstance(value, dict) and set(value) == {'F32Bits'}:
             bits = value['F32Bits']
@@ -119,7 +121,7 @@ def literal(ty, value, program, depth=0):
 
 
 class Partial:
-    def __init__(self, program):
+    def __init__(self, program, *, closed_call=None):
         self.program = program
         self.functions = {f['name']: f for f in program['functions']}
         self.roots = {s['name']: s['ty']['Table'] for s in program['states']}
@@ -130,6 +132,11 @@ class Partial:
         self.types = {}
         self.contextual = set()
         self.source_text = json.dumps(program)
+        self.keeps = {k['name']: k['value'] for k in program.get('keeps', [])}
+        self.keep_values = {}
+        self.active_keeps = set()
+        self.closed_call = closed_call
+        self.retain_keeps = 0
 
     def fresh(self):
         while True:
@@ -149,7 +156,7 @@ class Partial:
             return True
         if not isinstance(e, dict):
             return False
-        if any(k in e for k in ('Num', 'Bool')):
+        if any(k in e for k in ('Num', 'Bool', 'String')):
             return True
         if 'Float' in e:
             return not equality
@@ -275,6 +282,67 @@ class Partial:
             values.append(result)
         return {'Call':['list',values]}
 
+    def closed_keep(self, name, active, depth):
+        # Only complete immutable values cross the keep's lexical boundary.
+        # Dynamic keeps remain reads of the current state, never cached hints.
+        if name in self.keep_values:
+            return copy.deepcopy(self.keep_values[name])
+        if name not in self.keeps or name in self.active_keeps:
+            return None
+        names = ['serial','generated','contextual','types','functions','helpers','helper_index','helper_names']
+        snapshot = {key: copy.copy(getattr(self,key)) for key in names if hasattr(self,key)}
+        self.active_keeps.add(name)
+        try:
+            value = self.expr(self.keeps[name], {}, active, depth+1)
+        finally:
+            self.active_keeps.remove(name)
+        if self.value(value):
+            self.keep_values[name] = copy.deepcopy(value)
+            return value
+        for key, saved in snapshot.items():
+            setattr(self,key,saved)
+        return None
+
+    def sum_callback(self, base, name, args, env, active, depth):
+        if not self.value(base):
+            return None
+        if base == {'Var': 'None'}:
+            arm, payload = 'None', 'Unit'
+        elif isinstance(base, dict) and base.get('Call', [None])[0] in ('Some','Ok','Err'):
+            arm, values = base['Call']
+            if len(values) != 1:
+                return None
+            payload = values[0]
+        else:
+            return None
+        if name == 'fold' and len(args) == 2:
+            callback = args[0 if arm in ('Some','Ok') else 1]
+            constructor = None
+        elif name in ('map','map_err') and len(args) == 1:
+            selected = arm in ('Some','Ok') if name == 'map' else arm == 'Err'
+            if not selected:
+                return base
+            callback, constructor = args[0], arm
+        else:
+            return None
+        if not isinstance(callback, dict) or 'Lambda' not in callback:
+            return None
+        parameter, body = callback['Lambda']
+        value = self.expr(body, {**env, parameter: payload}, active, depth+1)
+        return value if constructor is None else {'Call': [constructor, [value]]}
+
+    def known_type(self, value):
+        if isinstance(value, dict) and 'Var' in value:
+            return self.types.get(value['Var'])
+        if isinstance(value, dict) and 'Record' in value:
+            return {'Named': value['Record'][0]}
+        if isinstance(value, dict) and 'Field' in value:
+            base, field = value['Field']
+            ty = self.known_type(base)
+            if isinstance(ty, dict) and 'Named' in ty:
+                return dict(self.program['records'].get(ty['Named'], [])).get(field)
+        return None
+
     def inline_call(self, function, args, active, depth):
         names = [self.fresh() for _ in args]
         for fresh, (_, ty) in zip(names, function['params']):
@@ -291,18 +359,22 @@ class Partial:
         if not isinstance(e, dict):
             return e
         if 'Var' in e:
-            return copy.deepcopy(env.get(e['Var'], e))
+            name = e['Var']
+            if name in env:
+                return copy.deepcopy(env[name])
+            value = None if self.retain_keeps else self.closed_keep(name, active, depth)
+            return copy.deepcopy(e) if value is None else value
         if 'Let' in e:
             n, ty, value, body = e['Let']
             value = rec(value)
-            local = {k: v for k, v in env.items() if k != n}
+            local = {**env, n: {'Var': n}}
             if self.value(value) and n not in self.contextual:
                 local[n] = value
                 return self.expr(body, local, active, depth+1)
             return {'Let': [n, ty, value, self.expr(body, local, active, depth+1)]}
         if 'Lambda' in e:
             n, body = e['Lambda']
-            return {'Lambda': [n, self.expr(body, {k: v for k, v in env.items() if k != n}, active, depth+1)]}
+            return {'Lambda': [n, self.expr(body, {**env, n: {'Var': n}}, active, depth+1)]}
         if 'Field' in e:
             base, name = e['Field']
             base = rec(base)
@@ -320,6 +392,10 @@ class Partial:
                     return rec(args[1 if condition['Bool'] else 2])
                 return {'Call': [n, [condition, rec(args[1]), rec(args[2])]]}
             args = [rec(x) for x in args]
+            if self.closed_call is not None and n in self.functions and all(self.value(x) for x in args):
+                value = self.closed_call(n, args)
+                if value is not None and self.value(value):
+                    return value
             if n not in self.functions:
                 value = self.constant_call(n,args)
                 if value is not None:
@@ -338,8 +414,17 @@ class Partial:
             return {'Call': [n, args]}
         if 'Method' in e:
             base, name, args = e['Method']
+            receiver_type = self.known_type(base)
             base = rec(base)
-            args = [rec(x) for x in args]
+            value = self.sum_callback(base, name, args, env, active, depth)
+            if value is not None:
+                return value
+            retain = name == 'unwrap_or' and not self.value(base)
+            self.retain_keeps += retain
+            try:
+                args = [rec(x) for x in args]
+            finally:
+                self.retain_keeps -= retain
             if name == 'map' and len(args) == 1:
                 value = self.closed_map(base,args[0],active,depth)
                 if value is not None: return value
@@ -362,6 +447,15 @@ class Partial:
                     return args[0]
                 if isinstance(base, dict) and base.get('Call', [None])[0] == 'Some':
                     return base['Call'][1][0]
+            if (self.value(base) and isinstance(receiver_type, dict) and 'List' in receiver_type
+                    and isinstance(base, dict) and base.get('Call', [None])[0] == 'list'):
+                # A literal has no element-width syntax. Preserve the original
+                # receiver's checked type when a residual callback still needs
+                # it (for example a List<u32> of graph output indices).
+                fresh = self.fresh()
+                self.types[fresh] = receiver_type
+                self.contextual.add(fresh)
+                return {'Let': [fresh, receiver_type, base, {'Method': [{'Var': fresh}, name, args]}]}
             return {'Method': [base, name, args]}
         if 'Binary' in e:
             op, a, z = e['Binary']
@@ -381,6 +475,8 @@ class Partial:
         if 'Neg' in e or 'Try' in e:
             k = next(iter(e))
             value = rec(e[k])
+            if k == 'Try' and self.value(value) and isinstance(value, dict) and value.get('Call', [None])[0] == 'Ok':
+                return value['Call'][1][0]
             if k == 'Neg':
                 folded = self.scalar('neg',value)
                 if folded is not None: return folded
@@ -394,7 +490,7 @@ class Partial:
             if 'Let' in statement:
                 n, ty, value = statement['Let']
                 value = self.expr(value, env)
-                env.pop(n, None)
+                env[n] = {'Var': n}
                 if self.value(value) and n not in self.contextual:
                     env[n] = value
                 else:
@@ -419,11 +515,11 @@ class Partial:
         return result
 
 
-def specialize(source):
+def specialize(source, *, closed_call=None):
     selected = copy.deepcopy(source)
-    partial = Partial(selected['program'])
+    partial = Partial(selected['program'], closed_call=closed_call)
     for action in selected['program']['actions']:
-        action['body'] = partial.statements(action['body'])
+        action['body'] = partial.statements(action['body'], {n: {'Var': n} for n, _ in action.get('params', [])})
     return selected
 
 
@@ -536,7 +632,8 @@ def main():
     if a.source.stat().st_size > 16000000:
         raise ValueError('source byte limit')
     source = json.loads(a.source.read_bytes())
-    selected = specialize(source)
+    from producers.closed_reference_calls import ReferenceCalls
+    selected = specialize(source, closed_call=ReferenceCalls(a.source, a.ink))
     a.output.parent.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix='ink-frozen-proposal-') as temp:
         temp = Path(temp)

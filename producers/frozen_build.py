@@ -26,7 +26,9 @@ def main():
     args = parser.parse_args()
     if args.source.stat().st_size > 16_000_000:
         raise ValueError('frozen build source byte limit')
-    _, helpers = frozen_composition.propose_source(json.loads(args.source.read_bytes()))
+    from producers.closed_reference_calls import ReferenceCalls
+    _, helpers = frozen_composition.propose_source(json.loads(args.source.read_bytes()),
+                                                 closed_call=ReferenceCalls(args.source, args.ink))
     (frozen_composition if helpers else frozen_specialization).main()
 
 

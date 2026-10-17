@@ -24,8 +24,8 @@ from producers.point_delta import free_variables, lift, normal, replace, sub
 
 
 class ChunkPartial(Partial):
-    def __init__(self, program, *, share_helpers=True, owned_chunk_width=4):
-        super().__init__(program)
+    def __init__(self, program, *, share_helpers=True, owned_chunk_width=4, closed_call=None):
+        super().__init__(program, closed_call=closed_call)
         if owned_chunk_width not in (1, 2, 4, 8):
             raise ValueError('owned chunk width must be 1, 2, 4 or 8')
         self.owned_chunk_width = owned_chunk_width
@@ -51,6 +51,8 @@ class ChunkPartial(Partial):
         still decide admission independently of the key.
         """
         if not self.share_helpers:
+            if len(self.helpers) >= FoldChunks.MAX_HELPERS:
+                raise ValueError('frozen composition helper budget')
             self.helpers.append(function)
             self.helper_names.add(function['name']);self.functions[function['name']]=function
             return function['name']
@@ -79,6 +81,8 @@ class ChunkPartial(Partial):
         key = json.dumps([[ty for _, ty in function['params']], function['result'],
                           visit(function['body'], bindings)], sort_keys=True, separators=(',', ':'))
         if key not in self.helper_index:
+            if len(self.helpers) >= FoldChunks.MAX_HELPERS:
+                raise ValueError('frozen composition helper budget')
             self.helper_index[key] = function['name']
             self.helpers.append(function)
             self.helper_names.add(function['name']);self.functions[function['name']]=function
@@ -116,8 +120,6 @@ class ChunkPartial(Partial):
             # Dynamic arguments retain their original order, including unused
             # arguments. The conservative extension and complete action proof
             # still establish legality; this is no cached equality verdict.
-            if len(self.helpers) >= FoldChunks.MAX_HELPERS:
-                raise ValueError('frozen composition helper budget')
             helper = self.intern(dict(name=self.fresh(),params=[[n,t] for n,t,_ in dynamic],
                                       result=function['result'],body=body))
             return {'Call': [helper,[value for _,_,value in dynamic]]}
@@ -143,6 +145,9 @@ class ChunkPartial(Partial):
         return False
 
     def known_type(self, value):
+        inherited = super().known_type(value)
+        if inherited is not None:
+            return inherited
         if not isinstance(value, dict):
             return 'Unit' if value == 'Unit' else None
         if 'Var' in value:
@@ -211,7 +216,7 @@ class ChunkPartial(Partial):
         # the full owned computation into one proof term.
         width = FoldChunks.MAX_CHUNK if self.plain(result) else min(self.owned_chunk_width, FoldChunks.MAX_CHUNK)
         count = (len(values) + width - 1) // width
-        if len(self.helpers) + 2*count-1 > FoldChunks.MAX_HELPERS:
+        if 2*count-1 > FoldChunks.MAX_HELPERS:
             raise ValueError('frozen composition helper budget')
         names = [self.fresh() for _ in range(count)]
         capture_params = [[n, self.types[n]] for n in captures]
@@ -250,12 +255,26 @@ class ChunkPartial(Partial):
         return self.expr(invocation,{},active,depth+1) if all(self.value(a) for a in arguments) else invocation
 
 
-def propose_source(source, *, share_helpers=True, owned_chunk_width=4):
+def propose_source(source, *, share_helpers=True, owned_chunk_width=4, closed_call=None):
     selected = copy.deepcopy(source); partial = ChunkPartial(selected['program'], share_helpers=share_helpers,
-                                                           owned_chunk_width=owned_chunk_width)
+                                                           owned_chunk_width=owned_chunk_width, closed_call=closed_call)
     for action in selected['program']['actions']:
         partial.types = dict(action['params'])
-        action['body'] = partial.statements(action['body'])
+        # Optional expansion is transactional per complete action. A large
+        # training action must not discard already constructed serving code.
+        # Work remains charged; exhaustion never raises an existing limit.
+        names = ['serial','generated','contextual','types','functions','helpers',
+                 'helper_index','helper_names','keep_values']
+        snapshot = {key: copy.copy(getattr(partial,key)) for key in names}
+        try:
+            body = partial.statements(action['body'], {n: {'Var': n} for n, _ in action['params']})
+        except ValueError as error:
+            if str(error) not in ('frozen composition helper budget', 'frozen specialization work budget'):
+                raise
+            for key, saved in snapshot.items():
+                setattr(partial,key,saved)
+        else:
+            action['body'] = body
     selected['program']['functions'].extend(partial.helpers)
     return selected, partial.helpers
 
@@ -455,8 +474,10 @@ def main():
     if args.source.stat().st_size > 16_000_000:
         raise ValueError('frozen composition source byte limit')
     source = json.loads(args.source.read_bytes())
+    from producers.closed_reference_calls import ReferenceCalls
     selected, helpers = propose_source(source, share_helpers=args.helper_layout == 'shared',
-                                      owned_chunk_width=args.owned_chunk_width)
+                                      owned_chunk_width=args.owned_chunk_width,
+                                      closed_call=ReferenceCalls(args.source, args.ink))
     if not helpers:
         raise ValueError('no admitted closed traversal chunk opportunity')
     with tempfile.TemporaryDirectory(prefix='ink-frozen-composition-') as folder:

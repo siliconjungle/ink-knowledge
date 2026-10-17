@@ -317,8 +317,9 @@ query serve(input:u32)->u32 reads(Code){return evaluate(Code.get(0).unwrap_or([]
             folder = Path(directory); _, source = self.fixture(folder)
             original = copy.deepcopy(source)
             with patch.object(FoldChunks, 'MAX_HELPERS', 1):
-                with self.assertRaisesRegex(ValueError, 'helper budget'):
-                    propose_source(source)
+                selected, helpers = propose_source(source)
+            self.assertEqual(helpers, [])
+            self.assertEqual(selected, source)
             self.assertEqual(source, original)
             core = folder/'core.json'; core.write_text(json.dumps(source))
             output = folder/'existing.json'; output.write_text('retained previous artifact')
